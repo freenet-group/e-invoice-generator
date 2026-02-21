@@ -1,0 +1,683 @@
+service: mcbs-zugferd-converter
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: eu-central-1
+  stage: ${opt:stage, 'dev'}
+  
+  # Lambda Defaults
+  memorySize: 2048  # 2 GB
+  timeout: 60       # 60 Sekunden
+  
+  # Environment Variables
+  environment:
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    DEDUP_TABLE_NAME: !Ref DeduplicationTable
+    DLQ_QUEUE_URL: !Ref InvoiceProcessingDLQ
+    BILLING_TABLE_NAME: ${self:custom.billingTableName}
+    PDF_BUCKET_NAME: ${self:custom.pdfBucketName}
+    OUTPUT_BUCKET_NAME: mcbs-invoices-${self:provider.stage}
+    STAGE: ${self:provider.stage}
+  
+  # IAM Permissions
+  iam:
+    role:
+      statements:
+        # S3 Permissions
+        - Effect: Allow
+          Action:
+            - s3:GetObject
+            - s3:PutObject
+            - s3:HeadObject
+          Resource:
+            - arn:aws:s3:::mcbs-invoices-${self:provider.stage}/*
+            - arn:aws:s3:::${self:custom.pdfBucketName}/*
+        
+        # DynamoDB Permissions (Deduplication)
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:GetItem
+            - dynamodb:Query
+          Resource:
+            - !GetAtt DeduplicationTable.Arn
+        
+        # DynamoDB Permissions (AWS Billing Invoices)
+        - Effect: Allow
+          Action:
+            - dynamodb:GetItem
+            - dynamodb:Query
+            - dynamodb:Scan
+          Resource:
+            - arn:aws:dynamodb:${self:provider.region}:*:table/${self:custom.billingTableName}
+            - arn:aws:dynamodb:${self:provider.region}:*:table/${self:custom.billingTableName}/index/*
+        
+        # SQS Permissions
+        - Effect: Allow
+          Action:
+            - sqs:SendMessage
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            - !GetAtt InvoiceProcessingQueue.Arn
+            - !GetAtt InvoiceProcessingDLQ.Arn
+        
+        # CloudWatch Logs
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+          Resource: arn:aws:logs:${self:provider.region}:*:*
+        
+        # CloudWatch Metrics (Custom)
+        - Effect: Allow
+          Action:
+            - cloudwatch:PutMetricData
+          Resource: '*'
+
+# Lambda Functions
+functions:
+  
+  # Main Function: Unified E-Invoice Generator (Multi-Source)
+  createEInvoice:
+    handler: src/handlers/unified-e-invoice.handler
+    description: Creates E-Invoices from MCBS (Legacy) or AWS Billing Service
+    memorySize: 2048
+    timeout: 60
+    reservedConcurrency: 100  # Max 100 parallel executions
+    
+    events:
+      # SQS Queue Trigger (Batching!)
+      - sqs:
+          arn: !GetAtt InvoiceProcessingQueue.Arn
+          batchSize: 10  # ← Process 10 messages at once (90% cost savings!)
+          maximumBatchingWindowInSeconds: 5  # Wait max 5s to collect batch
+          functionResponseType: ReportBatchItemFailures  # Partial batch failures
+    
+    # Function-specific environment
+    environment:
+      BUCKET_NAME: mcbs-invoices-${self:provider.stage}
+    
+    # Tags
+    tags:
+      Service: mcbs-zugferd-converter
+      Function: createEInvoice
+      CostCenter: billing
+      Source: multi-source
+
+  # DLQ Processor (für manuelle Nachbearbeitung)
+  processDLQ:
+    handler: src/handlers/dlq-processor.handler
+    description: Processes messages from Dead Letter Queue
+    memorySize: 512
+    timeout: 30
+    
+    events:
+      # Manual trigger or scheduled
+      - schedule:
+          rate: rate(1 hour)
+          enabled: false  # Enable when needed
+    
+    environment:
+      DLQ_QUEUE_URL: !Ref InvoiceProcessingDLQ
+
+  # Optional: REST API Endpoint (für manuelle Trigger)
+  createEInvoiceAPI:
+    handler: src/handlers/api-e-invoice.handler
+    description: REST API endpoint for manual E-Invoice generation
+    memorySize: 2048
+    timeout: 60
+    
+    events:
+      - http:
+          path: /e-invoices
+          method: POST
+          cors: true
+          authorizer:
+            type: aws_iam
+    
+    environment:
+      BUCKET_NAME: mcbs-invoices-${self:provider.stage}
+
+# AWS Resources
+resources:
+  Resources:
+    
+    # ==================== S3 Buckets ====================
+    
+    # MCBS Invoices Bucket (Legacy)
+    McbsInvoicesBucket:
+      Type: AWS::S3::Bucket
+      DependsOn:
+        - InvoiceProcessingQueuePolicy
+      Properties:
+        BucketName: mcbs-invoices-${self:provider.stage}
+        VersioningConfiguration:
+          Status: Enabled
+        
+        # Lifecycle Rules
+        LifecycleConfiguration:
+          Rules:
+            # Move old e-invoices to Glacier after 30 days
+            - Id: MoveToGlacierAfter30Days
+              Status: Enabled
+              Prefix: e-invoices/
+              Transitions:
+                - TransitionInDays: 30
+                  StorageClass: GLACIER
+            
+            # Delete raw XML after 90 days
+            - Id: DeleteRawXMLAfter90Days
+              Status: Enabled
+              Prefix: raw/
+              ExpirationInDays: 90
+        
+        # EventBridge Integration (S3 → EventBridge)
+        NotificationConfiguration:
+          EventBridgeConfiguration:
+            EventBridgeEnabled: true  # ← Enable S3 → EventBridge
+        
+        # Encryption
+        BucketEncryption:
+          ServerSideEncryptionConfiguration:
+            - ServerSideEncryptionByDefault:
+                SSEAlgorithm: AES256
+        
+        # Public Access Block
+        PublicAccessBlockConfiguration:
+          BlockPublicAcls: true
+          BlockPublicPolicy: true
+          IgnorePublicAcls: true
+          RestrictPublicBuckets: true
+        
+        # Tags
+        Tags:
+          - Key: Service
+            Value: mcbs-zugferd-converter
+          - Key: Stage
+            Value: ${self:provider.stage}
+    
+    # ==================== EventBridge Rules ====================
+    
+    # EventBridge Rule: S3 Events → SQS (MCBS Legacy)
+    S3EventsToSQSRule:
+      Type: AWS::Events::Rule
+      Properties:
+        Name: mcbs-s3-events-to-sqs-${self:provider.stage}
+        Description: Routes S3 Object Created events to SQS for batching
+        EventBusName: default
+        State: ENABLED
+        
+        # Pattern: S3 Object Created in mcbs-invoices bucket
+        EventPattern:
+          source:
+            - aws.s3
+          detail-type:
+            - Object Created
+          detail:
+            bucket:
+              name:
+                - mcbs-invoices-${self:provider.stage}
+            object:
+              key:
+                - prefix: raw/
+                - suffix: .xml
+        
+        # Target: SQS Queue (for batching)
+        Targets:
+          - Arn: !GetAtt InvoiceProcessingQueue.Arn
+            Id: SQSBatchingTarget
+    
+    # EventBridge Rule: DynamoDB Stream → SQS (AWS Billing Service)
+    DynamoDBEventsToSQSRule:
+      Type: AWS::Events::Rule
+      Properties:
+        Name: aws-billing-dynamodb-to-sqs-${self:provider.stage}
+        Description: Routes DynamoDB Stream events to SQS for batching
+        EventBusName: default
+        State: ENABLED
+        
+        # Pattern: DynamoDB INSERT/MODIFY events
+        EventPattern:
+          source:
+            - aws.dynamodb
+          detail-type:
+            - DynamoDB Stream Record
+          detail:
+            eventSource:
+              - aws:dynamodb
+            eventName:
+              - INSERT
+              - MODIFY
+            dynamodb:
+              Keys:
+                invoiceId:
+                  S:
+                    - exists: true
+        
+        # Target: SQS Queue (for batching)
+        Targets:
+          - Arn: !GetAtt InvoiceProcessingQueue.Arn
+            Id: SQSBatchingTarget
+    
+    # EventBridge Rule: Custom Billing Events → SQS (Alternative)
+    CustomBillingEventsToSQSRule:
+      Type: AWS::Events::Rule
+      Properties:
+        Name: custom-billing-events-to-sqs-${self:provider.stage}
+        Description: Routes custom billing service events to SQS
+        EventBusName: default
+        State: ENABLED
+        
+        # Pattern: Custom billing events
+        EventPattern:
+          source:
+            - custom.billing.service
+          detail-type:
+            - Invoice Created
+            - Invoice Updated
+        
+        # Target: SQS Queue (for batching)
+        Targets:
+          - Arn: !GetAtt InvoiceProcessingQueue.Arn
+            Id: SQSBatchingTarget
+    
+    # ==================== SQS Queues ====================
+    
+    # Main Processing Queue (Batching Layer)
+    InvoiceProcessingQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: mcbs-invoice-processing-${self:provider.stage}
+        VisibilityTimeout: 360  # 6 Minutes (Lambda timeout × 6)
+        MessageRetentionPeriod: 1209600  # 14 Days
+        ReceiveMessageWaitTimeSeconds: 20  # Long Polling (reduces empty receives)
+        
+        # Dead Letter Queue Configuration
+        RedrivePolicy:
+          deadLetterTargetArn: !GetAtt InvoiceProcessingDLQ.Arn
+          maxReceiveCount: 3  # After 3 failed attempts → DLQ
+        
+        # Tags
+        Tags:
+          - Key: Service
+            Value: mcbs-zugferd-converter
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: Purpose
+            Value: Batching
+    
+    # Dead Letter Queue (für fehlgeschlagene Messages)
+    InvoiceProcessingDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: mcbs-invoice-processing-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600  # 14 Days
+        
+        Tags:
+          - Key: Service
+            Value: mcbs-zugferd-converter
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: Type
+            Value: DeadLetterQueue
+    
+    # SQS Queue Policy (allows EventBridge to send messages)
+    InvoiceProcessingQueuePolicy:
+      Type: AWS::SQS::QueuePolicy
+      Properties:
+        Queues:
+          - !Ref InvoiceProcessingQueue
+        PolicyDocument:
+          Statement:
+            # Allow EventBridge to send messages
+            - Effect: Allow
+              Principal:
+                Service: events.amazonaws.com
+              Action:
+                - sqs:SendMessage
+              Resource: !GetAtt InvoiceProcessingQueue.Arn
+              Condition:
+                ArnEquals:
+                  aws:SourceArn:
+                    - !GetAtt S3EventsToSQSRule.Arn
+                    - !GetAtt DynamoDBEventsToSQSRule.Arn
+                    - !GetAtt CustomBillingEventsToSQSRule.Arn
+    
+    # ==================== DynamoDB Tables ====================
+    
+    # Deduplication Table
+    DeduplicationTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: mcbs-invoice-deduplication-${self:provider.stage}
+        BillingMode: PAY_PER_REQUEST  # On-Demand Pricing
+        
+        # TTL (automatisches Löschen alter Einträge)
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+        
+        # Schema
+        AttributeDefinitions:
+          - AttributeName: deduplicationKey
+            AttributeType: S
+        
+        KeySchema:
+          - AttributeName: deduplicationKey
+            KeyType: HASH
+        
+        # Point-in-Time Recovery
+        PointInTimeRecoverySpecification:
+          PointInTimeRecoveryEnabled: true
+        
+        # Tags
+        Tags:
+          - Key: Service
+            Value: mcbs-zugferd-converter
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: Purpose
+            Value: Deduplication
+    
+    # ==================== CloudWatch Alarms ====================
+    
+    # Alarm: Messages in DLQ
+    DLQMessagesAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: mcbs-invoice-dlq-messages-${self:provider.stage}
+        AlarmDescription: Alert when messages appear in DLQ
+        MetricName: ApproximateNumberOfMessagesVisible
+        Namespace: AWS/SQS
+        Dimensions:
+          - Name: QueueName
+            Value: !GetAtt InvoiceProcessingDLQ.QueueName
+        Statistic: Average
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 1
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref AlertTopic
+    
+    # Alarm: High Lambda Error Rate
+    LambdaErrorRateAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: mcbs-invoice-lambda-errors-${self:provider.stage}
+        AlarmDescription: Alert when Lambda error rate is high
+        MetricName: Errors
+        Namespace: AWS/Lambda
+        Dimensions:
+          - Name: FunctionName
+            Value: !Ref CreateEInvoiceLambdaFunction
+        Statistic: Sum
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 10
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref AlertTopic
+    
+    # Alarm: High SQS Queue Depth
+    QueueDepthAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: mcbs-invoice-queue-depth-${self:provider.stage}
+        AlarmDescription: Alert when SQS queue has too many messages (backlog)
+        MetricName: ApproximateNumberOfMessagesVisible
+        Namespace: AWS/SQS
+        Dimensions:
+          - Name: QueueName
+            Value: !GetAtt InvoiceProcessingQueue.QueueName
+        Statistic: Average
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 10000
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref AlertTopic
+    
+    # Alarm: Lambda Throttling
+    LambdaThrottleAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: mcbs-invoice-lambda-throttle-${self:provider.stage}
+        AlarmDescription: Alert when Lambda is throttled
+        MetricName: Throttles
+        Namespace: AWS/Lambda
+        Dimensions:
+          - Name: FunctionName
+            Value: !Ref CreateEInvoiceLambdaFunction
+        Statistic: Sum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 5
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref AlertTopic
+    
+    # Alarm: High Batch Processing Duration
+    BatchProcessingDurationAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: mcbs-invoice-batch-duration-${self:provider.stage}
+        AlarmDescription: Alert when batch processing takes too long
+        MetricName: Duration
+        Namespace: AWS/Lambda
+        Dimensions:
+          - Name: FunctionName
+            Value: !Ref CreateEInvoiceLambdaFunction
+        Statistic: Average
+        Period: 300
+        EvaluationPeriods: 2
+        Threshold: 45000  # 45 seconds (75% of 60s timeout)
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref AlertTopic
+    
+    # ==================== SNS Topic for Alerts ====================
+    
+    AlertTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: mcbs-invoice-alerts-${self:provider.stage}
+        DisplayName: MCBS Invoice Alerts
+        Tags:
+          - Key: Service
+            Value: mcbs-zugferd-converter
+          - Key: Stage
+            Value: ${self:provider.stage}
+    
+    # SNS Email Subscription
+    AlertEmailSubscription:
+      Type: AWS::SNS::Subscription
+      Properties:
+        Protocol: email
+        TopicArn: !Ref AlertTopic
+        Endpoint: ops-team@example.com  # ← ÄNDERN ZU DEINER EMAIL!
+    
+    # ==================== CloudWatch Dashboard ====================
+    
+    EInvoiceDashboard:
+      Type: AWS::CloudWatch::Dashboard
+      Properties:
+        DashboardName: e-invoice-processing-${self:provider.stage}
+        DashboardBody: !Sub |
+          {
+            "widgets": [
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Lambda Invocations & Errors",
+                  "metrics": [
+                    [ "AWS/Lambda", "Invocations", { "stat": "Sum", "label": "Invocations" } ],
+                    [ ".", "Errors", { "stat": "Sum", "label": "Errors", "yAxis": "right" } ]
+                  ],
+                  "period": 300,
+                  "region": "${AWS::Region}",
+                  "yAxis": {
+                    "left": { "min": 0 },
+                    "right": { "min": 0 }
+                  }
+                }
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "SQS Queue Metrics",
+                  "metrics": [
+                    [ "AWS/SQS", "NumberOfMessagesSent", { "stat": "Sum", "label": "Messages Sent" } ],
+                    [ ".", "NumberOfMessagesReceived", { "stat": "Sum", "label": "Messages Received" } ],
+                    [ ".", "ApproximateNumberOfMessagesVisible", { "stat": "Average", "label": "Queue Depth" } ]
+                  ],
+                  "period": 300,
+                  "region": "${AWS::Region}"
+                }
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "Lambda Duration (Batch Processing)",
+                  "metrics": [
+                    [ "AWS/Lambda", "Duration", { "stat": "Average", "label": "Avg Duration" } ],
+                    [ "...", { "stat": "p95", "label": "P95 Duration" } ],
+                    [ "...", { "stat": "p99", "label": "P99 Duration" } ]
+                  ],
+                  "period": 300,
+                  "region": "${AWS::Region}",
+                  "yAxis": { "left": { "min": 0 } }
+                }
+              },
+              {
+                "type": "metric",
+                "properties": {
+                  "title": "DLQ Messages",
+                  "metrics": [
+                    [ "AWS/SQS", "ApproximateNumberOfMessagesVisible", { "QueueName": "${InvoiceProcessingDLQ.QueueName}", "stat": "Average" } ]
+                  ],
+                  "period": 60,
+                  "region": "${AWS::Region}",
+                  "yAxis": { "left": { "min": 0 } }
+                }
+              }
+            ]
+          }
+  
+  # ==================== Outputs ====================
+  
+  Outputs:
+    
+    S3BucketName:
+      Description: S3 Bucket for MCBS Invoices
+      Value: !Ref McbsInvoicesBucket
+      Export:
+        Name: ${self:provider.stage}-mcbs-invoices-bucket
+    
+    SQSQueueURL:
+      Description: SQS Queue URL for Invoice Processing (Batching Layer)
+      Value: !Ref InvoiceProcessingQueue
+      Export:
+        Name: ${self:provider.stage}-invoice-queue-url
+    
+    SQSQueueARN:
+      Description: SQS Queue ARN
+      Value: !GetAtt InvoiceProcessingQueue.Arn
+      Export:
+        Name: ${self:provider.stage}-invoice-queue-arn
+    
+    DLQQueueURL:
+      Description: Dead Letter Queue URL
+      Value: !Ref InvoiceProcessingDLQ
+      Export:
+        Name: ${self:provider.stage}-invoice-dlq-url
+    
+    DeduplicationTableName:
+      Description: DynamoDB Deduplication Table
+      Value: !Ref DeduplicationTable
+      Export:
+        Name: ${self:provider.stage}-deduplication-table
+    
+    LambdaFunctionARN:
+      Description: Lambda Function ARN (Unified E-Invoice Generator)
+      Value: !GetAtt CreateEInvoiceLambdaFunction.Arn
+      Export:
+        Name: ${self:provider.stage}-create-einvoice-lambda
+    
+    AlertTopicARN:
+      Description: SNS Topic for Alerts
+      Value: !Ref AlertTopic
+      Export:
+        Name: ${self:provider.stage}-alert-topic
+    
+    DashboardURL:
+      Description: CloudWatch Dashboard URL
+      Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=e-invoice-processing-${self:provider.stage}'
+      Export:
+        Name: ${self:provider.stage}-dashboard-url
+
+# Plugins
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
+  - serverless-prune-plugin
+
+# Custom Configuration
+custom:
+  
+  # Stage-specific settings
+  billingTableName: aws-billing-invoices-${self:provider.stage}
+  pdfBucketName: mcbs-invoices-${self:provider.stage}
+  
+  # Prune old Lambda versions (keep last 3)
+  prune:
+    automatic: true
+    number: 3
+  
+  # TypeScript Configuration
+  serverless-plugin-typescript:
+    tsConfigFileLocation: './tsconfig.json'
+  
+  # Stage-specific overrides
+  stages:
+    dev:
+      lambdaMemory: 2048
+      lambdaTimeout: 60
+      batchSize: 10
+      maxBatchingWindow: 5
+    
+    staging:
+      lambdaMemory: 2048
+      lambdaTimeout: 60
+      batchSize: 10
+      maxBatchingWindow: 5
+    
+    production:
+      lambdaMemory: 2048
+      lambdaTimeout: 60
+      batchSize: 10  # Or 50 for more cost savings in prod
+      maxBatchingWindow: 5
+      reservedConcurrency: 200
+
+# Package Configuration
+package:
+  individually: true
+  patterns:
+    - '!.git/**'
+    - '!.github/**'
+    - '!test/**'
+    - '!coverage/**'
+    - '!docs/**'
+    - '!*.md'
+    - '!node_modules/aws-sdk/**'  # Already in Lambda runtime
