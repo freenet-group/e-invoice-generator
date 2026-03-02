@@ -40,11 +40,16 @@ yarn-error.log*
 # Testing
 coverage/
 .nyc_output/
+test/output/*
+!test/output/.gitkeep
 
 # Temp
 tmp/
 temp/
 *.tmp
+
+# Artifacts (generierte Dateien, Validator-Reports)
+artifacts/
 
 # AWS
 .aws-sam/

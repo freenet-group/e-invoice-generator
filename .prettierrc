@@ -1,0 +1,17 @@
+{
+  "arrowParens": "always",
+  "bracketSpacing": false,
+  "overrides": [
+    {
+      "files": ["*.ts", "*.js"],
+      "options": {
+        "tabWidth": 4
+      }
+    }
+  ],
+  "printWidth": 128,
+  "semi": false,
+  "singleQuote": true,
+  "tabWidth": 2,
+  "trailingComma": "none"
+}
