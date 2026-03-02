@@ -39,7 +39,7 @@
     "@aws-sdk/client-sns": "3.1000.0",
     "@aws-sdk/lib-dynamodb": "3.962.0",
     "@e-invoice-eu/core": "2.3.1",
-    "fast-xml-parser": "4.3.6",
+    "fast-xml-parser": "4.5.4",
     "pino": "10.3.1",
     "zod": "4.3.6"
   },
