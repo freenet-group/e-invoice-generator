@@ -217,7 +217,24 @@ Einsparung: 90%
 
 ```bash
 node --version  # v22
+java --version  # 11+ (für KOSIT Validator)
+```
+
+### Setup
+
+```bash
 npm install
+npm run setup:validator   # KOSIT Validator herunterladen (einmalig)
+```
+
+Der Validator wird unter `tools/validator/` abgelegt. Beim erneuten Aufruf wird geprüft ob die Version bereits aktuell ist — ist sie es, überspringt das Script den Download.
+
+Die Versionen sind zentral in `package.json` unter `validatorConfig` steuerbar:
+```json
+"validatorConfig": {
+  "validatorVersion": "1.6.0",
+  "scenarioVersion": "2026-01-31"
+}
 ```
 
 ### Lokale Konvertierung (ohne AWS)
@@ -228,8 +245,6 @@ npx ts-node scripts/convert-mcbs-invoice.ts \
   --pdf test/resources/mcbs/mcbs-real-invoice.pdf \
   --output /tmp/result.pdf | npx pino-pretty
 ```
-
-Voraussetzung: Java 11+ und KOSIT Validator unter `tools/validator/validator.jar`
 
 ### Deployment
 
