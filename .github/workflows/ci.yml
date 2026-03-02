@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '22'
+  JAVA_VERSION: '17'  # Für KOSIT Validator (Java-basiert)
+
+jobs:
+  # ============================================================
+  # Job 1: Unit Tests (kein Validator nötig)
+  # ============================================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node.js ${{ env.NODE_VERSION }} einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Node-Module cachen
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package.json') }}
+          restore-keys: node-modules-
+
+      - name: Abhängigkeiten installieren
+        run: npm install
+
+      - name: Unit Tests ausführen
+        run: npm test -- --passWithNoTests
+
+      - name: Coverage-Bericht hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ============================================================
+  # Job 2: Integration Tests (mit KOSIT Validator)
+  # ============================================================
+  integration-tests:
+    name: Integration Tests (E2E)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node.js ${{ env.NODE_VERSION }} einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Java ${{ env.JAVA_VERSION }} einrichten (für KOSIT Validator)
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+
+      - name: Validator-Versionen aus package.json lesen
+        id: validator-versions
+        run: |
+          VALIDATOR_VERSION=$(node -p "require('./package.json').validatorConfig.validatorVersion")
+          SCENARIO_VERSION=$(node -p "require('./package.json').validatorConfig.scenarioVersion")
+          echo "validator=${VALIDATOR_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "scenario=${SCENARIO_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: KOSIT Validator cachen
+        id: validator-cache
+        uses: actions/cache@v4
+        with:
+          path: tools/validator
+          key: kosit-validator-${{ steps.validator-versions.outputs.validator }}-scenario-${{ steps.validator-versions.outputs.scenario }}
+
+      - name: KOSIT Validator herunterladen
+        if: steps.validator-cache.outputs.cache-hit != 'true'
+        run: npm run setup:validator
+
+      - name: Node-Module cachen
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ hashFiles('package.json') }}
+          restore-keys: node-modules-
+
+      - name: Abhängigkeiten installieren
+        run: npm install
+
+      - name: Integration Tests ausführen
+        run: npm run test:e2e
+
+      - name: Test-Output-Artefakte hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-output
+          path: test/output/
+          retention-days: 3

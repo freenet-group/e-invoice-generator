@@ -1,5 +1,2 @@
-# GitHub Linguist: Third-Party / Vendor-Dateien nicht als Projektsprache zählen
-tools/validator/** linguist-vendored
-tools/**/*.xsl linguist-vendored
-tools/**/*.xsd linguist-vendored
-tools/**/*.jar linguist-vendored
+# GitHub Linguist: Generierte/Vendor-Dateien nicht als Projektsprache zählen
+# tools/validator/ ist via .gitignore ausgeschlossen (wird zur Build-Zeit geladen)

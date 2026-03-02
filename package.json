@@ -3,8 +3,13 @@
   "version": "1.0.0",
   "description": "MCBS to ZUGFeRD E-Invoice Converter - AWS Lambda",
   "main": "dist/index.js",
+  "validatorConfig": {
+    "validatorVersion": "1.6.0",
+    "scenarioVersion": "2026-01-31"
+  },
   "scripts": {
     "build": "tsc",
+    "setup:validator": "bash scripts/setup-validator.sh",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

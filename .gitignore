@@ -51,6 +51,9 @@ temp/
 # Artifacts (generierte Dateien, Validator-Reports)
 artifacts/
 
+# KOSIT Validator (wird zur Build-Zeit heruntergeladen, siehe npm run setup:validator)
+tools/validator/
+
 # AWS
 .aws-sam/
 samconfig.toml
