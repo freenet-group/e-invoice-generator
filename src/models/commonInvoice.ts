@@ -109,6 +109,7 @@ export enum InvoiceType {
     COMMERCIAL = 'COMMERCIAL',
     CREDIT_NOTE = 'CREDIT_NOTE',
     CORRECTED = 'CORRECTED',
+    SELF_BILLING = 'SELF_BILLING',  // ← neu für Provisionsabrechnung (389)
 }
 
 export enum TaxCategoryCode {
@@ -324,6 +325,8 @@ export interface PaymentMeans {
   mandate?: {
     /** Mandatsreferenz */
     reference?: string;
+    /** Creditor-ID (BT-90) */
+    creditorReferenceId?: string;
   };
 }
 
@@ -411,19 +414,4 @@ export interface AdditionalDocument {
 
   /** Externe URL (BT-124) */
   externalUrl?: string;
-}
-
-export interface Totals {
-    lineTotal: number
-    taxBasisTotal: number
-    taxTotal: number
-    grandTotal: number
-    /**
-     * Vorauszahlungen / Guthaben / offene Posten
-     * Positiv = Guthaben (Kunde hat zuviel gezahlt)
-     * Negativ = Rückstand (offene unbezahlte Rechnungen)
-     * duePayable = grandTotal - totalPrepaidAmount
-     */
-    totalPrepaidAmount?: number
-    duePayable: number
 }

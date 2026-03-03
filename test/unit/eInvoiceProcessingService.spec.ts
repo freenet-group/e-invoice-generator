@@ -1,5 +1,5 @@
 import { SQSRecord } from 'aws-lambda'
-import { InvoiceAdapter, RawInvoiceData } from '../../src/adapters/invoiceAdapter.'
+import { InvoiceAdapter, RawInvoiceData } from '../../src/adapters/invoiceAdapter'
 import { AdapterRegistry } from '../../src/adapters/adapterRegistry'
 import { EInvoiceProcessingService } from '../../src/services/eInvoiceProcessingService'
 import { CommonInvoice, InvoiceType, TaxCategoryCode } from '../../src/models/commonInvoice'

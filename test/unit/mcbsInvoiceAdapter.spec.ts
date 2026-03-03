@@ -4,7 +4,7 @@ import {
     InvoiceType,
     PaymentMeansCode,
 } from '../../src/models/commonInvoice'
-import { RawInvoiceData } from '../../src/adapters/invoiceAdapter.'
+import { RawInvoiceData } from '../../src/adapters/invoiceAdapter'
 
 // ==================== Mocks ====================
 

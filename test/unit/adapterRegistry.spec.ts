@@ -1,4 +1,4 @@
-import { InvoiceAdapter, RawInvoiceData } from '../../src/adapters/invoiceAdapter.'
+import { InvoiceAdapter, RawInvoiceData } from '../../src/adapters/invoiceAdapter'
 import { AdapterRegistry } from '../../src/adapters/adapterRegistry'
 import { CommonInvoice, InvoiceType, TaxCategoryCode } from '../../src/models/commonInvoice'
 

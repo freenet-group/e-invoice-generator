@@ -323,6 +323,7 @@ const INVOICE_TYPE_CODE: Record<InvoiceType, string> = {
     [InvoiceType.COMMERCIAL]: '380',
     [InvoiceType.CREDIT_NOTE]: '381',
     [InvoiceType.CORRECTED]: '384',
+    [InvoiceType.SELF_BILLING]: '389',  // ← neu
 }
 
 const UNIT_CODE: Record<UnitCode, string> = {

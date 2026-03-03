@@ -1,4 +1,4 @@
-import { InvoiceAdapter, InvoiceAdapterConfig, RawInvoiceData } from '../invoiceAdapter.'
+import { InvoiceAdapter, InvoiceAdapterConfig, RawInvoiceData } from '../invoiceAdapter'
 import { CommonInvoice } from '../../models/commonInvoice'
 import { loadXmlFromS3OrLocal } from '../../core/s3/s3XmlLoader'
 import { loadPdfFromS3 } from '../../core/s3/s3PdfLoader'

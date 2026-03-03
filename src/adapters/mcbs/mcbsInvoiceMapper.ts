@@ -6,7 +6,7 @@ import {
     TaxCategoryCode,
     UnitCode,
 } from '../../models/commonInvoice'
-import { RawInvoiceData } from '../invoiceAdapter.'
+import { RawInvoiceData } from '../invoiceAdapter'
 import { parseMcbsDocument, McbsDocument, McbsBillItem } from './zod/mcbsXmlInvoiceSchema'
 
 const xmlParser = new XMLParser({
