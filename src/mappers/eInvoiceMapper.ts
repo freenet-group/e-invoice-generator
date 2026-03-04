@@ -18,7 +18,7 @@ export function mapToEInvoice(ci: CommonInvoice): Invoice {
             'cbc:IssueDate': ci.invoiceDate,
             'cbc:InvoiceTypeCode': INVOICE_TYPE_CODE[ci.invoiceType],
             'cbc:DocumentCurrencyCode': ci.currency,
-            'cbc:BuyerReference': ci.buyer.name,
+            'cbc:BuyerReference': ci.buyerReference,
             'cac:AccountingSupplierParty': buildSeller(ci),
             'cac:AccountingCustomerParty': buildBuyer(ci),
             'cac:Delivery': { 'cbc:ActualDeliveryDate': ci.invoiceDate },

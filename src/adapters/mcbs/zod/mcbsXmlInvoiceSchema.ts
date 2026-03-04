@@ -217,6 +217,13 @@ const McbsPaymentModeSchema = z.object({
 
 // ==================== HEADER ====================
 
+const DeliveryModeSchema = z.object({
+    SUPPLY: z.object({
+        TYPE: z.string(),
+        ENTRY: z.string().optional(),  // Leitweg-ID bei PEPPOL_PA
+    }).optional(),
+}).optional()
+
 const McbsHeaderSchema = z.object({
     INVOICE_DATE: germanDate,
     INVOICE_NO: z.string().optional(),
@@ -233,6 +240,7 @@ const McbsHeaderSchema = z.object({
             CODE_DESC: z.string().optional(),
         })
         .optional(),
+    DELIVERY_MODE: DeliveryModeSchema,
 })
 
 // ==================== ADDRESS ====================

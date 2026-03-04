@@ -33,21 +33,19 @@ export function parseMcbsXml(
 
 export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
     const doc: McbsDocument = parseMcbsDocument(rawData.data)
-
-    const header: McbsDocument['HEADER'] = doc['HEADER']
-    const recipient: McbsDocument['RECIPIENT'] = doc['RECIPIENT']
-    const invoiceData: McbsDocument['INVOICE_DATA'] = doc['INVOICE_DATA']
-    const paymentMode: McbsDocument['INVOICE_DATA']['PAYMENT_MODE'] = invoiceData['PAYMENT_MODE']
-    const frames: McbsDocument['INVOICE_DATA']['FRAMES'] = invoiceData['FRAMES']
-    const amounts: McbsDocument['INVOICE_DATA']['FRAMES']['AMOUNTS'] = frames['AMOUNTS']
-    const diffVats: McbsDocument['INVOICE_DATA']['FRAMES']['DIFF_VATS'] = frames['DIFF_VATS']
-    const frame: McbsDocument['INVOICE_DATA']['FRAMES']['FRAME'] = frames['FRAME']
-    const address: McbsDocument['RECIPIENT']['ADDRESS'] = recipient['ADDRESS']
+    const header = doc['HEADER']
+    const recipient = doc['RECIPIENT']
+    const invoiceData = doc['INVOICE_DATA']
+    const paymentMode = invoiceData['PAYMENT_MODE']
+    const frames = invoiceData['FRAMES']
+    const amounts = frames['AMOUNTS']
+    const diffVats = frames['DIFF_VATS']
+    const frame = frames['FRAME']
+    const address = recipient['ADDRESS']
 
     const s3Bucket = toStringOrUndefined(rawData.metadata['s3Bucket'])
     const s3Key = toStringOrUndefined(rawData.metadata['pdfKey'] ?? rawData.metadata['s3Key'])
 
-    // HEADER hat kein BILLING_ENTITY → Seller-Adresse aus paymentMode oder leer
     const brand = <Record<string, unknown> | undefined>header['BRAND']
     const seller: CommonInvoice['seller'] = {
         name: toStringOrUndefined(brand?.['DESC']) ?? toStringOrUndefined(brand?.['CODE_DESC']) ?? '',
@@ -67,7 +65,6 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
         ],
     }
 
-    // ADDRESS nutzt FIRSTNAME / NAME / POSTCODE (kein FIRST_NAME / LAST_NAME / ZIPCODE)
     const buyer: CommonInvoice['buyer'] = {
         name: [toStringOrUndefined(address['FIRSTNAME']), toStringOrUndefined(address['NAME'])].filter(Boolean).join(' '),
         postalAddress: {
@@ -84,38 +81,36 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
                 ? PaymentMeansCode.SEPA_DIRECT_DEBIT
                 : PaymentMeansCode.CREDIT_TRANSFER,
             payeeAccount: {
-                iban: <string>(paymentMode['BANK_ACCOUNT'] ?? header['CLIENTBANK_ACNT']),
+                iban: String(paymentMode['BANK_ACCOUNT'] ?? header['CLIENTBANK_ACNT'] ?? ''),
             },
             payeeInstitution: {
-                bic: <string>(paymentMode['BANK_CODE'] ?? header['CLIENTBANK_CODE']),
+                bic: String(paymentMode['BANK_CODE'] ?? header['CLIENTBANK_CODE'] ?? ''),
             },
         },
     ]
 
     const taxes = mapTaxes(diffVats, amounts)
 
-    // UNPAID → negativer totalPrepaidAmount (Schulden des Kunden)
     const unpaid = amounts.UNPAID
     const totalPrepaidAmount = unpaid !== undefined && unpaid !== 0
         ? -unpaid
         : undefined
 
-    // Totals direkt aus transformiertem AMOUNTS Objekt lesen
     const totals: CommonInvoice['totals'] = {
         lineTotal: amounts.NET_AMOUNT + amounts.INSEP_GROSS,
-        taxBasisTotal: amounts.NET_AMOUNT + amounts.INSEP_GROSS,  // war: nur NET_AMOUNT
+        taxBasisTotal: amounts.NET_AMOUNT + amounts.INSEP_GROSS,
         taxTotal: amounts.VAT_AMOUNT,
         grandTotal: amounts.GROSS_AMOUNT,
         totalPrepaidAmount,
         duePayable: amounts.TO_PAY ?? amounts.GROSS_AMOUNT,
     }
 
-    const lineItems = extractLineItems(<McbsFrameArray><unknown>frame)
+    const lineItems = extractLineItems(frame)
 
     return {
         invoiceNumber: toStringOrUndefined(header['INVOICE_NO']) ?? '',
         invoiceDate: toStringOrUndefined(header['INVOICE_DATE']) ?? '',
-        invoiceType: (<Record<string, unknown>>doc)['TYPE'] === 'GS' ? InvoiceType.CREDIT_NOTE : InvoiceType.COMMERCIAL,
+        invoiceType: doc['TYPE'] === 'GS' ? InvoiceType.CREDIT_NOTE : InvoiceType.COMMERCIAL,
         currency: toStringOrUndefined(header['INV_CURRENCY']) ?? 'EUR',
         source: {
             system: 'MCBS',
@@ -132,20 +127,43 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
         taxes,
         lineItems,
         pdf: { s3Bucket, s3Key },
+        buyerReference: resolveBuyerReference(rawData),
     }
 }
 
-// ==================== Line Items ====================
+// ==================== Buyer Reference ====================
 
-// ==================== Hilfstypen für extractLineItems ====================
+function resolveBuyerReference(rawData: RawInvoiceData): string | undefined {
+    const doc = rawData.data
+    const header = <Record<string, unknown>>doc['HEADER']
+    const customer = <Record<string, unknown> | undefined>doc['CUSTOMER']
+    const recipient = <Record<string, unknown> | undefined>doc['RECIPIENT']
+
+    const deliveryMode = <Record<string, unknown> | undefined>header['DELIVERY_MODE']
+    const supply = <Record<string, unknown> | undefined>deliveryMode?.['SUPPLY']
+    if (toStringOrUndefined(supply?.['TYPE']) === 'PEPPOL_PA') {
+        const entry = toStringOrUndefined(supply?.['ENTRY'])
+        if (entry !== undefined) {
+            return entry
+        }
+    }
+
+    const vatId = toStringOrUndefined(customer?.['VAT_ID'])
+    if (vatId !== undefined) {
+        return vatId
+    }
+
+    const customerId = toStringOrUndefined(customer?.['PERSON_NO'])
+    return customerId ?? toStringOrUndefined(recipient?.['PERSON_NO'])
+}
+
+// ==================== Line Items ====================
 
 type McbsFrameArray = McbsDocument['INVOICE_DATA']['FRAMES']['FRAME']
 type McbsFrameItem = McbsFrameArray[number]
 type McbsUnitItem = NonNullable<McbsFrameItem['AREA']>['UNIT'][number]
 type McbsSectionItem = NonNullable<McbsUnitItem['SECTIONS']>['SECTION'][number]
 type McbsBillitemGrpItem = NonNullable<NonNullable<McbsSectionItem['BILLITEM_GRPS']>['BILLITEM_GRP']>[number]
-
-// ==================== Hilfstypen für Unit-Kontext ====================
 
 interface UnitContext {
     contractReference?: string
@@ -156,25 +174,20 @@ interface UnitContext {
 }
 
 function extractUnitContext(unit: McbsUnitItem): UnitContext {
-    const typedUnit = <Record<string, unknown>>unit
-    const contractData = <Record<string, unknown> | undefined>typedUnit['CONTRACT_DATA']
-    const contractType = toStringOrUndefined(contractData?.['TYPE'])
+    const contractData = unit['CONTRACT_DATA']
+    const contractType = contractData?.['TYPE']
     const isTelco = contractType === 'TELCO'
 
-    const contractNo = toStringOrUndefined(contractData?.['CONTRACT_NO'])
-    const network = toStringOrUndefined(contractData?.['NETWORK'])
+    const contractNo = contractData?.['CONTRACT_NO']
+    const network = contractData?.['NETWORK']
+    const subscriberName = contractData?.['TCS_VALUE']
 
-    // TCS_TITLE wird nicht verwendet — AdditionalItemProperty heißt bereits "Teilnehmer"
-    const subscriberName = toStringOrUndefined(contractData?.['TCS_VALUE'])
+    const connects = contractData?.['CONNECTS']
+    const connectArray = getConnectArray(connects?.['CONNECT'])
+    const mainConnect = connectArray.find(c => c['TYPE'] === 'MAIN')
+    const phoneNumber = toStringOrUndefined(mainConnect?.['CONNECT_NO'])  // ← toStringOrUndefined löst unknown → string | undefined
 
-    // CONNECT_NO aus CONNECTS/CONNECT[TYPE=MAIN]
-    const connects = <Record<string, unknown> | undefined>contractData?.['CONNECTS']
-    const connectArray: Record<string, unknown>[] = getConnectArray(connects?.['CONNECT'])
-    const mainConnect = connectArray.find(c => toStringOrUndefined(c['TYPE']) === 'MAIN')
-    const phoneNumber = toStringOrUndefined(mainConnect?.['CONNECT_NO'])
-
-    // tariff nur bei TELCO relevant
-    const tariff = isTelco ? toStringOrUndefined(contractData?.['TARIFF']) : undefined
+    const tariff = isTelco ? contractData?.['TARIFF'] : undefined
 
     return {
         ...(contractNo === undefined ? {} : { contractReference: contractNo }),
@@ -188,29 +201,23 @@ function extractUnitContext(unit: McbsUnitItem): UnitContext {
 function extractLineItems(frame: McbsFrameArray): CommonInvoice['lineItems'] {
     const frameArray = Array.isArray(frame) ? frame : []
     return frameArray
-        .filter((f: McbsFrameItem) => {
-            const typedFrame = <Record<string, unknown>>f
-            return toStringOrUndefined(typedFrame['ID']) !== 'VOUCHERS'
-        })
+        .filter((f: McbsFrameItem) => f['ID'] !== 'VOUCHERS')
         .flatMap((f: McbsFrameItem) => extractFromFrame(f))
 }
 
 function extractFromFrame(f: McbsFrameItem): CommonInvoice['lineItems'] {
-    const typedFrame = <Record<string, unknown>>f
-    const area = <Record<string, unknown> | undefined>typedFrame['AREA']
-    const unitArray: McbsUnitItem[] = Array.isArray(area?.['UNIT']) ? <McbsUnitItem[]>area['UNIT'] : []
+    const area = f['AREA']                                               // McbsFrameItem bereits typisiert
+    const unitArray: McbsUnitItem[] = Array.isArray(area?.['UNIT'])
+        ? area['UNIT']                                                   // Typ bereits McbsUnitItem[]
+        : []
     return unitArray.flatMap((unit: McbsUnitItem) => extractFromUnit(unit))
 }
 
 function extractFromUnit(unit: McbsUnitItem): CommonInvoice['lineItems'] {
-    const typedUnit = <Record<string, unknown>>unit
-
-    // Unit-Kontext wird an alle untergeordneten Positionen weitergereicht
     const unitContext = extractUnitContext(unit)
-
-    const sections = <Record<string, unknown> | undefined>typedUnit['SECTIONS']
+    const sections = unit['SECTIONS']                                    // McbsUnitItem bereits typisiert
     const sectionArray: McbsSectionItem[] = Array.isArray(sections?.['SECTION'])
-        ? <McbsSectionItem[]>sections['SECTION']
+        ? sections['SECTION']                                            // Typ bereits McbsSectionItem[]
         : []
     return sectionArray.flatMap((section: McbsSectionItem) =>
         extractFromSection(section, unitContext)
@@ -218,10 +225,9 @@ function extractFromUnit(unit: McbsUnitItem): CommonInvoice['lineItems'] {
 }
 
 function extractFromSection(section: McbsSectionItem, unitContext: UnitContext): CommonInvoice['lineItems'] {
-    const typedSection = <Record<string, unknown>>section
-    const billitemGrps = <Record<string, unknown> | undefined>typedSection['BILLITEM_GRPS']
+    const billitemGrps = section['BILLITEM_GRPS']                        // McbsSectionItem bereits typisiert
     const grpArray: McbsBillitemGrpItem[] = Array.isArray(billitemGrps?.['BILLITEM_GRP'])
-        ? <McbsBillitemGrpItem[]>billitemGrps['BILLITEM_GRP']
+        ? billitemGrps['BILLITEM_GRP']                                   // Typ bereits McbsBillitemGrpItem[]
         : []
     return grpArray.flatMap((grp: McbsBillitemGrpItem) =>
         extractFromGroup(grp, unitContext)
@@ -229,10 +235,9 @@ function extractFromSection(section: McbsSectionItem, unitContext: UnitContext):
 }
 
 function extractFromGroup(grp: McbsBillitemGrpItem, unitContext: UnitContext): CommonInvoice['lineItems'] {
-    const typedGrp = <Record<string, unknown>>grp
-    const billitems = <Record<string, unknown> | undefined>typedGrp['BILLITEMS']
-    const billitemArray = Array.isArray(billitems?.['BILLITEM'])
-        ? <McbsBillItem[]>billitems['BILLITEM']
+    const billitems = grp['BILLITEMS']                                   // McbsBillitemGrpItem bereits typisiert
+    const billitemArray: McbsBillItem[] = Array.isArray(billitems?.['BILLITEM'])
+        ? billitems['BILLITEM']                                          // Typ bereits McbsBillItem[]
         : []
     return billitemArray.map((item: McbsBillItem, index: number) =>
         mapBillItem(item, index + 1, unitContext)
@@ -240,12 +245,10 @@ function extractFromGroup(grp: McbsBillitemGrpItem, unitContext: UnitContext): C
 }
 
 function resolveSubscriberInfo(
-    typedItem: Record<string, unknown>,
     unitContext: UnitContext
 ): CommonInvoice['lineItems'][number]['subscriberInfo'] {
-    // Position-Felder überschreiben Unit-Kontext (Position hat Vorrang)
-    const phoneNumber = toStringOrUndefined(typedItem['PHONE_NUMBER']) ?? unitContext.phoneNumber
-    const name = toStringOrUndefined(typedItem['SUBSCRIBER_NAME']) ?? unitContext.subscriberName  // ← subscriberName → name
+    const phoneNumber = unitContext.phoneNumber
+    const name = unitContext.subscriberName
     const network = unitContext.network
     const tariff = unitContext.tariff
 
@@ -266,39 +269,33 @@ function mapBillItem(
     fallbackId: number,
     unitContext: UnitContext
 ): CommonInvoice['lineItems'][number] {
-    const typedItem = <Record<string, unknown>>item
-    const sequenceNo: number = typeof typedItem['SEQUENCE_NO'] === 'number'
-        ? typedItem['SEQUENCE_NO']
-        : fallbackId
-    const period = parsePeriod(toStringOrUndefined(typedItem['PERIOD']))
+    const sequenceNo: number = item['SEQUENCE_NO'] ?? fallbackId
+    const period = parsePeriod(item['PERIOD'])
 
-    const periodStart = period === undefined ? undefined : period['start']
-    const periodEnd = period === undefined ? undefined : period['end']
+    const periodStart = period?.['start']
+    const periodEnd = period?.['end']
 
-    const contractReference = unitContext.contractReference
-    const subscriberInfo = resolveSubscriberInfo(typedItem, unitContext)  // ← typedItem mitgeben
+    const subscriberInfo = resolveSubscriberInfo(unitContext)
 
-    // Content Provider aus OPT_PARAMS/CONT_PROVIDER extrahieren
-    const optParams = <Record<string, unknown> | undefined>typedItem['OPT_PARAMS']
-    const contProvider = <Record<string, unknown> | undefined>optParams?.['CONT_PROVIDER']
-    const contentProviderContact = toStringOrUndefined(contProvider?.['CONTACT'])
-    const contentProviderServices = toStringOrUndefined(contProvider?.['SERVICES'])
+    const contProvider = item['OPT_PARAMS']?.['CONT_PROVIDER']
+    const contentProviderContact = contProvider?.['CONTACT']
+    const contentProviderServices = contProvider?.['SERVICES']
 
     return {
         id: sequenceNo,
-        name: toStringOrUndefined(typedItem['PRODUCT_NAME']) ?? '',
+        name: item['PRODUCT_NAME'],
         quantity: 1,
         unitCode: UnitCode.PIECE,
-        unitPrice: <number>typedItem['CHARGE'],
-        netAmount: <number>typedItem['CHARGE'],
+        unitPrice: item['CHARGE'],
+        netAmount: item['CHARGE'],
         tax: {
             typeCode: 'VAT',
-            categoryCode: typedItem['VAT_RATE'] === 'INCLUDED'
-                ? TaxCategoryCode.EXEMPT    // war: OUTSIDE_SCOPE → E statt O
+            categoryCode: item['VAT_RATE'] === 'INCLUDED'
+                ? TaxCategoryCode.EXEMPT
                 : TaxCategoryCode.STANDARD,
-            rate: typedItem['VAT_RATE'] === 'INCLUDED' ? 0 : <number>typedItem['VAT_RATE'],
+            rate: item['VAT_RATE'] === 'INCLUDED' ? 0 : item['VAT_RATE'],
         },
-        contractReference: contractReference,
+        contractReference: unitContext.contractReference,
         ...(subscriberInfo === undefined ? {} : { subscriberInfo }),
         ...(contentProviderContact !== undefined || contentProviderServices !== undefined
             ? {
@@ -325,7 +322,7 @@ function getConnectArray(connectValue: unknown): Record<string, unknown>[] {
     if (Array.isArray(connectValue)) {
         return <Record<string, unknown>[]>connectValue
     }
-    if (connectValue !== undefined) {
+    if (connectValue !== null && connectValue !== undefined) {
         return [<Record<string, unknown>>connectValue]
     }
     return []
@@ -356,9 +353,9 @@ function mapTaxes(
             taxes.push({
                 typeCode: 'VAT',
                 categoryCode: TaxCategoryCode.STANDARD,
-                rate: vat.VAT_RATE,        // ← bereits number durch Schema
-                basisAmount: vat.NET,      // ← bereits number durch Schema
-                calculatedAmount: vat.VAT, // ← bereits number durch Schema
+                rate: vat.VAT_RATE,
+                basisAmount: vat.NET,
+                calculatedAmount: vat.VAT,
             })
         }
     }

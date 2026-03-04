@@ -18,9 +18,9 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
 
     for (const record of event.Records) {
         const receiveCount = record.attributes.ApproximateReceiveCount
-        const sentAt = record.attributes.SentTimestamp
-            ? new Date(Number(record.attributes.SentTimestamp)).toISOString()
-            : 'unknown'
+        const sentAt = record.attributes.SentTimestamp === '' 
+            ? 'unknown'
+            : new Date(Number(record.attributes.SentTimestamp)).toISOString()
 
         dlqLogger.error(
             {
@@ -32,14 +32,14 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
             'DLQ message received – invoice processing failed after all retries'
         )
 
-        if (!alertTopicArn) {
+        if (alertTopicArn === undefined || alertTopicArn.trim() === '') {
             dlqLogger.warn('ALERT_TOPIC_ARN not set – skipping SNS alert')
             continue
         }
 
-        const parsedBody: unknown = (() => {
+        const parsedBody: unknown = ((): unknown => {
             try {
-                return JSON.parse(record.body) as unknown
+                return JSON.parse(record.body)
             } catch {
                 return record.body
             }

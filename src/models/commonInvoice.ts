@@ -26,7 +26,7 @@ export interface CommonInvoice {
    * - B2B: Freitext-Referenz des Käufers (Kostenstelle, interne Referenz)
    * - B2G: Leitweg-ID (Pflicht für öffentliche Auftraggeber, Format: 99-012345678-06)
    */
-  buyerReference?: string;
+  buyerReference?: string; // BT-10: Leitweg-ID (B2G) | Kundennr. (B2C) | USt-ID-Ref (B2B)
 
   /** Bestellreferenz des Käufers (BT-13) */
   orderReference?: string;
