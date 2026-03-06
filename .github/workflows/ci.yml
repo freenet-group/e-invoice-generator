@@ -11,8 +11,41 @@ env:
   JAVA_VERSION: '17'  # Für KOSIT Validator (Java-basiert)
 
 jobs:
+  # ============================================================
+  # Job 1: Lint, Format, Build (schnell, kein Validator nötig)
+  # ============================================================
+  lint-build:
+    name: Lint & Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node.js ${{ env.NODE_VERSION }} einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: ESLint (src)
+        run: npm run lint
+
+      - name: ESLint (tests)
+        run: npm run lint:tests
+
+      - name: Prettier
+        run: npm run format:check
+
+      - name: TypeScript Build
+        run: npm run build
+
+  # ============================================================
+  # Job 2: Tests + Coverage (Unit & Integration)
+  # ============================================================
   tests:
-    name: Tests
+    name: Tests & Coverage
     runs-on: ubuntu-latest
 
     steps:
@@ -53,8 +86,8 @@ jobs:
       - name: Abhängigkeiten installieren
         run: npm ci
 
-      - name: Tests ausführen
-        run: npm test -- --passWithNoTests
+      - name: Tests mit Coverage ausführen
+        run: npm run test:coverage -- --passWithNoTests
 
       - name: Coverage-Bericht hochladen
         if: always()
