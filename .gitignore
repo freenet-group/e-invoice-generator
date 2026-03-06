@@ -6,6 +6,7 @@ yarn.lock
 dist/
 build/
 *.js
+!jest.config.js
 *.js.map
 *.d.ts
 

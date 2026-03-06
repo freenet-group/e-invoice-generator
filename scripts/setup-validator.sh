@@ -56,7 +56,8 @@ get_asset_url() {
     | grep '"browser_download_url"' \
     | grep -i "${grep_pattern}" \
     | head -1 \
-    | sed 's/.*"browser_download_url": "\([^"]*\)".*/\1/'
+    | sed 's/.*"browser_download_url": "\([^"]*\)".*/\1/' \
+    || true
 }
 
 # =============================================================================
