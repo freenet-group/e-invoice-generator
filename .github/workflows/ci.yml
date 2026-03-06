@@ -63,5 +63,3 @@ jobs:
           name: coverage-report
           path: coverage/
           retention-days: 7
-          path: test/output/
-          retention-days: 3
