@@ -150,10 +150,21 @@ echo "→ Entpacke Konfiguration..."
 rm -rf "${TARGET_DIR}/config"
 mkdir -p "${TARGET_DIR}/config"
 
-# ZIP enthält ein Unterverzeichnis — Inhalt eine Ebene nach oben verschieben
 unzip -q "${TEMP_ZIP}" -d "${TARGET_DIR}/config-tmp"
-ZIP_SUBDIR=$(ls -1 "${TARGET_DIR}/config-tmp/" | head -1)
-mv "${TARGET_DIR}/config-tmp/${ZIP_SUBDIR}"/* "${TARGET_DIR}/config/"
+
+# Prüfen ob ZIP ein einzelnes Unterverzeichnis enthält (altes Format)
+# oder Dateien direkt im Root liegen (neues Format ab 2026-01-31)
+TOPLEVEL_ENTRIES=$(ls -1 "${TARGET_DIR}/config-tmp/" | wc -l | tr -d ' ')
+FIRST_ENTRY=$(ls -1 "${TARGET_DIR}/config-tmp/" | head -1)
+
+if [[ "${TOPLEVEL_ENTRIES}" -eq 1 && -d "${TARGET_DIR}/config-tmp/${FIRST_ENTRY}" ]]; then
+  # Altes Format: einzelnes Unterverzeichnis → Inhalt eine Ebene nach oben
+  mv "${TARGET_DIR}/config-tmp/${FIRST_ENTRY}"/* "${TARGET_DIR}/config/"
+else
+  # Neues Format: Dateien direkt im ZIP-Root
+  mv "${TARGET_DIR}/config-tmp"/* "${TARGET_DIR}/config/"
+fi
+
 rm -rf "${TARGET_DIR}/config-tmp" "${TEMP_ZIP}"
 
 # Version speichern
