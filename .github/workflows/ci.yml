@@ -78,6 +78,8 @@ jobs:
 
       - name: KOSIT Validator herunterladen
         if: steps.validator-cache.outputs.cache-hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run setup:validator
 
       - name: Abhängigkeiten installieren
