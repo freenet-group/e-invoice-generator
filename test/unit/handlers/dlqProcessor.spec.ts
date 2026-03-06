@@ -190,12 +190,27 @@ describe('dlqProcessor', () => {
     })
 
     describe('SNS Fehler', () => {
-        it('sollte SNS Fehler weiterwerfen', async () => {
+        it('sollte bei SNS Fehler weiterlaufen und nächsten Record verarbeiten', async () => {
+            snsMock.on(PublishCommand)
+                .rejectsOnce(new Error('SNS nicht erreichbar'))
+                .resolves({ MessageId: 'sns-002' })
+
+            await handler(
+                makeSqsEvent([makeRecord(), makeRecord({ messageId: 'msg-002' })]),
+                <never>{},
+                () => undefined
+            )
+
+            // Erster Call fehlgeschlagen, zweiter trotzdem ausgeführt
+            expect(snsMock.commandCalls(PublishCommand)).toHaveLength(2)
+        })
+
+        it('sollte bei SNS Fehler keinen Fehler werfen', async () => {
             snsMock.on(PublishCommand).rejects(new Error('SNS nicht erreichbar'))
 
             await expect(
                 handler(makeSqsEvent([makeRecord()]), <never>{}, () => undefined)
-            ).rejects.toThrow('SNS nicht erreichbar')
+            ).resolves.toBeUndefined()
         })
     })
 })

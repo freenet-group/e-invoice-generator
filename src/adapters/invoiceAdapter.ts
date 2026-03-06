@@ -40,23 +40,15 @@ export interface InvoiceAdapter {
  * Raw Invoice Data - Wrapper für Quelldaten
  */
 export interface RawInvoiceData {
-  /** Quellsystem */
-  source: 'MCBS' | 'AWS_BILLING';
-  
-  /** Rohdaten (XML, JSON, etc.) */
-  data: Record<string, unknown>
-  
-  /** Metadata */
-  metadata: {
-    /** Eindeutige ID */
-    id: string;
-    
-    /** Zeitstempel */
-    timestamp: string;
-    
-    /** Zusätzliche Infos */
-    [key: string]: string | number | boolean | undefined
-  };
+    source: string
+    data: Record<string, unknown>  // ← unknown → Record<string, unknown>
+    metadata: {
+        id: string
+        timestamp: string
+        s3Bucket?: string
+        s3Key?: string
+        pdfKey?: string
+    }
 }
 
 /**

@@ -26,15 +26,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Node-Module cachen
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node-modules-${{ hashFiles('package.json') }}
-          restore-keys: node-modules-
-
       - name: Abhängigkeiten installieren
-        run: npm install
+        run: npm ci
 
       - name: Unit Tests ausführen
         run: npm test -- --passWithNoTests
@@ -87,15 +80,8 @@ jobs:
         if: steps.validator-cache.outputs.cache-hit != 'true'
         run: npm run setup:validator
 
-      - name: Node-Module cachen
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node-modules-${{ hashFiles('package.json') }}
-          restore-keys: node-modules-
-
       - name: Abhängigkeiten installieren
-        run: npm install
+        run: npm ci
 
       - name: Integration Tests ausführen
         run: npm run test:e2e

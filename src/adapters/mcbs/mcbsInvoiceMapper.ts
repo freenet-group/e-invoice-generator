@@ -11,7 +11,14 @@ import { parseMcbsDocument, McbsDocument, McbsBillItem } from './zod/mcbsXmlInvo
 
 const xmlParser = new XMLParser({
     ignoreAttributes: false,
+    attributeNamePrefix: '',
     trimValues: true,
+    parseAttributeValue: false,
+    numberParseOptions: {
+        leadingZeros: false,
+        hex: false,
+        skipLike: /.*/,    // ← alle Werte als string belassen, kein auto-parsing
+    },
 })
 
 // ==================== XML Parsing ====================
@@ -42,9 +49,6 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
     const diffVats = frames['DIFF_VATS']
     const frame = frames['FRAME']
     const address = recipient['ADDRESS']
-
-    const s3Bucket = toStringOrUndefined(rawData.metadata['s3Bucket'])
-    const s3Key = toStringOrUndefined(rawData.metadata['pdfKey'] ?? rawData.metadata['s3Key'])
 
     const brand = <Record<string, unknown> | undefined>header['BRAND']
     const seller: CommonInvoice['seller'] = {
@@ -126,21 +130,23 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
         totals,
         taxes,
         lineItems,
-        pdf: { s3Bucket, s3Key },
-        buyerReference: resolveBuyerReference(rawData),
+        pdf: {
+            s3Bucket: rawData.metadata.s3Bucket,
+            s3Key: rawData.metadata.pdfKey ?? rawData.metadata.s3Key,
+        },
+        buyerReference: resolveBuyerReference(doc),
     }
 }
 
 // ==================== Buyer Reference ====================
 
-function resolveBuyerReference(rawData: RawInvoiceData): string | undefined {
-    const doc = rawData.data
-    const header = <Record<string, unknown>>doc['HEADER']
-    const customer = <Record<string, unknown> | undefined>doc['CUSTOMER']
-    const recipient = <Record<string, unknown> | undefined>doc['RECIPIENT']
+function resolveBuyerReference(doc: McbsDocument): string | undefined {
+    const header = doc['HEADER']
+    const customer = doc['CUSTOMER']
+    const recipient = doc['RECIPIENT']
 
-    const deliveryMode = <Record<string, unknown> | undefined>header['DELIVERY_MODE']
-    const supply = <Record<string, unknown> | undefined>deliveryMode?.['SUPPLY']
+    const deliveryMode = header['DELIVERY_MODE']
+    const supply = deliveryMode?.['SUPPLY']
     if (toStringOrUndefined(supply?.['TYPE']) === 'PEPPOL_PA') {
         const entry = toStringOrUndefined(supply?.['ENTRY'])
         if (entry !== undefined) {
@@ -154,7 +160,7 @@ function resolveBuyerReference(rawData: RawInvoiceData): string | undefined {
     }
 
     const customerId = toStringOrUndefined(customer?.['PERSON_NO'])
-    return customerId ?? toStringOrUndefined(recipient?.['PERSON_NO'])
+    return customerId ?? toStringOrUndefined(recipient['PERSON_NO'])
 }
 
 // ==================== Line Items ====================

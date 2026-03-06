@@ -177,4 +177,44 @@ describe('eInvoiceGeneratorService', () => {
     expect(mockServiceLogger.warn).toHaveBeenCalledWith('attention')
     expect(mockServiceLogger.error).toHaveBeenCalledWith('boom')
   })
+
+  it('uses invoiceNumber as default PDF filename when pdfFilename is omitted', async () => {
+    const invoice = createInvoice()
+    const pdf = new Uint8Array([4, 5, 6])
+
+    await generateEInvoice(invoice, { pdf })
+
+    const [, options] =
+      <[Record<string, unknown>, Record<string, unknown>]>mockGenerate.mock.calls[0]
+    expect(options).toMatchObject({
+      pdf: {
+        filename: 'INV-TEST-001.pdf',
+      },
+    })
+  })
+
+  it('logs and rethrows when generate throws an Error', async () => {
+    const invoice = createInvoice()
+    const error = new Error('generation failed')
+    mockGenerate.mockRejectedValueOnce(error)
+
+    await expect(generateEInvoice(invoice)).rejects.toThrow('generation failed')
+
+    expect(mockServiceLogger.error).toHaveBeenCalledWith(
+      { invoiceNumber: 'INV-TEST-001', error: 'generation failed' },
+      'E-Invoice Generierung fehlgeschlagen'
+    )
+  })
+
+  it('logs and rethrows when generate throws a non-Error value', async () => {
+    const invoice = createInvoice()
+    mockGenerate.mockRejectedValueOnce('plain string error')
+
+    await expect(generateEInvoice(invoice)).rejects.toBe('plain string error')
+
+    expect(mockServiceLogger.error).toHaveBeenCalledWith(
+      { invoiceNumber: 'INV-TEST-001', error: 'plain string error' },
+      'E-Invoice Generierung fehlgeschlagen'
+    )
+  })
 })

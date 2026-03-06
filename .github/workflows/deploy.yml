@@ -1,0 +1,45 @@
+name: e-invoice-generator - deploy
+run-name: Deploy 'e-invoice-generator' to '${{ inputs.environment }}' in AWS by ${{ github.actor }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        required: true
+        type: choice
+        description: "Deployment stage:"
+        default: dev
+        options:
+          - dev
+          - staging
+          - production
+
+jobs:
+  deploy:
+    permissions:
+      id-token: write
+      contents: read
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Connect to AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ (inputs.environment == 'production' && vars.E_INVOICE_PROD_DEPLOY_ROLE_ARN) || vars.E_INVOICE_NONPROD_DEPLOY_ROLE_ARN }}
+          aws-region: eu-central-1
+
+      - name: Deploy
+        run: |
+          npx serverless deploy --stage ${{ inputs.environment }}

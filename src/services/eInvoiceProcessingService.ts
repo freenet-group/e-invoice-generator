@@ -1,15 +1,16 @@
 import { SQSRecord } from 'aws-lambda'
+import { z } from 'zod'
 import { AdapterRegistry } from '../adapters/adapterRegistry'
 import { generateEInvoice } from './eInvoiceGeneratorService'
 import { uploadToS3 } from '../core/s3/s3Uploader'
 import { logger as rootLogger } from '../core/logger'
 import { getInvoiceFormat, type InvoiceFormat } from '../config/eInvoiceProfileConfiguration'
 
-interface EventBridgeEvent {
-    source: string
-    'detail-type': string
-    detail: unknown
-}
+const EventBridgeEventSchema = z.object({
+    source: z.string(),
+    'detail-type': z.string(),
+    detail: z.record(z.string(), z.unknown()),
+})
 
 type LoggerLike = Pick<typeof rootLogger, 'info' | 'error'>
 
@@ -57,13 +58,21 @@ export class EInvoiceProcessingService {
     async processRecord(record: SQSRecord): Promise<void> {
         this.logger.info({ messageId: record.messageId }, `Processing message: ${record.messageId}`)
 
-        const eventBridgeEvent = <EventBridgeEvent><unknown>JSON.parse(record.body)
+        const parseResult = EventBridgeEventSchema.safeParse(JSON.parse(record.body))
+        if (!parseResult.success) {
+            throw new Error(`Invalid EventBridge event format: ${parseResult.error.message}`)
+        }
+        const eventBridgeEvent = parseResult.data
 
         this.logger.info({ source: eventBridgeEvent.source, detailType: eventBridgeEvent['detail-type'] }, 'Event received')
 
         const activeAdapter = process.env['ACTIVE_ADAPTER'] ?? 'custom.mcbs'
+        if (!this.adapterRegistry.hasAdapter(activeAdapter)) {
+            throw new Error(`Unknown adapter: '${activeAdapter}' – check ACTIVE_ADAPTER environment variable. Available adapters: ${this.adapterRegistry.getSources().join(', ')}`)
+        }
         const adapter = this.adapterRegistry.getAdapter(activeAdapter)
-        const rawData = await adapter.loadInvoiceData(<Record<string, unknown>>eventBridgeEvent.detail)
+
+        const rawData = await adapter.loadInvoiceData(eventBridgeEvent.detail)
         const invoice = adapter.mapToCommonModel(rawData)
         const pdf = await adapter.loadPDF(invoice)
 

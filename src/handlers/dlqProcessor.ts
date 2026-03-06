@@ -9,7 +9,9 @@ import type { SQSEvent, SQSHandler } from 'aws-lambda'
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns'
 import { logger } from '../core/logger'
 
-const snsClient = new SNSClient({})
+let _snsClient: SNSClient | undefined
+const getSnsClient = (): SNSClient => (_snsClient ??= new SNSClient({}))
+
 const dlqLogger = logger.child({ name: 'DLQProcessor' })
 
 export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
@@ -18,9 +20,10 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
 
     for (const record of event.Records) {
         const receiveCount = record.attributes.ApproximateReceiveCount
-        const sentAt = record.attributes.SentTimestamp === '' 
-            ? 'unknown'
-            : new Date(Number(record.attributes.SentTimestamp)).toISOString()
+        const sentAt =
+            record.attributes.SentTimestamp === ''
+                ? 'unknown'
+                : new Date(Number(record.attributes.SentTimestamp)).toISOString()
 
         dlqLogger.error(
             {
@@ -32,7 +35,7 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
             'DLQ message received – invoice processing failed after all retries'
         )
 
-        if (alertTopicArn === undefined || alertTopicArn.trim() === '') {
+        if (alertTopicArn == null || alertTopicArn.trim() === '') {
             dlqLogger.warn('ALERT_TOPIC_ARN not set – skipping SNS alert')
             continue
         }
@@ -45,23 +48,29 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
             }
         })()
 
-        await snsClient.send(
-            new PublishCommand({
-                TopicArn: alertTopicArn,
-                Subject: `[${stage.toUpperCase()}] E-Invoice Processing Failed`,
-                Message: JSON.stringify(
-                    {
-                        messageId: record.messageId,
-                        receiveCount,
-                        sentAt,
-                        body: parsedBody,
-                    },
-                    null,
-                    2
-                ),
-            })
-        )
-
-        dlqLogger.info({ messageId: record.messageId }, 'SNS alert sent')
+        try {
+            await getSnsClient().send(
+                new PublishCommand({
+                    TopicArn: alertTopicArn,
+                    Subject: `[${stage.toUpperCase()}] E-Invoice Processing Failed`,
+                    Message: JSON.stringify(
+                        {
+                            messageId: record.messageId,
+                            receiveCount,
+                            sentAt,
+                            body: parsedBody,
+                        },
+                        null,
+                        2
+                    ),
+                })
+            )
+            dlqLogger.info({ messageId: record.messageId }, 'SNS alert sent')
+        } catch (err) {
+            dlqLogger.error(
+                { messageId: record.messageId, err },
+                'SNS alert failed – continuing with next record'
+            )
+        }
     }
 }

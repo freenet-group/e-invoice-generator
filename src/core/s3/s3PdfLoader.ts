@@ -1,6 +1,8 @@
 import { GetObjectCommand } from '@aws-sdk/client-s3'
 import { s3Client } from './s3Client'
 
+const PDF_MAGIC = Buffer.from('%PDF')
+
 export async function loadPdfFromS3(
     bucket: string,
     key: string
@@ -10,7 +12,14 @@ export async function loadPdfFromS3(
             new GetObjectCommand({ Bucket: bucket, Key: key })
         )
         const bytes = await response.Body?.transformToByteArray()
-        return bytes === undefined ? null : Buffer.from(bytes)
+        if (bytes === undefined) {
+            return null
+        }
+        const buf = Buffer.from(bytes)
+        if (!buf.subarray(0, 4).equals(PDF_MAGIC)) {
+            return null
+        }
+        return buf
     } catch {
         return null
     }

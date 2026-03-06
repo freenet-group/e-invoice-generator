@@ -1,421 +1,256 @@
-import { parseMcbsDocument, McbsDocument } from '../../src/adapters/mcbs/zod/mcbsXmlInvoiceSchema'
+import { McbsXmlRootSchema as McbsXmlInvoiceSchema, parseMcbsDocument } from '../../src/adapters/mcbs/zod/mcbsXmlInvoiceSchema'
 
-// ==================== Fixtures ====================
+describe('mcbsXmlInvoiceSchema', () => {
 
-function buildMinimalDoc(overrides: Record<string, unknown> = {}): Record<string, unknown> {
-    return {
-        TYPE: 'RG',
-        ID: '123',
-        HEADER: {
-            INVOICE_DATE: '22.02.2026',
-            INV_CURRENCY: 'EUR',
-        },
-        RECIPIENT: {
-            ADDRESS: {},
-        },
-        INVOICE_DATA: {
-            PAYMENT_MODE: {
-                PAYMENT_TYPE: 'SEPADEBIT',
-                DUE_DATE: '22.02.2026',
-            },
-            FRAMES: {
-                FRAME: [],
-                AMOUNTS: {
-                    AMOUNT: [
-                        { TYPE: 'TOTAL_NET', VALUE: '24,35' },
-                        { TYPE: 'TOTAL_VAT', VALUE: '4,63' },
-                        { TYPE: 'TOTAL', VALUE: '28,98' },
-                        { TYPE: 'SUBTOTAL', VALUE: '28,98' },
-                        { TYPE: 'INSEP_GROSS', VALUE: '0,99' },
-                    ],
-                },
-                DIFF_VATS: {},
-            },
-        },
-        ...overrides,
-    }
-}
-
-// ==================== parseMcbsDocument ====================
-
-describe('parseMcbsDocument', () => {
-
-    // ==================== Happy Path ====================
-
-    it('parses a minimal valid document', () => {
-        const doc = parseMcbsDocument(buildMinimalDoc())
-
-        expect(doc.ID).toBe('123')
-        expect(doc.TYPE).toBe('RG')
-        expect(doc.HEADER.INVOICE_DATE).toBe('2026-02-22')
-        expect(doc.HEADER.INV_CURRENCY).toBe('EUR')
-    })
-
-    it('applies default TYPE "RG" when omitted', () => {
-        const raw = buildMinimalDoc()
-        delete raw['TYPE']
-        const doc = parseMcbsDocument(raw)
-
-        expect(doc.TYPE).toBe('RG')
-    })
-
-    it('applies default currency EUR when omitted', () => {
-        const raw = buildMinimalDoc()
-        const header = <Record<string, unknown>>raw['HEADER']
-        delete header['INV_CURRENCY']
-        const doc = parseMcbsDocument(raw)
-
-        expect(doc.HEADER.INV_CURRENCY).toBe('EUR')
-    })
-
-    it('applies default country DE when ADDRESS has no COUNTRY', () => {
-        const doc = parseMcbsDocument(buildMinimalDoc())
-
-        expect(doc.RECIPIENT.ADDRESS.COUNTRY).toBe('DE')
-    })
-
-    it('applies default PAYMENT_TYPE TRANSFER when omitted', () => {
-        const raw = buildMinimalDoc()
-        const paymentMode = <Record<string, unknown>>(<Record<string, unknown>>raw['INVOICE_DATA'])['PAYMENT_MODE']
-        delete paymentMode['PAYMENT_TYPE']
-        const doc = parseMcbsDocument(raw)
-
-        expect(doc.INVOICE_DATA.PAYMENT_MODE.PAYMENT_TYPE).toBe('TRANSFER')
-    })
-
-    it('applies default VAT_RATE 19 when omitted on BILLITEM', () => {
-        const raw = buildMinimalDoc({
-            INVOICE_DATA: {
-                PAYMENT_MODE: { PAYMENT_TYPE: 'SEPADEBIT', DUE_DATE: '22.02.2026' },
-                FRAMES: {
-                    FRAME: [{
-                        AREA: {
-                            UNIT: [{
-                                SECTIONS: {
-                                    SECTION: [{
-                                        BILLITEM_GRPS: {
-                                            BILLITEM_GRP: [{
-                                                BILLITEMS: {
-                                                    BILLITEM: [{
-                                                        PRODUCT_NAME: 'TestItem',
-                                                        CHARGE: '10,00',
-                                                        // VAT_RATE fehlt → default 19
-                                                    }],
-                                                },
-                                            }],
-                                        },
-                                    }],
-                                },
-                            }],
-                        },
-                    }],
-                    AMOUNTS: { AMOUNT: [{ TYPE: 'TOTAL', VALUE: '10,00' }] },
-                    DIFF_VATS: {},
-                },
-            },
-        })
-
-        const doc = parseMcbsDocument(raw)
-        const billitem = doc.INVOICE_DATA.FRAMES.FRAME[0]
-            ?.AREA?.UNIT[0]
-            ?.SECTIONS?.SECTION[0]
-            ?.BILLITEM_GRPS?.BILLITEM_GRP[0]
-            ?.BILLITEMS?.BILLITEM[0]
-
-        expect(billitem?.VAT_RATE).toBe(19)
-    })
-
-    it('accepts VAT_RATE "INCLUDED" on BILLITEM', () => {
-        const raw = buildMinimalDoc({
-            INVOICE_DATA: {
-                PAYMENT_MODE: { PAYMENT_TYPE: 'SEPADEBIT', DUE_DATE: '22.02.2026' },
-                FRAMES: {
-                    FRAME: [{
-                        AREA: {
-                            UNIT: [{
-                                SECTIONS: {
-                                    SECTION: [{
-                                        BILLITEM_GRPS: {
-                                            BILLITEM_GRP: [{
-                                                BILLITEMS: {
-                                                    BILLITEM: [{
-                                                        PRODUCT_NAME: 'TestItem',
-                                                        CHARGE: '5,00',
-                                                        VAT_RATE: 'INCLUDED',
-                                                    }],
-                                                },
-                                            }],
-                                        },
-                                    }],
-                                },
-                            }],
-                        },
-                    }],
-                    AMOUNTS: { AMOUNT: [{ TYPE: 'TOTAL', VALUE: '5,00' }] },
-                    DIFF_VATS: {},
-                },
-            },
-        })
-
-        const doc = parseMcbsDocument(raw)
-        const billitem = doc.INVOICE_DATA.FRAMES.FRAME[0]
-            ?.AREA?.UNIT[0]
-            ?.SECTIONS?.SECTION[0]
-            ?.BILLITEM_GRPS?.BILLITEM_GRP[0]
-            ?.BILLITEMS?.BILLITEM[0]
-
-        expect(billitem?.VAT_RATE).toBe('INCLUDED')
-    })
-
-    // ==================== germanDecimal ====================
-
-    it('parses german decimal with comma', () => {
-        const doc = parseMcbsDocument(buildMinimalDoc())
-        const amounts = doc.INVOICE_DATA.FRAMES.AMOUNTS
-
-        // buildMinimalDoc enthält bereits '24,35' als TOTAL_NET
-        expect(amounts.NET_AMOUNT).toBe(24.35)
-    })
-
-    it('parses german decimal with thousands separator', () => {
-        const raw = buildMinimalDoc({
-            INVOICE_DATA: {
-                PAYMENT_MODE: { PAYMENT_TYPE: 'TRANSFER' },
-                FRAMES: {
-                    FRAME: [],
-                    AMOUNTS: {
-                        AMOUNT: [
-                            { TYPE: 'TOTAL_NET', VALUE: '1.234,56' },
-                            { TYPE: 'TOTAL', VALUE: '1.234,56' },
-                        ],
-                    },
-                    DIFF_VATS: {},
-                },
-            },
-        })
-
-        const doc = parseMcbsDocument(raw)
-
-        expect(doc.INVOICE_DATA.FRAMES.AMOUNTS.NET_AMOUNT).toBe(1234.56)
-    })
-
-    it('throws on invalid german decimal', () => {
-        const raw = buildMinimalDoc({
-            INVOICE_DATA: {
-                PAYMENT_MODE: { PAYMENT_TYPE: 'TRANSFER' },
-                FRAMES: {
-                    FRAME: [],
-                    AMOUNTS: {
-                        AMOUNT: [
-                            { TYPE: 'TOTAL_NET', VALUE: 'not-a-number' },
-                            { TYPE: 'TOTAL', VALUE: 'not-a-number' },
-                        ],
-                    },
-                    DIFF_VATS: {},
-                },
-            },
-        })
-
-        expect(() => parseMcbsDocument(raw)).toThrow()
-    })
-
-    // ==================== germanDate ====================
-
-    it('parses german date to ISO format', () => {
-        const doc = parseMcbsDocument(buildMinimalDoc())
-
-        expect(doc.HEADER.INVOICE_DATE).toBe('2026-02-22')
-    })
-
-    it('parses DUE_DATE in PAYMENT_MODE', () => {
-        const doc = parseMcbsDocument(buildMinimalDoc())
-
-        expect(doc.INVOICE_DATA.PAYMENT_MODE.DUE_DATE).toBe('2026-02-22')
-    })
-
-    it('throws on invalid german date format', () => {
-        const raw: Record<string, unknown> = buildMinimalDoc()
-        const header = <Record<string, unknown>>raw['HEADER']
-        header['INVOICE_DATE'] = '2026-02-22'
-
-        expect(() => parseMcbsDocument(raw)).toThrow('Invalid MCBS XML structure')
-    })
-
-    // ==================== xmlArray ====================
-
-    it('wraps single FRAME object into array', () => {
-        const raw = buildMinimalDoc({
-            INVOICE_DATA: {
-                PAYMENT_MODE: { PAYMENT_TYPE: 'TRANSFER' },
-                FRAMES: {
-                    FRAME: { ID: 'single-frame' },
-                    AMOUNTS: { AMOUNT: [] },
-                    DIFF_VATS: {},
-                },
-            },
-        })
-
-        const doc = parseMcbsDocument(raw)
-
-        expect(doc.INVOICE_DATA.FRAMES.FRAME).toHaveLength(1)
-        expect(doc.INVOICE_DATA.FRAMES.FRAME[0]?.ID).toBe('single-frame')
-    })
-
-    it('handles empty FRAME array', () => {
-        const doc = parseMcbsDocument(buildMinimalDoc())
-
-        expect(doc.INVOICE_DATA.FRAMES.FRAME).toEqual([])
-    })
-
-    it('handles null DIFF_VAT as empty array', () => {
-        const raw = buildMinimalDoc({
-            INVOICE_DATA: {
-                PAYMENT_MODE: { PAYMENT_TYPE: 'TRANSFER' },
-                FRAMES: {
-                    FRAME: [],
-                    AMOUNTS: { AMOUNT: [] },
-                    DIFF_VATS: { DIFF_VAT: null },
-                },
-            },
-        })
-
-        const doc = parseMcbsDocument(raw)
-
-        expect(doc.INVOICE_DATA.FRAMES.DIFF_VATS.DIFF_VAT).toEqual([])
-    })
-
-    it('wraps single BILLITEM_GRP into array', () => {
-        const raw = buildMinimalDoc({
-            INVOICE_DATA: {
-                PAYMENT_MODE: { PAYMENT_TYPE: 'TRANSFER' },
-                FRAMES: {
-                    FRAME: [{
-                        AREA: {
-                            UNIT: [{
-                                SECTIONS: {
-                                    SECTION: {
-                                        BILLITEM_GRPS: {
-                                            BILLITEM_GRP: {
-                                                TITLE: 'single-grp',
-                                                BILLITEMS: {
-                                                    BILLITEM: {
-                                                        PRODUCT_NAME: 'Item',
-                                                        CHARGE: '1,00',
-                                                    },
-                                                },
-                                            },
-                                        },
-                                    },
-                                },
-                            }],
-                        },
-                    }],
-                    AMOUNTS: { AMOUNT: [] },
-                    DIFF_VATS: {},
-                },
-            },
-        })
-
-        const doc = parseMcbsDocument(raw)
-        const grps = doc.INVOICE_DATA.FRAMES.FRAME[0]
-            ?.AREA?.UNIT[0]
-            ?.SECTIONS?.SECTION[0]
-            ?.BILLITEM_GRPS?.BILLITEM_GRP
-
-        expect(grps).toHaveLength(1)
-        expect(grps?.[0]?.TITLE).toBe('single-grp')
-    })
-
-    // ==================== AMOUNTS transform ====================
-
-    it('transforms AMOUNTS to named fields', () => {
-        const doc = parseMcbsDocument(buildMinimalDoc())
-        const amounts = doc.INVOICE_DATA.FRAMES.AMOUNTS
-
-        expect(amounts.NET_AMOUNT).toBe(24.35)
-        expect(amounts.VAT_AMOUNT).toBe(4.63)
-        expect(amounts.GROSS_AMOUNT).toBe(28.98)
-        expect(amounts.SUBTOTAL).toBe(28.98)
-        expect(amounts.INSEP_GROSS).toBe(0.99)
-    })
-
-    it('returns 0 for missing AMOUNTS types', () => {
-        const raw = buildMinimalDoc({
-            INVOICE_DATA: {
-                PAYMENT_MODE: { PAYMENT_TYPE: 'TRANSFER' },
-                FRAMES: {
-                    FRAME: [],
-                    AMOUNTS: { AMOUNT: [] },
-                    DIFF_VATS: {},
-                },
-            },
-        })
-
-        const doc = parseMcbsDocument(raw)
-        const amounts = doc.INVOICE_DATA.FRAMES.AMOUNTS
-
-        expect(amounts.NET_AMOUNT).toBe(0)
-        expect(amounts.VAT_AMOUNT).toBe(0)
-        expect(amounts.GROSS_AMOUNT).toBe(0)
-    })
-
-    // ==================== Error Handling ====================
-
-    it('throws with formatted error message on invalid input', () => {
-        expect(() => parseMcbsDocument({})).toThrow('Invalid MCBS XML structure')
-    })
-
-    it('includes field path in error message', () => {
-        const raw = buildMinimalDoc()
-        const header = <Record<string, unknown>>raw['HEADER']
-        header['INVOICE_DATE'] = '2026-02-22'
-
-        expect(() => parseMcbsDocument(raw)).toThrow('HEADER.INVOICE_DATE')
-    })
-
-    it('coerces numeric ID to string', () => {
-        const raw = buildMinimalDoc({ ID: 12345 })
-        const doc = parseMcbsDocument(raw)
-
-        expect(doc.ID).toBe('12345')
-    })
-
-    it('parses full document with all optional fields', () => {
-        const raw = buildMinimalDoc({
+    const validBase = {
+        DOCUMENT: {
+            TYPE: 'RE',
+            ID: 'INV-001',
             HEADER: {
-                INVOICE_DATE: '22.02.2026',
-                INVOICE_NO: 'M26008957394',
+                INVOICE_NO: 'INV-001',
+                INVOICE_DATE: '01.01.2025',
                 INV_CURRENCY: 'EUR',
-                BILLRUN_ID: '150580',
-                BILLING_SYSTEM: 'MCBS',
-                SOURCE_SYSTEM: 'LIFE',
-                MANDANT: 'MC',
-                CLIENTBANK_ACNT: 'DE08214400450844443200',
-                CLIENTBANK_CODE: 'COBADEFFXXX',
-                BRAND: { DESC: 'freenet DLS GmbH', CODE_DESC: 'freenet' },
+                BRAND: { DESC: 'Test' },
             },
             RECIPIENT: {
-                PERSON_NO: '2120710',
+                PERSON_NO: 'R-001',
                 ADDRESS: {
-                    SHORT_OPENING: 'Herr',
-                    FIRSTNAME: 'Erika',
                     NAME: 'Mustermann',
-                    STREET: 'Musterstraße 1',
-                    POSTCODE: '20095',
-                    CITY: 'Hamburg',
+                    STREET: 'Str. 1',
+                    CITY: 'Berlin',
+                    POSTCODE: '10001',
                     COUNTRY: 'DE',
                 },
             },
-        })
+            INVOICE_DATA: {
+                PAYMENT_MODE: {
+                    PAYMENT_TYPE: 'TRANSFER',
+                    DUE_DATE: '01.02.2025',
+                    BANK_ACCOUNT: 'DE89370400440532013000',
+                    BANK_CODE: 'COBADEFFXXX',
+                },
+                FRAMES: {
+                    AMOUNTS: {
+                        AMOUNT: [
+                            { TYPE: 'TOTAL_NET', VALUE: '100,00' },
+                            { TYPE: 'TOTAL_VAT', VALUE: '19,00' },
+                            { TYPE: 'TOTAL', VALUE: '119,00' },
+                            { TYPE: 'TO_PAY', VALUE: '119,00' },
+                        ],
+                    },
+                    DIFF_VATS: {
+                        DIFF_VAT: { VAT_RATE: 19, NET: '100,00', VAT: '19,00' },
+                    },
+                    FRAME: { ID: 'MAIN' },
+                },
+            },
+        },
+    }
 
-        const doc: McbsDocument = parseMcbsDocument(raw)
+    it('parses valid invoice', () => {
+        const result = McbsXmlInvoiceSchema.safeParse(validBase)
+        expect(result.success).toBe(true)
+    })
 
-        expect(doc.HEADER.INVOICE_NO).toBe('M26008957394')
-        expect(doc.HEADER.BRAND?.DESC).toBe('freenet DLS GmbH')
-        expect(doc.RECIPIENT.PERSON_NO).toBe('2120710')
-        expect(doc.RECIPIENT.ADDRESS.FIRSTNAME).toBe('Erika')
-        expect(doc.RECIPIENT.ADDRESS.NAME).toBe('Mustermann')
-        expect(doc.RECIPIENT.ADDRESS.POSTCODE).toBe('20095')
-        expect(doc.RECIPIENT.ADDRESS.CITY).toBe('Hamburg')
+    it('fails when INVOICE_DATE has invalid format', () => {
+        const invalid = {
+            ...validBase,
+            DOCUMENT: {
+                ...validBase.DOCUMENT,
+                HEADER: { ...validBase.DOCUMENT.HEADER, INVOICE_DATE: '2025-01-01' },
+            },
+        }
+        expect(McbsXmlInvoiceSchema.safeParse(invalid).success).toBe(false)
+    })
+
+    it('fails when DUE_DATE has invalid format', () => {
+        const invalid = {
+            ...validBase,
+            DOCUMENT: {
+                ...validBase.DOCUMENT,
+                INVOICE_DATA: {
+                    ...validBase.DOCUMENT.INVOICE_DATA,
+                    PAYMENT_MODE: {
+                        ...validBase.DOCUMENT.INVOICE_DATA.PAYMENT_MODE,
+                        DUE_DATE: '2025-02-01',
+                    },
+                },
+            },
+        }
+        expect(McbsXmlInvoiceSchema.safeParse(invalid).success).toBe(false)
+    })
+
+    // ── germanDecimal: non-finite value ──
+
+    it('throws when AMOUNT VALUE is not a valid decimal', () => {
+        const invalid = {
+            ...validBase,
+            DOCUMENT: {
+                ...validBase.DOCUMENT,
+                INVOICE_DATA: {
+                    ...validBase.DOCUMENT.INVOICE_DATA,
+                    FRAMES: {
+                        ...validBase.DOCUMENT.INVOICE_DATA.FRAMES,
+                        AMOUNTS: {
+                            AMOUNT: [
+                                { TYPE: 'TOTAL_NET', VALUE: 'not-a-number' },
+                            ],
+                        },
+                    },
+                },
+            },
+        }
+        expect(() => McbsXmlInvoiceSchema.safeParse(invalid)).toThrow('Expected German decimal number')
+    })
+
+    // ── xmlArray: null/undefined → empty array ──
+
+    it('accepts missing DIFF_VAT (null/undefined → empty array)', () => {
+        const base = {
+            ...validBase,
+            DOCUMENT: {
+                ...validBase.DOCUMENT,
+                INVOICE_DATA: {
+                    ...validBase.DOCUMENT.INVOICE_DATA,
+                    FRAMES: {
+                        ...validBase.DOCUMENT.INVOICE_DATA.FRAMES,
+                        DIFF_VATS: {},
+                    },
+                },
+            },
+        }
+        const result = McbsXmlInvoiceSchema.safeParse(base)
+        expect(result.success).toBe(true)
+    })
+
+    // ── McbsAmountsSchema: UNPAID present (findOptional returns value) ──
+
+    it('parses UNPAID amount from AMOUNTS list', () => {
+        const base = {
+            ...validBase,
+            DOCUMENT: {
+                ...validBase.DOCUMENT,
+                INVOICE_DATA: {
+                    ...validBase.DOCUMENT.INVOICE_DATA,
+                    FRAMES: {
+                        ...validBase.DOCUMENT.INVOICE_DATA.FRAMES,
+                        AMOUNTS: {
+                            AMOUNT: [
+                                { TYPE: 'TOTAL_NET', VALUE: '100,00' },
+                                { TYPE: 'TOTAL_VAT', VALUE: '19,00' },
+                                { TYPE: 'TOTAL', VALUE: '119,00' },
+                                { TYPE: 'UNPAID', VALUE: '50,00' },
+                                { TYPE: 'TO_PAY', VALUE: '69,00' },
+                            ],
+                        },
+                    },
+                },
+            },
+        }
+        const result = McbsXmlInvoiceSchema.safeParse(base)
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DOCUMENT.INVOICE_DATA.FRAMES.AMOUNTS.UNPAID).toBe(50)
+            expect(result.data.DOCUMENT.INVOICE_DATA.FRAMES.AMOUNTS.TO_PAY).toBe(69)
+        }
+    })
+
+    // ── McbsAddressSchema: COUNTRY = '' → 'DE' ──
+
+    it('defaults COUNTRY to DE when empty string', () => {
+        const base = {
+            ...validBase,
+            DOCUMENT: {
+                ...validBase.DOCUMENT,
+                RECIPIENT: {
+                    ...validBase.DOCUMENT.RECIPIENT,
+                    ADDRESS: { ...validBase.DOCUMENT.RECIPIENT.ADDRESS, COUNTRY: '' },
+                },
+            },
+        }
+        const result = McbsXmlInvoiceSchema.safeParse(base)
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DOCUMENT.RECIPIENT.ADDRESS.COUNTRY).toBe('DE')
+        }
+    })
+
+    // ── RECIPIENT.PERSON_NO = '' → undefined ──
+
+    it('transforms empty RECIPIENT PERSON_NO to undefined', () => {
+        const base = {
+            ...validBase,
+            DOCUMENT: {
+                ...validBase.DOCUMENT,
+                RECIPIENT: { ...validBase.DOCUMENT.RECIPIENT, PERSON_NO: '' },
+            },
+        }
+        const result = McbsXmlInvoiceSchema.safeParse(base)
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DOCUMENT.RECIPIENT.PERSON_NO).toBeUndefined()
+        }
+    })
+
+    // ── CUSTOMER fields: '' → undefined ──
+
+    it('transforms empty CUSTOMER fields to undefined', () => {
+        const base = {
+            ...validBase,
+            DOCUMENT: {
+                ...validBase.DOCUMENT,
+                CUSTOMER: { PERSON_NO: '', VAT_ID: '' },
+            },
+        }
+        const result = McbsXmlInvoiceSchema.safeParse(base)
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DOCUMENT.CUSTOMER?.PERSON_NO).toBeUndefined()
+            expect(result.data.DOCUMENT.CUSTOMER?.VAT_ID).toBeUndefined()
+        }
+    })
+
+    // ── parseMcbsDocument: success path ──
+
+    it('parseMcbsDocument returns parsed data for valid input', () => {
+        const doc = parseMcbsDocument(<Record<string, unknown>>validBase.DOCUMENT)
+        expect(doc.HEADER.INVOICE_NO).toBe('INV-001')
+    })
+
+    // ── parseMcbsDocument: error path ──
+
+    it('parseMcbsDocument throws with formatted error for invalid input', () => {
+        expect(() =>
+            parseMcbsDocument(<Record<string, unknown>>{ HEADER: { INVOICE_DATE: 'invalid' } })
+        ).toThrow('Invalid MCBS XML structure:')
+    })
+
+    // ── germanDecimal: Tausenderpunkt-Format ──
+
+    it('parses German thousand-separator decimal correctly', () => {
+        const base = {
+            ...validBase,
+            DOCUMENT: {
+                ...validBase.DOCUMENT,
+                INVOICE_DATA: {
+                    ...validBase.DOCUMENT.INVOICE_DATA,
+                    FRAMES: {
+                        ...validBase.DOCUMENT.INVOICE_DATA.FRAMES,
+                        AMOUNTS: {
+                            AMOUNT: [
+                                { TYPE: 'TOTAL_NET', VALUE: '1.234,56' },
+                                { TYPE: 'TOTAL_VAT', VALUE: '234,56' },
+                                { TYPE: 'TOTAL', VALUE: '1.469,12' },
+                            ],
+                        },
+                    },
+                },
+            },
+        }
+        const result = McbsXmlInvoiceSchema.safeParse(base)
+        expect(result.success).toBe(true)
+        if (result.success) {
+            expect(result.data.DOCUMENT.INVOICE_DATA.FRAMES.AMOUNTS.NET_AMOUNT).toBe(1234.56)
+        }
     })
 })

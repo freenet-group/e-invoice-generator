@@ -5,7 +5,7 @@ import { loadPdfFromS3 } from '../../core/s3/s3PdfLoader'
 import { parseMcbsXml, mapMcbsToCommonInvoice } from './mcbsInvoiceMapper'
 
 const defaultResolvePrimaryKey = (triggerKey: string): string =>
-    triggerKey.replace(/\.pdf$/i, '.xml')
+    triggerKey.replace(/\.pdf$/i, '.xml') // raw/pdf/invoice-123.pdf → raw/pdf/invoice-123.xml
 
 export class MCBSAdapter implements InvoiceAdapter {
     private readonly resolvePrimaryKey: (triggerKey: string) => string
@@ -25,7 +25,7 @@ export class MCBSAdapter implements InvoiceAdapter {
         }
 
         const bucket = this.primaryBucket ?? triggerBucket
-        const xmlKey = this.resolvePrimaryKey(triggerKey)
+        const xmlKey = this.resolvePrimaryKey(triggerKey) // PDF → XML Key
 
         const xml = await loadXmlFromS3OrLocal({ bucket, key: xmlKey })
 
@@ -33,8 +33,8 @@ export class MCBSAdapter implements InvoiceAdapter {
             id: xmlKey,
             timestamp: new Date().toISOString(),
             s3Bucket: bucket,
-            s3Key: xmlKey,
-            pdfKey: triggerKey,
+            s3Key: xmlKey, // ← XML Key (für s3XmlLoader)
+            pdfKey: triggerKey, // ← PDF Key (trigger war das PDF)
         })
     }
 
@@ -46,7 +46,7 @@ export class MCBSAdapter implements InvoiceAdapter {
         if (invoice.pdf?.s3Bucket === undefined || invoice.pdf.s3Key === undefined) {
             return null
         }
-        const pdfKey = invoice.pdf.s3Key.replace(/\.xml$/i, '.pdf')
-        return loadPdfFromS3(invoice.pdf.s3Bucket, pdfKey)
+        // s3Key ist bereits der PDF Key (triggerKey aus loadInvoiceData)
+        return loadPdfFromS3(invoice.pdf.s3Bucket, invoice.pdf.s3Key)
     }
 }

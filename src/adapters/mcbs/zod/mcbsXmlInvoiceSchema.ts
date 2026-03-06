@@ -252,7 +252,7 @@ const McbsAddressSchema = z.object({
     STREET: z.string().optional(),
     POSTCODE: z.coerce.string().optional(),
     CITY: z.string().optional(),
-    COUNTRY: z.string().optional().default('DE'),
+    COUNTRY: z.string().optional().transform(val => val === '' || val === undefined ? 'DE' : val), // ← default greift nicht bei ''
 })
 
 // ==================== ROOT DOCUMENT ====================
@@ -262,9 +262,13 @@ export const McbsDocumentSchema = z.object({
     ID: z.coerce.string(),
     HEADER: McbsHeaderSchema,
     RECIPIENT: z.object({
-        PERSON_NO: z.coerce.string().optional(),
+        PERSON_NO: z.coerce.string().optional().transform(val => val === '' ? undefined : val), // ← '' → undefined
         ADDRESS: McbsAddressSchema,
     }),
+    CUSTOMER: z.object({
+        PERSON_NO: z.coerce.string().optional().transform(val => val === '' ? undefined : val), // ← '' → undefined
+        VAT_ID: z.string().optional().transform(val => val === '' ? undefined : val),           // ← '' → undefined
+    }).optional(),
     INVOICE_DATA: z.object({
         PAYMENT_MODE: McbsPaymentModeSchema,
         FRAMES: z.object({
@@ -279,7 +283,11 @@ export const McbsDocumentSchema = z.object({
 
 export type McbsDocument = z.infer<typeof McbsDocumentSchema>
 
-// ==================== Parse-Funktion ====================
+export const McbsXmlRootSchema = z.object({
+    DOCUMENT: McbsDocumentSchema,
+})
+
+export type McbsXmlRoot = z.infer<typeof McbsXmlRootSchema>
 
 export function parseMcbsDocument(raw: Record<string, unknown>): McbsDocument {
     const result = McbsDocumentSchema.safeParse(raw)

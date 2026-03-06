@@ -81,7 +81,7 @@ const mockInvoice: CommonInvoice = {
     lineItems: [],
     pdf: {
         s3Bucket: 'my-bucket',
-        s3Key: 'invoices/test-invoice.xml',
+        s3Key: 'invoices/test-invoice.pdf', // ← XML → PDF
     },
 }
 

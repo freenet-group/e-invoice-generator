@@ -100,7 +100,47 @@ jest.mock('../../src/core/s3/s3Uploader', () => ({
     uploadToS3: jest.fn().mockResolvedValue(undefined),
 }))
 
+const mockLoadInvoiceData = jest.fn()
+const mockMapToCommonModel = jest.fn()
+const mockLoadPDF = jest.fn()
+const mockAdapter: InvoiceAdapter = {
+    loadInvoiceData: mockLoadInvoiceData,
+    mapToCommonModel: mockMapToCommonModel,
+    loadPDF: mockLoadPDF,
+}
+
+const mockHasAdapter = jest.fn().mockReturnValue(true)
+const mockGetAdapter = jest.fn().mockReturnValue(mockAdapter)
+const mockGetSources = jest.fn().mockReturnValue(['custom.mcbs'])
+
+function createRegistry(adapter: InvoiceAdapter): AdapterRegistry {
+    const registry = new AdapterRegistry()
+    jest.spyOn(registry, 'hasAdapter').mockReturnValue(true)
+    jest.spyOn(registry, 'getAdapter').mockReturnValue(adapter)
+    jest.spyOn(registry, 'getSources').mockReturnValue(['custom.mcbs'])
+    return registry
+}
+
 describe('EInvoiceProcessingService', () => {
+
+    let service: EInvoiceProcessingService
+
+    beforeEach(() => {
+        jest.clearAllMocks()
+        mockHasAdapter.mockReturnValue(true)
+        mockGetAdapter.mockReturnValue(mockAdapter)
+        mockGetSources.mockReturnValue(['custom.mcbs'])
+        service = new EInvoiceProcessingService({
+            adapterRegistry: <AdapterRegistry><unknown>{
+                hasAdapter: mockHasAdapter,
+                getAdapter: mockGetAdapter,
+                getSources: mockGetSources,
+            },
+            generateXml: jest.fn().mockResolvedValue('<xml/>'),
+            uploadResult: jest.fn().mockResolvedValue(undefined),
+        })
+    })
+
     it('processes one record and calls generate + upload with embedded pdf', async () => {
         const invoice = createInvoice()
         const rawData = createRawData()
@@ -108,17 +148,13 @@ describe('EInvoiceProcessingService', () => {
         const loadInvoiceData = jest.fn().mockResolvedValue(rawData)
         const mapToCommonModel = jest.fn().mockReturnValue(invoice)
         const loadPDF = jest.fn().mockResolvedValue(Buffer.from([1, 2, 3]))
-
         const adapter: InvoiceAdapter = { loadInvoiceData, mapToCommonModel, loadPDF }
-
-        const registry = new AdapterRegistry()
-        registry.register('custom.mcbs', () => adapter)
 
         const generateXml = jest.fn().mockResolvedValue('<xml/>')
         const uploadResult = jest.fn().mockResolvedValue(undefined)
 
-        const service = new EInvoiceProcessingService({
-            adapterRegistry: registry,
+        const svc = new EInvoiceProcessingService({
+            adapterRegistry: createRegistry(adapter),
             generateXml,
             uploadResult,
         })
@@ -128,7 +164,7 @@ describe('EInvoiceProcessingService', () => {
             JSON.stringify({ source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: { id: '1' } })
         )
 
-        await service.processRecord(record)
+        await svc.processRecord(record)
 
         expect(loadInvoiceData).toHaveBeenCalledWith({ id: '1' })
         expect(mapToCommonModel).toHaveBeenCalledWith(rawData)
@@ -143,23 +179,17 @@ describe('EInvoiceProcessingService', () => {
     it('omits pdf options when adapter returns null pdf', async () => {
         const invoice = createInvoice()
         const rawData = createRawData()
-
         const adapter: InvoiceAdapter = {
             loadInvoiceData: jest.fn().mockResolvedValue(rawData),
             mapToCommonModel: jest.fn().mockReturnValue(invoice),
             loadPDF: jest.fn().mockResolvedValue(null),
         }
 
-        const registry = new AdapterRegistry()
-        registry.register('custom.mcbs', () => adapter)
-
         const generateXml = jest.fn().mockResolvedValue('<xml/>')
-        const uploadResult = jest.fn().mockResolvedValue(undefined)
-
-        const service = new EInvoiceProcessingService({
-            adapterRegistry: registry,
+        const svc = new EInvoiceProcessingService({
+            adapterRegistry: createRegistry(adapter),
             generateXml,
-            uploadResult,
+            uploadResult: jest.fn().mockResolvedValue(undefined),
         })
 
         const record = createRecord(
@@ -167,28 +197,21 @@ describe('EInvoiceProcessingService', () => {
             JSON.stringify({ source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: { id: '1' } })
         )
 
-        await service.processRecord(record)
-
-        expect(generateXml).toHaveBeenCalledWith(invoice, {
-            profile: 'factur-x-en16931',
-        })
+        await svc.processRecord(record)
+        expect(generateXml).toHaveBeenCalledWith(invoice, { profile: 'factur-x-en16931' })
     })
 
     it('returns batch item failures when one record processing fails', async () => {
         const invoice = createInvoice()
         const rawData = createRawData()
-
         const adapter: InvoiceAdapter = {
             loadInvoiceData: jest.fn().mockResolvedValue(rawData),
             mapToCommonModel: jest.fn().mockReturnValue(invoice),
             loadPDF: jest.fn().mockResolvedValue(null),
         }
 
-        const registry = new AdapterRegistry()
-        registry.register('custom.mcbs', () => adapter)
-
-        const service = new EInvoiceProcessingService({
-            adapterRegistry: registry,
+        const svc = new EInvoiceProcessingService({
+            adapterRegistry: createRegistry(adapter),
             generateXml: jest.fn().mockResolvedValue('<xml/>'),
             uploadResult: jest.fn().mockResolvedValue(undefined),
         })
@@ -199,31 +222,23 @@ describe('EInvoiceProcessingService', () => {
         )
         const invalidJsonRecord = createRecord('bad-id', '{not-json}')
 
-        const result = await service.processBatch([okRecord, invalidJsonRecord])
-
-        expect(result).toEqual({
-            batchItemFailures: [{ itemIdentifier: 'bad-id' }],
-        })
+        const result = await svc.processBatch([okRecord, invalidJsonRecord])
+        expect(result).toEqual({ batchItemFailures: [{ itemIdentifier: 'bad-id' }] })
     })
 
     it('uses default uploadResult when not provided', async () => {
         process.env['OUTPUT_BUCKET_NAME'] = 'test-bucket'
         const invoice = createInvoice()
         const rawData = createRawData()
-
         const adapter: InvoiceAdapter = {
             loadInvoiceData: jest.fn().mockResolvedValue(rawData),
             mapToCommonModel: jest.fn().mockReturnValue(invoice),
             loadPDF: jest.fn().mockResolvedValue(null),
         }
 
-        const registry = new AdapterRegistry()
-        registry.register('custom.mcbs', () => adapter)
-
         const generateXml = jest.fn().mockResolvedValue('<xml/>')
-
-        const service = new EInvoiceProcessingService({
-            adapterRegistry: registry,
+        const svc = new EInvoiceProcessingService({
+            adapterRegistry: createRegistry(adapter),
             generateXml,
         })
 
@@ -232,7 +247,7 @@ describe('EInvoiceProcessingService', () => {
             JSON.stringify({ source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: { id: '1' } })
         )
 
-        await expect(service.processRecord(record)).resolves.toBeUndefined()
+        await expect(svc.processRecord(record)).resolves.toBeUndefined()
         expect(generateXml).toHaveBeenCalledTimes(1)
         delete process.env['OUTPUT_BUCKET_NAME']
     })
@@ -240,7 +255,6 @@ describe('EInvoiceProcessingService', () => {
     it('returns no batch failures when all records succeed', async () => {
         const invoice = createInvoice()
         const rawData = createRawData()
-
         const loadInvoiceData = jest.fn().mockResolvedValue(rawData)
         const adapter: InvoiceAdapter = {
             loadInvoiceData,
@@ -248,26 +262,16 @@ describe('EInvoiceProcessingService', () => {
             loadPDF: jest.fn().mockResolvedValue(null),
         }
 
-        const registry = new AdapterRegistry()
-        registry.register('custom.mcbs', () => adapter)
-
-        const service = new EInvoiceProcessingService({
-            adapterRegistry: registry,
+        const svc = new EInvoiceProcessingService({
+            adapterRegistry: createRegistry(adapter),
             generateXml: jest.fn().mockResolvedValue('<xml/>'),
             uploadResult: jest.fn().mockResolvedValue(undefined),
         })
 
-        const r1 = createRecord(
-            'm1',
-            JSON.stringify({ source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: { id: '1' } })
-        )
-        const r2 = createRecord(
-            'm2',
-            JSON.stringify({ source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: { id: '2' } })
-        )
+        const r1 = createRecord('m1', JSON.stringify({ source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: { id: '1' } }))
+        const r2 = createRecord('m2', JSON.stringify({ source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: { id: '2' } }))
 
-        const result = await service.processBatch([r1, r2])
-
+        const result = await svc.processBatch([r1, r2])
         expect(result).toEqual({ batchItemFailures: [] })
         expect(loadInvoiceData).toHaveBeenCalledTimes(2)
     })
@@ -275,7 +279,6 @@ describe('EInvoiceProcessingService', () => {
     it('continues batch processing after a failure', async () => {
         const invoice = createInvoice()
         const rawData = createRawData()
-
         const adapter: InvoiceAdapter = {
             loadInvoiceData: jest.fn()
                 .mockRejectedValueOnce(new Error('Simulated parsing error'))
@@ -284,27 +287,17 @@ describe('EInvoiceProcessingService', () => {
             loadPDF: jest.fn().mockResolvedValue(null),
         }
 
-        const registry = new AdapterRegistry()
-        registry.register('custom.mcbs', () => adapter)
-
         const uploadResult = jest.fn().mockResolvedValue(undefined)
-        const service = new EInvoiceProcessingService({
-            adapterRegistry: registry,
+        const svc = new EInvoiceProcessingService({
+            adapterRegistry: createRegistry(adapter),
             generateXml: jest.fn().mockResolvedValue('<xml/>'),
             uploadResult,
         })
 
-        const bad = createRecord(
-            'bad',
-            JSON.stringify({ source: 'aws.s3', 'detail-type': 'Object Created', detail: { id: 'x' } })
-        )
-        const ok = createRecord(
-            'ok',
-            JSON.stringify({ source: 'aws.s3', 'detail-type': 'Object Created', detail: { id: '1' } })
-        )
+        const bad = createRecord('bad', JSON.stringify({ source: 'aws.s3', 'detail-type': 'Object Created', detail: { id: 'x' } }))
+        const ok = createRecord('ok', JSON.stringify({ source: 'aws.s3', 'detail-type': 'Object Created', detail: { id: '1' } }))
 
-        const result = await service.processBatch([bad, ok])
-
+        const result = await svc.processBatch([bad, ok])
         expect(result).toEqual({ batchItemFailures: [{ itemIdentifier: 'bad' }] })
         expect(uploadResult).toHaveBeenCalledTimes(1)
     })
@@ -312,19 +305,15 @@ describe('EInvoiceProcessingService', () => {
     it('rejects processRecord and does not upload when generateXml fails', async () => {
         const invoice = createInvoice()
         const rawData = createRawData()
-
         const adapter: InvoiceAdapter = {
             loadInvoiceData: jest.fn().mockResolvedValue(rawData),
             mapToCommonModel: jest.fn().mockReturnValue(invoice),
             loadPDF: jest.fn().mockResolvedValue(null),
         }
 
-        const registry = new AdapterRegistry()
-        registry.register('custom.mcbs', () => adapter)
-
         const uploadResult = jest.fn().mockResolvedValue(undefined)
-        const service = new EInvoiceProcessingService({
-            adapterRegistry: registry,
+        const svc = new EInvoiceProcessingService({
+            adapterRegistry: createRegistry(adapter),
             generateXml: jest.fn().mockRejectedValue(new Error('xml generation failed')),
             uploadResult,
         })
@@ -334,7 +323,40 @@ describe('EInvoiceProcessingService', () => {
             JSON.stringify({ source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: { id: '1' } })
         )
 
-        await expect(service.processRecord(record)).rejects.toThrow('xml generation failed')
+        await expect(svc.processRecord(record)).rejects.toThrow('xml generation failed')
         expect(uploadResult).not.toHaveBeenCalled()
+    })
+
+    it('throws when adapter is unknown (Zeile 71)', async () => {
+        mockHasAdapter.mockReturnValueOnce(false)
+        const record = createRecord(
+            'msg-unknown-adapter',
+            JSON.stringify({ source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: { id: '1' } })
+        )
+        await expect(service.processRecord(record)).rejects.toThrow("Unknown adapter: 'custom.mcbs'")
+    })
+
+    it('throws when record body is not valid EventBridge format (Zeile 63)', async () => {
+        const record = createRecord('msg-invalid', JSON.stringify({ invalid: 'format' }))
+        await expect(service.processRecord(record)).rejects.toThrow()
+    })
+
+    it('logs error and rethrows when getInvoiceFormat throws (Zeile 84-85)', async () => {
+        process.env['ACTIVE_ADAPTER'] = 'custom.mcbs'
+        process.env['INVOICE_FORMAT'] = 'invalid-format'
+        const svc = new EInvoiceProcessingService({
+            adapterRegistry: <AdapterRegistry><unknown>{
+                hasAdapter: jest.fn().mockReturnValue(true),
+                getAdapter: jest.fn().mockReturnValue(mockAdapter),
+                getSources: jest.fn().mockReturnValue(['custom.mcbs']),
+            },
+            generateXml: jest.fn().mockResolvedValue('<xml/>'),
+            uploadResult: jest.fn().mockResolvedValue(undefined),
+        })
+        const record = createRecord(
+            'msg-bad-format',
+            JSON.stringify({ source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: { id: '1' } })
+        )
+        await expect(svc.processRecord(record)).rejects.toThrow()
     })
 })

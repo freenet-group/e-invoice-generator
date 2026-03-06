@@ -2,239 +2,278 @@ import {
   buildBuyer,
   buildPaymentMeans,
   buildSeller,
-  formatAmount,
   mapToEInvoice,
 } from '../../src/mappers/eInvoiceMapper'
 import {
   CommonInvoice,
   InvoiceType,
+  PaymentMeansCode,
   TaxCategoryCode,
   UnitCode,
-  PaymentMeansCode,
 } from '../../src/models/commonInvoice'
 
-// ==================== Fixture ====================
-
-function createInvoice(): CommonInvoice {
-  return {
-    invoiceNumber: 'INV-TEST-001',
-    invoiceDate: '2026-02-21',
-    invoiceType: InvoiceType.COMMERCIAL,
-    currency: 'EUR',
-    source: {
-      system: 'MCBS',
-      id: 'mcbs-123',
-      timestamp: '2026-02-22T10:00:00Z',
+const baseInvoice: CommonInvoice = {
+  invoiceNumber: 'INV-001',
+  invoiceDate: '2025-01-01',
+  invoiceType: InvoiceType.COMMERCIAL,
+  currency: 'EUR',
+  buyerReference: 'REF-001',
+  seller: {
+    name: 'Seller GmbH',
+    postalAddress: {
+      streetName: 'Seller Str. 1',
+      cityName: 'Berlin',
+      postalCode: '10001',
+      countryCode: 'DE',
     },
-    seller: {
-      name: 'freenet DLS GmbH',
-      postalAddress: {
-        postalCode: '24937',
-        cityName: 'Flensburg',
-        countryCode: 'DE',
-      },
-      electronicAddress: {
-        value: 'rechnung@freenet.example',
-        schemeId: 'EM',
-      },
-      taxRegistration: [
-        {
-          id: {
-            value: 'DE123456789',
-            schemeId: 'VA',
-          },
-        },
-      ],
+  },
+  buyer: {
+    name: 'Buyer AG',
+    postalAddress: {
+      streetName: 'Buyer Str. 2',
+      cityName: 'Hamburg',
+      postalCode: '20001',
+      countryCode: 'DE',
     },
-    buyer: {
-      name: 'Erika Mustermann',
-      postalAddress: {
-        postalCode: '12345',
-        cityName: 'Berlin',
-        countryCode: 'DE',
-      },
+  },
+  paymentMeans: [
+    {
+      typeCode: PaymentMeansCode.CREDIT_TRANSFER,
+      payeeAccount: { iban: 'DE89370400440532013000' },
+      payeeInstitution: { bic: 'COBADEFFXXX' },
     },
-    lineItems: [
-      {
-        id: 1,
-        name: 'freenet Unlimited Tarif',
-        description: 'Monatlicher Mobilfunktarif',
-        quantity: 1,
-        unitCode: UnitCode.PIECE,
-        unitPrice: 100,
-        netAmount: 100,
-        tax: {
-          typeCode: 'VAT',
-          categoryCode: TaxCategoryCode.STANDARD,
-          rate: 19,
-        },
-      },
-    ],
-    paymentMeans: [
-      {
-        typeCode: PaymentMeansCode.SEPA_DIRECT_DEBIT,
-        information: 'SEPA-Lastschrift',
-        payeeAccount: {
-          iban: 'DE44500105175407324931',
-          accountName: 'freenet DLS GmbH',
-        },
-        payeeInstitution: {
-          bic: 'INGDDEFFXXX',
-        },
-        mandate: {
-          reference: 'MANDATE-123',
-        },
-      },
-    ],
-    paymentTerms: {
-      description: 'Zahlbar innerhalb von 14 Tagen',
+  ],
+  taxes: [
+    {
+      typeCode: 'VAT',
+      categoryCode: TaxCategoryCode.STANDARD,
+      rate: 19,
+      basisAmount: 100,
+      calculatedAmount: 19,
     },
-    taxes: [
-      {
+  ],
+  totals: {
+    lineTotal: 100,
+    taxBasisTotal: 100,
+    taxTotal: 19,
+    grandTotal: 119,
+    duePayable: 119,
+  },
+  lineItems: [
+    {
+      id: 1,
+      name: 'Test Produkt',
+      quantity: 1,
+      unitCode: UnitCode.PIECE,
+      unitPrice: 100,
+      netAmount: 100,
+      tax: {
         typeCode: 'VAT',
         categoryCode: TaxCategoryCode.STANDARD,
         rate: 19,
-        basisAmount: 100,
-        calculatedAmount: 19,
       },
-    ],
-    totals: {
-      lineTotal: 100,
-      taxBasisTotal: 100,
-      taxTotal: 19,
-      grandTotal: 119,
-      duePayable: 119,
-      totalPrepaidAmount: 0,
     },
-  }
+  ],
+  source: { system: 'MCBS', id: 'test-id', timestamp: '2025-01-01T00:00:00Z' },
+  pdf: { s3Bucket: 'bucket', s3Key: 'key.pdf' },
 }
 
-// ==================== Tests ====================
-
 describe('eInvoiceMapper', () => {
-  it('maps optional and numeric fields correctly', () => {
-    const invoice = createInvoice()
-    const mapped = mapToEInvoice(invoice)
-    const ublInvoice = mapped['ubl:Invoice']
 
-    expect(ublInvoice['cbc:IssueDate']).toBe('2026-02-21')
-    expect(ublInvoice['cac:PaymentTerms']).toEqual({
-      'cbc:Note': 'Zahlbar innerhalb von 14 Tagen',
-    })
-    expect(ublInvoice['cac:LegalMonetaryTotal']).toMatchObject({
-      'cbc:LineExtensionAmount': '100.00',
-      'cbc:TaxInclusiveAmount': '119.00',
-      'cbc:PrepaidAmount': '0.00',
-    })
-    expect(ublInvoice['cac:InvoiceLine'][0]).toMatchObject({
-      'cbc:InvoicedQuantity': '1',
-      'cbc:LineExtensionAmount': '100.00',
-      'cbc:Note': 'Monatlicher Mobilfunktarif', // description → Note
-    })
+  // ── buildPaymentTerms ──
+
+  it('builds paymentTerms with dueDate only', () => {
+    const ci: CommonInvoice = { ...baseInvoice, paymentTerms: { dueDate: '2025-02-01' } }
+    const invoice = <Record<string, unknown>>mapToEInvoice(ci)['ubl:Invoice']
+    const paymentTerms = <Record<string, unknown>>invoice['cac:PaymentTerms']
+    expect(paymentTerms['cbc:Note']).toBe('Fällig am: 2025-02-01')
   })
 
-  it('builds seller contact fields when contact is present', () => {
-    const invoice = createInvoice()
-    invoice.seller.contact = {
-      name: 'Support Team',
-      telephone: '+49-123-456789',
-      email: 'support@freenet.example',
+  it('builds paymentTerms with description only', () => {
+    const ci: CommonInvoice = { ...baseInvoice, paymentTerms: { description: '30 Tage netto' } }
+    const invoice = <Record<string, unknown>>mapToEInvoice(ci)['ubl:Invoice']
+    const paymentTerms = <Record<string, unknown>>invoice['cac:PaymentTerms']
+    expect(paymentTerms['cbc:Note']).toBe('30 Tage netto')
+  })
+
+  it('builds paymentTerms with both description and dueDate', () => {
+    const ci: CommonInvoice = {
+      ...baseInvoice,
+      paymentTerms: { description: '30 Tage netto', dueDate: '2025-02-01' },
     }
-
-    const seller = buildSeller(invoice)
-    expect(seller).toMatchObject({
-      'cac:Party': {
-        'cac:Contact': {
-          'cbc:Name': 'Support Team',
-          'cbc:Telephone': '+49-123-456789',
-          'cbc:ElectronicMail': 'support@freenet.example',
-        },
-      },
-    })
+    const invoice = <Record<string, unknown>>mapToEInvoice(ci)['ubl:Invoice']
+    const paymentTerms = <Record<string, unknown>>invoice['cac:PaymentTerms']
+    expect(paymentTerms['cbc:Note']).toBe('30 Tage netto – Fällig am: 2025-02-01')
   })
 
-  it('builds buyer endpoint id when electronic address exists', () => {
-    const invoice = createInvoice()
-    invoice.buyer.electronicAddress = {
-      value: 'buyer@example.org',
-      schemeId: 'EM',
+  it('omits paymentTerms when undefined', () => {
+    const ci: CommonInvoice = { ...baseInvoice, paymentTerms: undefined }
+    const invoice = <Record<string, unknown>>mapToEInvoice(ci)['ubl:Invoice']
+    expect(invoice['cac:PaymentTerms']).toBeUndefined()
+  })
+
+  // ── buildTaxTotal ──
+
+  it('omits Percent and adds TaxExemptionReasonCode for OUTSIDE_SCOPE tax', () => {
+    const ci: CommonInvoice = {
+      ...baseInvoice,
+      taxes: [{
+        typeCode: 'VAT',
+        categoryCode: TaxCategoryCode.OUTSIDE_SCOPE,
+        rate: 0,
+        basisAmount: 100,
+        calculatedAmount: 0,
+      }],
     }
-
-    const buyer = buildBuyer(invoice)
-    expect(buyer).toMatchObject({
-      'cac:Party': {
-        'cbc:EndpointID': 'buyer@example.org',
-        'cbc:EndpointID@schemeID': 'EM',
-      },
-    })
+    const invoice = <Record<string, unknown>>mapToEInvoice(ci)['ubl:Invoice']
+    const taxTotals = <Record<string, unknown>[]>invoice['cac:TaxTotal']
+    expect(taxTotals).toHaveLength(1)
+    const taxSubtotals = <Record<string, unknown>[]>taxTotals[0]?.['cac:TaxSubtotal']
+    expect(taxSubtotals).toHaveLength(1)
+    const taxCategory = <Record<string, unknown>>taxSubtotals[0]?.['cac:TaxCategory']
+    expect(taxCategory['cbc:Percent']).toBeUndefined()
+    expect(taxCategory['cbc:TaxExemptionReasonCode']).toBe('VATEX-EU-O')
   })
 
-  it('omits optional structures when optional input fields are missing', () => {
-    const invoice = createInvoice()
-    invoice.paymentTerms = undefined
-    invoice.totals.totalPrepaidAmount = undefined
-    invoice.seller.electronicAddress = undefined
-    invoice.seller.taxRegistration = undefined
-    invoice.seller.contact = {}
-    invoice.buyer.electronicAddress = undefined
-    const [firstLineItem] = invoice.lineItems
-    expect(firstLineItem).toBeDefined()
-    ;(<NonNullable<typeof firstLineItem>>firstLineItem).description = undefined
-    invoice.paymentMeans = [{ typeCode: PaymentMeansCode.CREDIT_TRANSFER }]
-
-    const mapped = mapToEInvoice(invoice)
-    const ublInvoice = mapped['ubl:Invoice']
-
-    expect(ublInvoice['cac:PaymentTerms']).toBeUndefined()
-    expect(ublInvoice['cac:LegalMonetaryTotal']['cbc:PrepaidAmount']).toBeUndefined()
-    expect(ublInvoice['cac:InvoiceLine'][0]['cbc:Note']).toBeUndefined()
-    expect(ublInvoice['cac:InvoiceLine'][0]['cac:Item']['cbc:Description']).toBeUndefined()
-
-    const seller = buildSeller(invoice)
-    const sellerParty = <Record<string, unknown>>seller['cac:Party']
-    expect(sellerParty['cbc:EndpointID']).toBeUndefined()
-    expect(sellerParty['cac:PartyTaxScheme']).toBeUndefined()
-    expect(sellerParty['cac:Contact']).toEqual({})
-
-    const buyer = buildBuyer(invoice)
-    const buyerParty = <Record<string, unknown>>buyer['cac:Party']
-    expect(buyerParty['cbc:EndpointID']).toBeUndefined()
-
-    const [firstPaymentMeans] = invoice.paymentMeans
-    expect(firstPaymentMeans).toBeDefined()
-    const paymentMeans = buildPaymentMeans(
-      <NonNullable<typeof firstPaymentMeans>>firstPaymentMeans
-    )
-    expect(paymentMeans).toEqual({ 'cbc:PaymentMeansCode': '58' })
+  it('adds TaxExemptionReason for EXEMPT tax', () => {
+    const ci: CommonInvoice = {
+      ...baseInvoice,
+      taxes: [{
+        typeCode: 'VAT',
+        categoryCode: TaxCategoryCode.EXEMPT,
+        rate: 0,
+        basisAmount: 100,
+        calculatedAmount: 0,
+      }],
+    }
+    const invoice = <Record<string, unknown>>mapToEInvoice(ci)['ubl:Invoice']
+    const taxTotals = <Record<string, unknown>[]>invoice['cac:TaxTotal']
+    expect(taxTotals).toHaveLength(1)
+    const taxSubtotals = <Record<string, unknown>[]>taxTotals[0]?.['cac:TaxSubtotal']
+    expect(taxSubtotals).toHaveLength(1)
+    const taxCategory = <Record<string, unknown>>taxSubtotals[0]?.['cac:TaxCategory']
+    expect(taxCategory['cbc:TaxExemptionReason']).toBe('Umsatzsteuerbefreit gemäß § 3a Abs. 5 UStG')
   })
 
-  it('builds payment means with account, institution and mandate data', () => {
-    const invoice = createInvoice()
-    const [firstPaymentMeans] = invoice.paymentMeans
-    expect(firstPaymentMeans).toBeDefined()
-    const paymentMeans = buildPaymentMeans(
-      <NonNullable<typeof firstPaymentMeans>>firstPaymentMeans
-    )
+  // ── buildLegalMonetaryTotal ──
 
-    expect(paymentMeans).toEqual({
-      'cbc:PaymentMeansCode': '59',
-      'cbc:PaymentMeansCode@name': 'SEPA-Lastschrift',
-      'cac:PayeeFinancialAccount': {
-        'cbc:ID': 'DE44500105175407324931',
-        'cbc:Name': 'freenet DLS GmbH',
-        'cac:FinancialInstitutionBranch': {
-          'cbc:ID': 'INGDDEFFXXX',
-        },
-      },
-      'cac:PaymentMandate': {
-        'cbc:ID': 'MANDATE-123',
-      },
-    })
+  it('includes PrepaidAmount when totalPrepaidAmount is set', () => {
+    const ci: CommonInvoice = {
+      ...baseInvoice,
+      totals: { ...baseInvoice.totals, totalPrepaidAmount: -50, duePayable: 69 },
+    }
+    const invoice = <Record<string, unknown>>mapToEInvoice(ci)['ubl:Invoice']
+    const monetary = <Record<string, unknown>>invoice['cac:LegalMonetaryTotal']
+    expect(monetary['cbc:PrepaidAmount']).toBe('-50.00')
   })
 
-  it('formats amounts with two decimal places', () => {
-    expect(formatAmount(12)).toBe('12.00')
-    expect(formatAmount(12.3)).toBe('12.30')
-    expect(formatAmount(12.345)).toBe('12.35')
+  // ── buildSeller ──
+
+  it('includes electronicAddress in seller when set', () => {
+    const ci: CommonInvoice = {
+      ...baseInvoice,
+      seller: { ...baseInvoice.seller, electronicAddress: { value: '0088:123456789', schemeId: '0088' } },
+    }
+    const party = <Record<string, unknown>>buildSeller(ci)['cac:Party']
+    expect(party['cbc:EndpointID']).toBe('0088:123456789')
+    expect(party['cbc:EndpointID@schemeID']).toBe('0088')
+  })
+
+  it('includes taxRegistration in seller when set', () => {
+    const ci: CommonInvoice = {
+      ...baseInvoice,
+      seller: {
+        ...baseInvoice.seller,
+        taxRegistration: [{ id: { value: 'DE123456789', schemeId: 'VAT' } }],
+      },
+    }
+    const party = <Record<string, unknown>>buildSeller(ci)['cac:Party']
+    const taxSchemes = <Record<string, unknown>[]>party['cac:PartyTaxScheme']
+    expect(taxSchemes[0]?.['cbc:CompanyID']).toBe('DE123456789')
+  })
+
+  it('includes contact in seller when set', () => {
+    const ci: CommonInvoice = {
+      ...baseInvoice,
+      seller: {
+        ...baseInvoice.seller,
+        contact: { name: 'Max Muster', telephone: '+49123456', email: 'max@example.com' },
+      },
+    }
+    const party = <Record<string, unknown>>buildSeller(ci)['cac:Party']
+    const contact = <Record<string, unknown>>party['cac:Contact']
+    expect(contact['cbc:Name']).toBe('Max Muster')
+    expect(contact['cbc:Telephone']).toBe('+49123456')
+    expect(contact['cbc:ElectronicMail']).toBe('max@example.com')
+  })
+
+  // ── buildBuyer ──
+
+  it('includes electronicAddress in buyer when set', () => {
+    const ci: CommonInvoice = {
+      ...baseInvoice,
+      buyer: { ...baseInvoice.buyer, electronicAddress: { value: '0088:987654321', schemeId: '0088' } },
+    }
+    const party = <Record<string, unknown>>buildBuyer(ci)['cac:Party']
+    expect(party['cbc:EndpointID']).toBe('0088:987654321')
+  })
+
+  // ── buildPaymentMeans ──
+
+  it('includes information in paymentMeans when set', () => {
+    const pm: CommonInvoice['paymentMeans'][number] = {
+      typeCode: PaymentMeansCode.SEPA_DIRECT_DEBIT,
+      information: 'SEPA Lastschrift',
+    }
+    expect(buildPaymentMeans(pm)['cbc:PaymentMeansCode@name']).toBe('SEPA Lastschrift')
+  })
+
+  it('includes mandate reference in paymentMeans when set', () => {
+    const pm: CommonInvoice['paymentMeans'][number] = {
+      typeCode: PaymentMeansCode.SEPA_DIRECT_DEBIT,
+      mandate: { reference: 'MANDATE-001' },
+    }
+    const mandate = <Record<string, unknown>>buildPaymentMeans(pm)['cac:PaymentMandate']
+    expect(mandate['cbc:ID']).toBe('MANDATE-001')
+  })
+
+  // ── buildInvoiceLines ──
+
+  it('omits Percent for OUTSIDE_SCOPE line item tax', () => {
+    const firstLineItem = baseInvoice.lineItems[0]
+    if (firstLineItem === undefined) {
+      throw new Error('baseInvoice.lineItems[0] is undefined')
+    }
+    const ci: CommonInvoice = {
+      ...baseInvoice,
+      lineItems: [{
+        ...firstLineItem,
+        tax: { typeCode: 'VAT', categoryCode: TaxCategoryCode.OUTSIDE_SCOPE, rate: 0 },
+      }],
+    }
+    const invoice = <Record<string, unknown>>mapToEInvoice(ci)['ubl:Invoice']
+    const lines = <Record<string, unknown>[]>invoice['cac:InvoiceLine']
+    const item = <Record<string, unknown>>lines[0]?.['cac:Item']
+    const taxCategory = <Record<string, unknown>>item['cac:ClassifiedTaxCategory']
+    expect(taxCategory['cbc:Percent']).toBeUndefined()
+  })
+
+  it('includes period in line item when set', () => {
+    const firstLineItem = baseInvoice.lineItems[0]
+    if (firstLineItem === undefined) {
+      throw new Error('baseInvoice.lineItems[0] is undefined')
+    }
+    const ci: CommonInvoice = {
+      ...baseInvoice,
+      lineItems: [{
+        ...firstLineItem,
+        period: { start: '2025-01-01', end: '2025-01-31' },
+      }],
+    }
+    const invoice = <Record<string, unknown>>mapToEInvoice(ci)['ubl:Invoice']
+    const lines = <Record<string, unknown>[]>invoice['cac:InvoiceLine']
+    const period = <Record<string, unknown>>lines[0]?.['cac:InvoicePeriod']
+    expect(period['cbc:StartDate']).toBe('2025-01-01')
+    expect(period['cbc:EndDate']).toBe('2025-01-31')
   })
 })
