@@ -15,17 +15,20 @@ AWS Billing ────┘   (Routing)    (Batching)  (90% cheaper!)
 ## 📊 Vorteile dieser Architektur
 
 ### ✅ Multi-Source Support
+
 - MCBS Legacy (XML von S3)
 - AWS Billing Service (JSON von DynamoDB)
 - Zukünftige Sources einfach hinzufügen
 
 ### ✅ 90% Kosten-Ersparnis
+
 - **Batching:** 10 Messages → 1 Lambda Invocation
 - **Ohne Batching:** $500/Monat
 - **Mit Batching:** $50/Monat
 - **Ersparnis: $450/Monat!** 🎉
 
 ### ✅ Production-Ready Features
+
 - EventBridge Pattern Matching
 - SQS Batching Layer
 - Dead Letter Queue
@@ -132,7 +135,7 @@ npm install
 
 ```yaml
 # serverless-hybrid.yml, Zeile 446
-Endpoint: deine-email@freenet.de  # ← ÄNDERN!
+Endpoint: deine-email@freenet.de # ← ÄNDERN!
 ```
 
 ### 4. Deploy
@@ -156,10 +159,11 @@ npm run deploy:prod
 
 ```yaml
 # serverless-hybrid.yml, Zeile 66
-batchSize: 10  # ← 90% Kosten gespart!
+batchSize: 10 # ← 90% Kosten gespart!
 ```
 
 **Optionen:**
+
 - `1`: Keine Einsparung (nicht empfohlen)
 - `10`: 90% Einsparung ⭐ **EMPFOHLEN**
 - `50`: 98% Einsparung (höheres Timeout-Risiko)
@@ -169,10 +173,11 @@ batchSize: 10  # ← 90% Kosten gespart!
 
 ```yaml
 # serverless-hybrid.yml, Zeile 67
-maximumBatchingWindowInSeconds: 5  # ← Max 5s warten
+maximumBatchingWindowInSeconds: 5 # ← Max 5s warten
 ```
 
 **Trade-off:**
+
 - `0-1s`: Niedrige Latenz, weniger Batching
 - `5s`: Balance ⭐ **EMPFOHLEN**
 - `10s`: Maximales Batching, höhere Latenz
@@ -255,11 +260,13 @@ aws s3 cp s3://mcbs-invoices-dev/e-invoices/test/INV-TEST-001_zugferd.pdf ./
 ### CloudWatch Dashboard
 
 Nach Deployment verfügbar:
+
 ```
 https://console.aws.amazon.com/cloudwatch/home?region=eu-central-1#dashboards:name=e-invoice-processing-dev
 ```
 
 **Metriken:**
+
 - Lambda Invocations & Errors
 - SQS Queue Depth
 - Lambda Duration (Batch Processing)
@@ -268,6 +275,7 @@ https://console.aws.amazon.com/cloudwatch/home?region=eu-central-1#dashboards:na
 ### CloudWatch Alarms
 
 Automatische Alerts bei:
+
 - ✅ Messages in DLQ
 - ✅ Lambda Error Rate > 10/5min
 - ✅ Queue Depth > 10.000
@@ -329,11 +337,12 @@ Einsparung durch Batching: $450/Monat (65%!) 🎉
 **Problem:** Batch Processing dauert zu lange
 
 **Lösung:**
+
 ```yaml
 # serverless-hybrid.yml
-timeout: 90  # Erhöhe auf 90s
+timeout: 90 # Erhöhe auf 90s
 # oder
-batchSize: 5  # Reduziere Batch Size
+batchSize: 5 # Reduziere Batch Size
 ```
 
 ### Queue Backlog
@@ -341,9 +350,10 @@ batchSize: 5  # Reduziere Batch Size
 **Problem:** SQS Queue läuft voll
 
 **Lösung:**
+
 ```yaml
 # serverless-hybrid.yml
-reservedConcurrency: 200  # Erhöhe Concurrency
+reservedConcurrency: 200 # Erhöhe Concurrency
 ```
 
 ### DLQ Messages
@@ -351,6 +361,7 @@ reservedConcurrency: 200  # Erhöhe Concurrency
 **Problem:** Messages landen in DLQ
 
 **Lösung:**
+
 ```bash
 # Prüfe DLQ Messages
 aws sqs receive-message \
@@ -366,6 +377,7 @@ serverless invoke -f processDLQ --stage dev
 ## 🎯 Nächste Schritte
 
 1. ✅ **Deploy zu Dev**
+
    ```bash
    npm run deploy:dev
    ```

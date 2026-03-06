@@ -44,12 +44,14 @@
 ## Option 1: AWS Lambda als Bridge (Empfohlen für Start)
 
 ### Vorteile
+
 - ✅ Einfach zu implementieren
 - ✅ Serverless (keine Server-Verwaltung)
 - ✅ Automatisches Scaling
 - ✅ Pay-per-use
 
 ### Limitierungen
+
 - ⚠️ Max. 15 Minuten Laufzeit (aber OK für Trigger)
 - ⚠️ Lambda startet ECS Task oder EC2 Instance
 
@@ -82,7 +84,7 @@ provider:
 functions:
   triggerBillingBatch:
     handler: src/handlers/BillingBatchTriggerHandler.handle
-    timeout: 300  # 5 Minuten
+    timeout: 300 # 5 Minuten
     memorySize: 512
     environment:
       ECS_CLUSTER: ${self:custom.ecsCluster}
@@ -146,84 +148,80 @@ custom:
 
 ```typescript
 // src/handlers/BillingBatchTriggerHandler.ts
-import { EventBridgeHandler } from 'aws-lambda';
-import { ECSClient, RunTaskCommand, DescribeTasksCommand } from '@aws-sdk/client-ecs';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { v4 as uuidv4 } from 'uuid';
+import {EventBridgeHandler} from 'aws-lambda'
+import {ECSClient, RunTaskCommand, DescribeTasksCommand} from '@aws-sdk/client-ecs'
+import {DynamoDBClient} from '@aws-sdk/client-dynamodb'
+import {DynamoDBDocumentClient, PutCommand, UpdateCommand} from '@aws-sdk/lib-dynamodb'
+import {v4 as uuidv4} from 'uuid'
 
-const ecsClient = new ECSClient({ region: process.env.AWS_REGION });
-const dynamoClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+const ecsClient = new ECSClient({region: process.env.AWS_REGION})
+const dynamoClient = DynamoDBDocumentClient.from(new DynamoDBClient({}))
 
 interface DevicePaymentEndBillingRequiredEvent {
-  eventId: string;
-  contractId: string;
-  devicePaymentSubId: number;
-  monthlyRate: number;
-  totalInstallments: number;
-  totalAmount: number;
-  periodStart: string;
-  periodEnd: string;
-  reason: string;
+  eventId: string
+  contractId: string
+  devicePaymentSubId: number
+  monthlyRate: number
+  totalInstallments: number
+  totalAmount: number
+  periodStart: string
+  periodEnd: string
+  reason: string
 }
 
-export const handle: EventBridgeHandler<
-  'DevicePaymentEndBillingRequired',
-  DevicePaymentEndBillingRequiredEvent,
-  void
-> = async (event) => {
-  
-  console.log('Received DevicePaymentEndBillingRequired event:', JSON.stringify(event));
-  
-  const billingEvent = event.detail;
-  const jobId = uuidv4();
-  
+export const handle: EventBridgeHandler<'DevicePaymentEndBillingRequired', DevicePaymentEndBillingRequiredEvent, void> = async (
+  event
+) => {
+  console.log('Received DevicePaymentEndBillingRequired event:', JSON.stringify(event))
+
+  const billingEvent = event.detail
+  const jobId = uuidv4()
+
   try {
     // 1. Idempotenz-Check
-    const existingJob = await checkExistingJob(billingEvent.eventId);
+    const existingJob = await checkExistingJob(billingEvent.eventId)
     if (existingJob) {
-      console.log(`Job already exists for event ${billingEvent.eventId}: ${existingJob.jobId}`);
-      return;
+      console.log(`Job already exists for event ${billingEvent.eventId}: ${existingJob.jobId}`)
+      return
     }
-    
+
     // 2. Job-Tracking Record erstellen
-    await createJobTracking(jobId, billingEvent);
-    
+    await createJobTracking(jobId, billingEvent)
+
     // 3. ECS Task starten (Java Batch Process)
-    const taskArn = await startBillingBatchTask(jobId, billingEvent);
-    
+    const taskArn = await startBillingBatchTask(jobId, billingEvent)
+
     // 4. Job-Tracking aktualisieren
     await updateJobTracking(jobId, {
       status: 'RUNNING',
       taskArn: taskArn,
       startedAt: new Date().toISOString()
-    });
-    
-    console.log(`Successfully started billing batch job ${jobId} for contract ${billingEvent.contractId}`);
-    
+    })
+
+    console.log(`Successfully started billing batch job ${jobId} for contract ${billingEvent.contractId}`)
   } catch (error) {
-    console.error(`Failed to start billing batch job:`, error);
-    
+    console.error(`Failed to start billing batch job:`, error)
+
     // Update Job-Tracking mit Fehler
     await updateJobTracking(jobId, {
       status: 'FAILED',
       errorMessage: error.message,
       failedAt: new Date().toISOString()
-    });
-    
-    throw error;
+    })
+
+    throw error
   }
-};
+}
 
 async function checkExistingJob(eventId: string): Promise<any> {
   const result = await dynamoClient.send(
     new GetCommand({
       TableName: process.env.TRACKING_TABLE,
       IndexName: 'eventId-index',
-      Key: { eventId }
+      Key: {eventId}
     })
-  );
-  return result.Item;
+  )
+  return result.Item
 }
 
 async function createJobTracking(jobId: string, event: DevicePaymentEndBillingRequiredEvent) {
@@ -245,32 +243,27 @@ async function createJobTracking(jobId: string, event: DevicePaymentEndBillingRe
         createdAt: new Date().toISOString()
       }
     })
-  );
+  )
 }
 
 async function updateJobTracking(jobId: string, updates: any) {
   const updateExpression = Object.keys(updates)
-    .map(key => `${key} = :${key}`)
-    .join(', ');
-  
-  const expressionAttributeValues = Object.entries(updates)
-    .reduce((acc, [key, value]) => ({ ...acc, [`:${key}`]: value }), {});
-  
+    .map((key) => `${key} = :${key}`)
+    .join(', ')
+
+  const expressionAttributeValues = Object.entries(updates).reduce((acc, [key, value]) => ({...acc, [`:${key}`]: value}), {})
+
   await dynamoClient.send(
     new UpdateCommand({
       TableName: process.env.TRACKING_TABLE,
-      Key: { jobId },
+      Key: {jobId},
       UpdateExpression: `SET ${updateExpression}`,
       ExpressionAttributeValues: expressionAttributeValues
     })
-  );
+  )
 }
 
-async function startBillingBatchTask(
-  jobId: string,
-  event: DevicePaymentEndBillingRequiredEvent
-): Promise<string> {
-  
+async function startBillingBatchTask(jobId: string, event: DevicePaymentEndBillingRequiredEvent): Promise<string> {
   // ECS Task starten mit Java Batch Process
   const command = new RunTaskCommand({
     cluster: process.env.ECS_CLUSTER,
@@ -291,38 +284,43 @@ async function startBillingBatchTask(
             'java',
             '-jar',
             '/app/billing-batch.jar',
-            '--job-id', jobId,
-            '--contract-id', event.contractId,
-            '--device-payment-sub-id', event.devicePaymentSubId.toString(),
-            '--billing-type', 'DEVICE_PAYMENT_END_BILLING',
-            '--event-id', event.eventId
+            '--job-id',
+            jobId,
+            '--contract-id',
+            event.contractId,
+            '--device-payment-sub-id',
+            event.devicePaymentSubId.toString(),
+            '--billing-type',
+            'DEVICE_PAYMENT_END_BILLING',
+            '--event-id',
+            event.eventId
           ],
           environment: [
-            { name: 'JOB_ID', value: jobId },
-            { name: 'CONTRACT_ID', value: event.contractId },
-            { name: 'DEVICE_PAYMENT_SUB_ID', value: event.devicePaymentSubId.toString() },
-            { name: 'MONTHLY_RATE', value: event.monthlyRate.toString() },
-            { name: 'TOTAL_INSTALLMENTS', value: event.totalInstallments.toString() },
-            { name: 'TOTAL_AMOUNT', value: event.totalAmount.toString() },
-            { name: 'PERIOD_START', value: event.periodStart },
-            { name: 'PERIOD_END', value: event.periodEnd },
-            { name: 'REASON', value: event.reason }
+            {name: 'JOB_ID', value: jobId},
+            {name: 'CONTRACT_ID', value: event.contractId},
+            {name: 'DEVICE_PAYMENT_SUB_ID', value: event.devicePaymentSubId.toString()},
+            {name: 'MONTHLY_RATE', value: event.monthlyRate.toString()},
+            {name: 'TOTAL_INSTALLMENTS', value: event.totalInstallments.toString()},
+            {name: 'TOTAL_AMOUNT', value: event.totalAmount.toString()},
+            {name: 'PERIOD_START', value: event.periodStart},
+            {name: 'PERIOD_END', value: event.periodEnd},
+            {name: 'REASON', value: event.reason}
           ]
         }
       ]
     }
-  });
-  
-  const response = await ecsClient.send(command);
-  
+  })
+
+  const response = await ecsClient.send(command)
+
   if (!response.tasks || response.tasks.length === 0) {
-    throw new Error('Failed to start ECS task');
+    throw new Error('Failed to start ECS task')
   }
-  
-  const taskArn = response.tasks[0].taskArn;
-  console.log(`Started ECS task: ${taskArn}`);
-  
-  return taskArn;
+
+  const taskArn = response.tasks[0].taskArn
+  console.log(`Started ECS task: ${taskArn}`)
+
+  return taskArn
 }
 ```
 
@@ -331,6 +329,7 @@ async function startBillingBatchTask(
 ## Option 2: ECS Scheduled Task mit Event-Trigger (Flexibler)
 
 ### Vorteile
+
 - ✅ Längere Laufzeiten möglich
 - ✅ Mehr Kontrolle über Ressourcen
 - ✅ Kann direkt Java ausführen
@@ -359,9 +358,9 @@ async function startBillingBatchTask(
         }
       },
       "environment": [
-        { "name": "DB_HOST", "value": "your-db-host" },
-        { "name": "DB_PORT", "value": "5432" },
-        { "name": "DB_NAME", "value": "billing" }
+        {"name": "DB_HOST", "value": "your-db-host"},
+        {"name": "DB_PORT", "value": "5432"},
+        {"name": "DB_NAME", "value": "billing"}
       ],
       "secrets": [
         {
@@ -402,28 +401,28 @@ import de.md.mcbs.customerproduct.entity.McContract;
  * und den bestehenden Java Billing Batch Process startet.
  */
 public class BillingBatchEventWrapper implements RequestHandler<DevicePaymentEndBillingRequiredEvent, String> {
-    
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BillingBatchEventWrapper.class);
-    
+
     @Override
     public String handleRequest(DevicePaymentEndBillingRequiredEvent event, Context context) {
-        
-        LOGGER.info("Received DevicePaymentEndBillingRequired event for contract: {}", 
+
+        LOGGER.info("Received DevicePaymentEndBillingRequired event for contract: {}",
             event.getContractId());
-        
+
         try {
             // Idempotenz-Check
             if (isAlreadyProcessed(event.getEventId())) {
                 LOGGER.info("Event {} already processed - skipping", event.getEventId());
                 return "SKIPPED";
             }
-            
+
             // Hole Contract
             McContract contract = getContract(event.getContractId());
-            
+
             // Setze McMark für Billing-Trigger (bestehende Logik)
             setDevicePaymentEndBillingMark(contract, event);
-            
+
             // Starte Billing nur für diesen Vertrag
             ContractBillProcess billProcess = new ContractBillProcess();
             billProcess.billContract(
@@ -431,35 +430,35 @@ public class BillingBatchEventWrapper implements RequestHandler<DevicePaymentEnd
                 LocalDate.parse(event.getPeriodEnd()),
                 BillingType.DEVICE_PAYMENT_END_BILLING
             );
-            
+
             // Markiere Event als verarbeitet
             markAsProcessed(event.getEventId());
-            
-            LOGGER.info("Successfully processed billing for contract {} - event {}", 
+
+            LOGGER.info("Successfully processed billing for contract {} - event {}",
                 event.getContractId(), event.getEventId());
-            
+
             return "SUCCESS";
-            
+
         } catch (Exception e) {
             LOGGER.error("Failed to process billing event", e);
             throw new RuntimeException("Billing failed: " + e.getMessage(), e);
         }
     }
-    
+
     private boolean isAlreadyProcessed(String eventId) {
         // Prüfe in DynamoDB oder Datenbank
         return DevicePaymentEventRepository.existsByEventId(eventId);
     }
-    
+
     private void markAsProcessed(String eventId) {
         DevicePaymentEventRepository.markAsProcessed(eventId);
     }
-    
+
     private McContract getContract(String contractId) {
         // Bestehende Logik
         return CustomerProductModuleLocal.getContractQuery().getContract(contractId);
     }
-    
+
     private void setDevicePaymentEndBillingMark(McContract contract, DevicePaymentEndBillingRequiredEvent event) {
         // Bestehende McMark-Logik
         McMark mark = new McMark();
@@ -480,7 +479,7 @@ class DevicePaymentEndBillingRequiredEvent {
     private String periodStart;
     private String periodEnd;
     private String reason;
-    
+
     // Getters & Setters
     // ...
 }
@@ -529,22 +528,22 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 public class BillingBatchMain implements CommandLineRunner {
-    
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BillingBatchMain.class);
-    
+
     public static void main(String[] args) {
         SpringApplication.run(BillingBatchMain.class, args);
     }
-    
+
     @Override
     public void run(String... args) throws Exception {
-        
+
         LOGGER.info("Starting Billing Batch Process");
         LOGGER.info("Arguments: {}", Arrays.toString(args));
-        
+
         // Parse Arguments
         BillingJobConfig config = parseArguments(args);
-        
+
         if (config.getJobId() != null) {
             // Event-driven Modus - einzelner Vertrag
             LOGGER.info("Running in EVENT-DRIVEN mode for job {}", config.getJobId());
@@ -554,17 +553,17 @@ public class BillingBatchMain implements CommandLineRunner {
             LOGGER.info("Running in BATCH mode");
             runBatchBilling(config);
         }
-        
+
         LOGGER.info("Billing Batch Process completed");
     }
-    
+
     private void runEventDrivenBilling(BillingJobConfig config) {
         LOGGER.info("Processing single contract: {}", config.getContractId());
-        
+
         // Hole Contract
         McContract contract = CustomerProductModuleLocal.getContractQuery()
             .getContract(config.getContractId());
-        
+
         // Billing nur für diesen Vertrag
         ContractBillProcess billProcess = new ContractBillProcess();
         billProcess.billContract(
@@ -572,16 +571,16 @@ public class BillingBatchMain implements CommandLineRunner {
             config.getBillingDate(),
             config.getBillingType()
         );
-        
+
         LOGGER.info("Event-driven billing completed for contract {}", config.getContractId());
     }
-    
+
     private void runBatchBilling(BillingJobConfig config) {
         LOGGER.info("Processing all contracts with McMark");
-        
+
         // Bestehende Logik - findet Verträge über McMark
         List<McContract> contracts = findContractsForBilling(config.getBillingDate());
-        
+
         for (McContract contract : contracts) {
             try {
                 ContractBillProcess billProcess = new ContractBillProcess();
@@ -590,13 +589,13 @@ public class BillingBatchMain implements CommandLineRunner {
                 LOGGER.error("Failed to bill contract {}", contract.getContractNo(), e);
             }
         }
-        
+
         LOGGER.info("Batch billing completed - processed {} contracts", contracts.size());
     }
-    
+
     private BillingJobConfig parseArguments(String[] args) {
         BillingJobConfig config = new BillingJobConfig();
-        
+
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--job-id":
@@ -619,7 +618,7 @@ public class BillingBatchMain implements CommandLineRunner {
                     break;
             }
         }
-        
+
         return config;
     }
 }
@@ -632,7 +631,7 @@ class BillingJobConfig {
     private LocalDate billingDate;
     private Short devicePaymentSubId;
     private String eventId;
-    
+
     // Getters & Setters
 }
 
@@ -687,28 +686,27 @@ BillingJobsDashboard:
 
 ```typescript
 // src/handlers/BillingJobStatusPoller.ts
-import { ScheduledHandler } from 'aws-lambda';
-import { ECSClient, DescribeTasksCommand } from '@aws-sdk/client-ecs';
-import { DynamoDBDocumentClient, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import {ScheduledHandler} from 'aws-lambda'
+import {ECSClient, DescribeTasksCommand} from '@aws-sdk/client-ecs'
+import {DynamoDBDocumentClient, ScanCommand, UpdateCommand} from '@aws-sdk/lib-dynamodb'
 
 /**
  * Pollt den Status laufender Billing Jobs und aktualisiert DynamoDB
  */
 export const handle: ScheduledHandler = async (event) => {
-  
-  const dynamoClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-  const ecsClient = new ECSClient({});
-  
+  const dynamoClient = DynamoDBDocumentClient.from(new DynamoDBClient({}))
+  const ecsClient = new ECSClient({})
+
   // Hole alle RUNNING Jobs
   const runningJobs = await dynamoClient.send(
     new ScanCommand({
       TableName: process.env.TRACKING_TABLE,
       FilterExpression: '#status = :status',
-      ExpressionAttributeNames: { '#status': 'status' },
-      ExpressionAttributeValues: { ':status': 'RUNNING' }
+      ExpressionAttributeNames: {'#status': 'status'},
+      ExpressionAttributeValues: {':status': 'RUNNING'}
     })
-  );
-  
+  )
+
   for (const job of runningJobs.Items || []) {
     try {
       // Prüfe ECS Task Status
@@ -717,37 +715,36 @@ export const handle: ScheduledHandler = async (event) => {
           cluster: process.env.ECS_CLUSTER,
           tasks: [job.taskArn]
         })
-      );
-      
-      const task = taskStatus.tasks?.[0];
-      if (!task) continue;
-      
+      )
+
+      const task = taskStatus.tasks?.[0]
+      if (!task) continue
+
       // Update Job Status basierend auf Task Status
       if (task.lastStatus === 'STOPPED') {
-        const exitCode = task.containers?.[0]?.exitCode;
-        const newStatus = exitCode === 0 ? 'COMPLETED' : 'FAILED';
-        
+        const exitCode = task.containers?.[0]?.exitCode
+        const newStatus = exitCode === 0 ? 'COMPLETED' : 'FAILED'
+
         await dynamoClient.send(
           new UpdateCommand({
             TableName: process.env.TRACKING_TABLE,
-            Key: { jobId: job.jobId },
+            Key: {jobId: job.jobId},
             UpdateExpression: 'SET #status = :status, completedAt = :completedAt',
-            ExpressionAttributeNames: { '#status': 'status' },
+            ExpressionAttributeNames: {'#status': 'status'},
             ExpressionAttributeValues: {
               ':status': newStatus,
               ':completedAt': new Date().toISOString()
             }
           })
-        );
-        
-        console.log(`Job ${job.jobId} completed with status ${newStatus}`);
+        )
+
+        console.log(`Job ${job.jobId} completed with status ${newStatus}`)
       }
-      
     } catch (error) {
-      console.error(`Failed to check status for job ${job.jobId}:`, error);
+      console.error(`Failed to check status for job ${job.jobId}:`, error)
     }
   }
-};
+}
 ```
 
 ---
@@ -795,14 +792,14 @@ aws events put-events \
 
 ## Vorteile dieser Lösung
 
-| Vorteil | Beschreibung |
-|---------|--------------|
-| **Keine Code-Änderungen** | Bestehender Java Batch läuft weiter wie bisher |
-| **Event-driven** | Wird über Events getriggert statt manuell |
+| Vorteil                    | Beschreibung                                                    |
+| -------------------------- | --------------------------------------------------------------- |
+| **Keine Code-Änderungen**  | Bestehender Java Batch läuft weiter wie bisher                  |
+| **Event-driven**           | Wird über Events getriggert statt manuell                       |
 | **Schrittweise Migration** | Bridge kann später durch echte Event-Architektur ersetzt werden |
-| **Testbar** | Kann parallel zum bestehenden System laufen |
-| **Skalierbar** | ECS skaliert automatisch |
-| **Monitoring** | CloudWatch Logs & Metrics out-of-the-box |
+| **Testbar**                | Kann parallel zum bestehenden System laufen                     |
+| **Skalierbar**             | ECS skaliert automatisch                                        |
+| **Monitoring**             | CloudWatch Logs & Metrics out-of-the-box                        |
 
 ---
 
@@ -835,6 +832,7 @@ GESAMT: ~$10/Monat
 ✅ **JA, das ist eine sehr gute Lösung!**
 
 Der Bridge Service ermöglicht:
+
 1. ✅ Event-driven Architektur JETZT nutzen
 2. ✅ Bestehenden Batch-Code behalten
 3. ✅ Schrittweise Migration

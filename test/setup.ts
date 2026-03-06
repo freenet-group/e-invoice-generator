@@ -12,11 +12,11 @@ process.env['LOG_LEVEL'] = 'silent'
 
 // Mock console für cleaner Test Output
 globalThis.console = {
-  ...console,
-  // Behalte error und warn
-  error: jest.fn(),
-  warn: jest.fn(),
-  // Aber unterdrücke log und debug in Tests
-  log: jest.fn(),
-  debug: jest.fn(),
+    ...console,
+    // Behalte error und warn
+    error: jest.fn(),
+    warn: jest.fn(),
+    // Aber unterdrücke log und debug in Tests
+    log: jest.fn(),
+    debug: jest.fn()
 }

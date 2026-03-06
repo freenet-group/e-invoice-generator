@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import {z} from 'zod'
 
 // ==================== Hilfsfunktionen ====================
 
@@ -40,18 +40,15 @@ const germanDate = z
  * XML-Einzelelement oder Array → immer Array
  */
 function xmlArray<T extends z.ZodType>(schema: T): z.ZodType<z.infer<T>[]> {
-    return z.preprocess(
-        (val): unknown[] => {
-            if (Array.isArray(val)) {
-                return val
-            }
-            if (val === undefined || val === null) {
-                return []
-            }
-            return [val]
-        },
-        z.array(schema)
-    )
+    return z.preprocess((val): unknown[] => {
+        if (Array.isArray(val)) {
+            return val
+        }
+        if (val === undefined || val === null) {
+            return []
+        }
+        return [val]
+    }, z.array(schema))
 }
 
 // ==================== BILLITEM ====================
@@ -65,19 +62,21 @@ const McbsBillItemSchema = z.object({
     PRODUCT_CODE: z.coerce.string().optional(),
     PERIOD: z.string().optional(),
     CHARGE: germanDecimal,
-    VAT_RATE: z
-        .union([z.coerce.number(), z.literal('INCLUDED')])
-        .default(19),
+    VAT_RATE: z.union([z.coerce.number(), z.literal('INCLUDED')]).default(19),
     BILLING_REF: z.coerce.string().optional(),
     CONNECT_CAT: z.string().optional(),
     ADVERTISING: z.string().optional(),
-    OPT_PARAMS: z.object({
-        CONT_PROVIDER: z.object({
-            ID: z.coerce.string().optional(),
-            CONTACT: z.string().optional(),
-            SERVICES: z.string().optional(),
-        }).optional(),
-    }).optional(),
+    OPT_PARAMS: z
+        .object({
+            CONT_PROVIDER: z
+                .object({
+                    ID: z.coerce.string().optional(),
+                    CONTACT: z.string().optional(),
+                    SERVICES: z.string().optional()
+                })
+                .optional()
+        })
+        .optional()
 })
 
 export type McbsBillItem = z.infer<typeof McbsBillItemSchema>
@@ -90,9 +89,9 @@ const McbsBillItemGrpSchema = z.object({
     CHARGE: germanDecimal.optional(),
     BILLITEMS: z
         .object({
-            BILLITEM: xmlArray(McbsBillItemSchema),
+            BILLITEM: xmlArray(McbsBillItemSchema)
         })
-        .optional(),
+        .optional()
 })
 
 // ==================== SECTION ====================
@@ -103,9 +102,9 @@ const McbsSectionSchema = z.object({
     SUBTOTAL: germanDecimal.optional(),
     BILLITEM_GRPS: z
         .object({
-            BILLITEM_GRP: xmlArray(McbsBillItemGrpSchema),
+            BILLITEM_GRP: xmlArray(McbsBillItemGrpSchema)
         })
-        .optional(),
+        .optional()
 })
 
 // ==================== UNIT ====================
@@ -127,20 +126,20 @@ const McbsUnitSchema = z.object({
                         z.object({
                             TYPE: z.string().optional(),
                             TITLE: z.string().optional(),
-                            CONNECT_NO: z.coerce.string().optional(),     // ← coerce statt string
-                            CONNECT_NO_F: z.coerce.string().optional(),   // ← coerce statt string
-                            SIM_NO: z.coerce.string().optional(),         // ← coerce statt string
+                            CONNECT_NO: z.coerce.string().optional(), // ← coerce statt string
+                            CONNECT_NO_F: z.coerce.string().optional(), // ← coerce statt string
+                            SIM_NO: z.coerce.string().optional() // ← coerce statt string
                         })
-                    ),
+                    )
                 })
-                .optional(),
+                .optional()
         })
         .optional(),
     SECTIONS: z
         .object({
-            SECTION: xmlArray(McbsSectionSchema),
+            SECTION: xmlArray(McbsSectionSchema)
         })
-        .optional(),
+        .optional()
 })
 
 // ==================== FRAME ====================
@@ -151,9 +150,9 @@ const McbsFrameSchema = z.object({
     AREA: z
         .object({
             ID: z.string().optional(),
-            UNIT: xmlArray(McbsUnitSchema),
+            UNIT: xmlArray(McbsUnitSchema)
         })
-        .optional(),
+        .optional()
 })
 
 // ==================== AMOUNTS ====================
@@ -164,44 +163,45 @@ const McbsAmountTypeSchema = z.enum([
     'TOTAL',
     'TOTAL_NET',
     'TOTAL_VAT',
-    'UNPAID',       // ← neu
-    'TO_PAY',       // ← neu
-    'PRIMARY_SUM',  // ← neu (kommt im VOUCHER FRAME vor)
+    'UNPAID', // ← neu
+    'TO_PAY', // ← neu
+    'PRIMARY_SUM' // ← neu (kommt im VOUCHER FRAME vor)
 ])
 
 const McbsAmountSchema = z.object({
     TYPE: McbsAmountTypeSchema,
-    VALUE: germanDecimal,
+    VALUE: germanDecimal
 })
 
-const McbsAmountsSchema = z.object({
-    AMOUNT: xmlArray(McbsAmountSchema),
-}).transform((val) => {
-    const find = (type: z.infer<typeof McbsAmountTypeSchema>): number =>
-        val.AMOUNT.find((a) => a.TYPE === type)?.VALUE ?? 0
+const McbsAmountsSchema = z
+    .object({
+        AMOUNT: xmlArray(McbsAmountSchema)
+    })
+    .transform((val) => {
+        const find = (type: z.infer<typeof McbsAmountTypeSchema>): number => val.AMOUNT.find((a) => a.TYPE === type)?.VALUE ?? 0
 
-    const findOptional = (type: z.infer<typeof McbsAmountTypeSchema>): number | undefined => {
-        const found = val.AMOUNT.find((a) => a.TYPE === type)
-        return found?.VALUE
-    }
+        const findOptional = (type: z.infer<typeof McbsAmountTypeSchema>): number | undefined => {
+            const found = val.AMOUNT.find((a) => a.TYPE === type)
+            return found?.VALUE
+        }
 
-    return {
-        NET_AMOUNT: find('TOTAL_NET'),
-        VAT_AMOUNT: find('TOTAL_VAT'),
-        GROSS_AMOUNT: find('TOTAL'),
-        SUBTOTAL: find('SUBTOTAL'),
-        INSEP_GROSS: find('INSEP_GROSS'),
-        UNPAID: findOptional('UNPAID'),    // optional — nicht immer vorhanden
-        TO_PAY: findOptional('TO_PAY'),    // optional — nicht immer vorhanden
-    }
-})
+        return {
+            NET_AMOUNT: find('TOTAL_NET'),
+            VAT_AMOUNT: find('TOTAL_VAT'),
+            GROSS_AMOUNT: find('TOTAL'),
+            SUBTOTAL: find('SUBTOTAL'),
+            INSEP_GROSS: find('INSEP_GROSS'),
+            UNPAID: findOptional('UNPAID'), // optional — nicht immer vorhanden
+            TO_PAY: findOptional('TO_PAY') // optional — nicht immer vorhanden
+        }
+    })
 
 // ==================== DIFF_VAT ====================
 
 const McbsDiffVatSchema = z.object({
     VAT_RATE: z.coerce.number(),
     VAT: germanDecimal,
-    NET: germanDecimal,
+    NET: germanDecimal
 })
 
 // ==================== PAYMENT_MODE ====================
@@ -212,17 +212,21 @@ const McbsPaymentModeSchema = z.object({
     BANK_ACCOUNT: z.string().optional().nullable(),
     BANK_CODE: z.string().optional().nullable(),
     DUE_DATE: germanDate.optional(),
-    PAYMENT_TERM: z.coerce.number().optional(),
+    PAYMENT_TERM: z.coerce.number().optional()
 })
 
 // ==================== HEADER ====================
 
-const DeliveryModeSchema = z.object({
-    SUPPLY: z.object({
-        TYPE: z.string(),
-        ENTRY: z.string().optional(),  // Leitweg-ID bei PEPPOL_PA
-    }).optional(),
-}).optional()
+const DeliveryModeSchema = z
+    .object({
+        SUPPLY: z
+            .object({
+                TYPE: z.string(),
+                ENTRY: z.string().optional() // Leitweg-ID bei PEPPOL_PA
+            })
+            .optional()
+    })
+    .optional()
 
 const McbsHeaderSchema = z.object({
     INVOICE_DATE: germanDate,
@@ -237,10 +241,10 @@ const McbsHeaderSchema = z.object({
     BRAND: z
         .object({
             DESC: z.string().optional(),
-            CODE_DESC: z.string().optional(),
+            CODE_DESC: z.string().optional()
         })
         .optional(),
-    DELIVERY_MODE: DeliveryModeSchema,
+    DELIVERY_MODE: DeliveryModeSchema
 })
 
 // ==================== ADDRESS ====================
@@ -252,7 +256,10 @@ const McbsAddressSchema = z.object({
     STREET: z.string().optional(),
     POSTCODE: z.coerce.string().optional(),
     CITY: z.string().optional(),
-    COUNTRY: z.string().optional().transform(val => val === '' || val === undefined ? 'DE' : val), // ← default greift nicht bei ''
+    COUNTRY: z
+        .string()
+        .optional()
+        .transform((val) => (val === '' || val === undefined ? 'DE' : val)) // ← default greift nicht bei ''
 })
 
 // ==================== ROOT DOCUMENT ====================
@@ -262,29 +269,40 @@ export const McbsDocumentSchema = z.object({
     ID: z.coerce.string(),
     HEADER: McbsHeaderSchema,
     RECIPIENT: z.object({
-        PERSON_NO: z.coerce.string().optional().transform(val => val === '' ? undefined : val), // ← '' → undefined
-        ADDRESS: McbsAddressSchema,
+        PERSON_NO: z.coerce
+            .string()
+            .optional()
+            .transform((val) => (val === '' ? undefined : val)), // ← '' → undefined
+        ADDRESS: McbsAddressSchema
     }),
-    CUSTOMER: z.object({
-        PERSON_NO: z.coerce.string().optional().transform(val => val === '' ? undefined : val), // ← '' → undefined
-        VAT_ID: z.string().optional().transform(val => val === '' ? undefined : val),           // ← '' → undefined
-    }).optional(),
+    CUSTOMER: z
+        .object({
+            PERSON_NO: z.coerce
+                .string()
+                .optional()
+                .transform((val) => (val === '' ? undefined : val)), // ← '' → undefined
+            VAT_ID: z
+                .string()
+                .optional()
+                .transform((val) => (val === '' ? undefined : val)) // ← '' → undefined
+        })
+        .optional(),
     INVOICE_DATA: z.object({
         PAYMENT_MODE: McbsPaymentModeSchema,
         FRAMES: z.object({
             FRAME: xmlArray(McbsFrameSchema),
             AMOUNTS: McbsAmountsSchema,
             DIFF_VATS: z.object({
-                DIFF_VAT: xmlArray(McbsDiffVatSchema).optional(),
-            }),
-        }),
-    }),
+                DIFF_VAT: xmlArray(McbsDiffVatSchema).optional()
+            })
+        })
+    })
 })
 
 export type McbsDocument = z.infer<typeof McbsDocumentSchema>
 
 export const McbsXmlRootSchema = z.object({
-    DOCUMENT: McbsDocumentSchema,
+    DOCUMENT: McbsDocumentSchema
 })
 
 export type McbsXmlRoot = z.infer<typeof McbsXmlRootSchema>

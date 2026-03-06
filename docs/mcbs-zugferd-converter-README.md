@@ -83,19 +83,21 @@ aws s3 cp s3://mcbs-invoices-dev/e-invoices/2026/02/21/INV-2026-000001_zugferd.p
 Wichtige Anpassungen:
 
 1. **Email für Alerts** (Zeile 291):
+
    ```yaml
-   Endpoint: ops-team@example.com  # ← ANPASSEN!
+   Endpoint: ops-team@example.com # ← ANPASSEN!
    ```
 
 2. **Reserved Concurrency** (Zeile 54):
+
    ```yaml
-   reservedConcurrency: 100  # Anpassen je nach Bedarf
+   reservedConcurrency: 100 # Anpassen je nach Bedarf
    ```
 
 3. **Memory & Timeout** (Zeile 21-22):
    ```yaml
-   memorySize: 2048  # 2 GB
-   timeout: 60       # 60 Sekunden
+   memorySize: 2048 # 2 GB
+   timeout: 60 # 60 Sekunden
    ```
 
 ## 📊 Monitoring
@@ -103,6 +105,7 @@ Wichtige Anpassungen:
 ### CloudWatch Dashboards
 
 Nach Deployment automatisch verfügbar:
+
 - Lambda Metrics (Duration, Errors, Throttles)
 - SQS Metrics (Queue Depth, Messages)
 - Custom Metrics (Duplicates, Processing Time)
@@ -110,6 +113,7 @@ Nach Deployment automatisch verfügbar:
 ### Alarms
 
 Automatische Alerts bei:
+
 - Messages in Dead Letter Queue
 - Lambda Error Rate > 10/5min
 - SQS Queue Depth > 10.000
@@ -166,6 +170,7 @@ Event-Duplikate werden automatisch erkannt und übersprungen:
 ## 🔄 Retry & DLQ
 
 Bei Fehlern:
+
 1. Lambda Error → Message zurück in Queue
 2. Max 3 Versuche (RedrivePolicy)
 3. Nach 3 Fehlern → Dead Letter Queue
@@ -254,8 +259,8 @@ npm run logs
 
 ```yaml
 # serverless.yml
-timeout: 90  # Erhöhen auf 90s
-memorySize: 3008  # Mehr Memory
+timeout: 90 # Erhöhen auf 90s
+memorySize: 3008 # Mehr Memory
 ```
 
 ### DLQ Messages

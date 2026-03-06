@@ -65,10 +65,11 @@ const zugferdXml = `<?xml version="1.0" encoding="UTF-8"?>
         
         <!-- ... Taxes, Totals, Payment Terms ... -->
     </rsm:SupplyChainTradeTransaction>
-</rsm:CrossIndustryInvoice>`;
+</rsm:CrossIndustryInvoice>`
 ```
 
 **Probleme:**
+
 - ❌ 200+ Zeilen XML-Template
 - ❌ Namespaces manuell verwalten
 - ❌ Datumsformate manuell konvertieren (Format 102 = YYYYMMDD)
@@ -82,13 +83,13 @@ const zugferdXml = `<?xml version="1.0" encoding="UTF-8"?>
 ### ✅ **MIT Library:**
 
 ```typescript
-import { FacturX, Profile } from 'factur-x';
+import {FacturX, Profile} from 'factur-x'
 
 // Einfaches JavaScript-Objekt!
 const invoice = {
   invoiceNumber: 'INV-2026-000001',
   invoiceDate: new Date('2026-02-21'),
-  
+
   seller: {
     name: 'freenet DLS GmbH',
     postalAddress: {
@@ -100,7 +101,7 @@ const invoice = {
     },
     vatId: 'DE123456789'
   },
-  
+
   buyer: {
     name: 'Max Mustermann',
     postalAddress: {
@@ -111,26 +112,29 @@ const invoice = {
       countryCode: 'DE'
     }
   },
-  
-  lineItems: [{
-    name: 'Telekommunikationsdienstleistungen',
-    quantity: 1,
-    unitPrice: 100.00,
-    vatRate: 19
-  }],
-  
+
+  lineItems: [
+    {
+      name: 'Telekommunikationsdienstleistungen',
+      quantity: 1,
+      unitPrice: 100.0,
+      vatRate: 19
+    }
+  ],
+
   totals: {
-    netAmount: 100.00,
-    vatAmount: 19.00,
-    grossAmount: 119.00
+    netAmount: 100.0,
+    vatAmount: 19.0,
+    grossAmount: 119.0
   }
-};
+}
 
 // Library macht ALLES automatisch!
-const xml = await FacturX.generateXML(invoice, Profile.COMFORT);
+const xml = await FacturX.generateXML(invoice, Profile.COMFORT)
 ```
 
 **Vorteile:**
+
 - ✅ **10 Zeilen** statt 200+
 - ✅ TypeScript-Typen (IntelliSense!)
 - ✅ Automatische Datumskonvertierung
@@ -196,18 +200,19 @@ const xmpMetadata = `<?xpacket begin="﻿" id="W5M0MpCehiHzreSzNTczkc9d"?>
     </rdf:Description>
   </rdf:RDF>
 </x:xmpmeta>
-<?xpacket end="w"?>`;
+<?xpacket end="w"?>`
 
 // Dann manuell in PDF einbetten:
 const metadataStream = pdfDoc.context.obj({
   Type: 'Metadata',
   Subtype: 'XML',
   Length: xmpMetadata.length
-});
+})
 // ... 50+ Zeilen PDF-Manipulation
 ```
 
 **Probleme:**
+
 - ❌ XMP Syntax ist komplex
 - ❌ RDF/XML Struktur fehleranfällig
 - ❌ Factur-X Extension Schema muss korrekt sein
@@ -223,10 +228,11 @@ const metadataStream = pdfDoc.context.obj({
 const eInvoice = await FacturX.embedInPDF(pdfBuffer, xml, {
   profile: 'COMFORT',
   pdfAVersion: '3b'
-});
+})
 ```
 
 **Das war's!** Die Library:
+
 - ✅ Erstellt XMP Metadata automatisch
 - ✅ Setzt PDF/A-3b Conformance
 - ✅ Fügt Factur-X Extension hinzu
@@ -240,8 +246,8 @@ const eInvoice = await FacturX.embedInPDF(pdfBuffer, xml, {
 
 ```typescript
 // 80+ Zeilen für PDF Attachment!
-const context = pdfDoc.context;
-const xmlBytes = new TextEncoder().encode(xmlContent);
+const context = pdfDoc.context
+const xmlBytes = new TextEncoder().encode(xmlContent)
 
 // 1. Stream erstellen
 const xmlStream = context.obj({
@@ -252,60 +258,58 @@ const xmlStream = context.obj({
     Size: xmlBytes.length,
     ModDate: getPdfDateString(new Date())
   }
-});
+})
 
 // 2. Komprimieren
-const compressed = pako.deflate(xmlBytes);
-xmlStream.dict.set(PDFName.of('Filter'), PDFName.of('FlateDecode'));
-context.assignRef(xmlStream, compressed);
-const xmlStreamRef = context.register(xmlStream);
+const compressed = pako.deflate(xmlBytes)
+xmlStream.dict.set(PDFName.of('Filter'), PDFName.of('FlateDecode'))
+context.assignRef(xmlStream, compressed)
+const xmlStreamRef = context.register(xmlStream)
 
 // 3. FileSpec erstellen
 const fileSpec = context.obj({
   Type: 'Filespec',
   F: 'factur-x.xml',
   UF: 'factur-x.xml',
-  AFRelationship: 'Alternative',  // ⚠️ Muss GENAU so sein!
+  AFRelationship: 'Alternative', // ⚠️ Muss GENAU so sein!
   Desc: 'Factur-X Invoice',
   EF: {
     F: xmlStreamRef,
     UF: xmlStreamRef
   }
-});
+})
 
-const fileSpecRef = context.register(fileSpec);
+const fileSpecRef = context.register(fileSpec)
 
 // 4. Names Dictionary
-let names = pdfDoc.catalog.lookup(PDFName.of('Names'), PDFDict);
+let names = pdfDoc.catalog.lookup(PDFName.of('Names'), PDFDict)
 if (!names) {
-  names = context.obj({});
-  pdfDoc.catalog.set(PDFName.of('Names'), names);
+  names = context.obj({})
+  pdfDoc.catalog.set(PDFName.of('Names'), names)
 }
 
-let embeddedFiles = names.lookup(PDFName.of('EmbeddedFiles'), PDFDict);
+let embeddedFiles = names.lookup(PDFName.of('EmbeddedFiles'), PDFDict)
 if (!embeddedFiles) {
-  embeddedFiles = context.obj({});
-  names.set(PDFName.of('EmbeddedFiles'), embeddedFiles);
+  embeddedFiles = context.obj({})
+  names.set(PDFName.of('EmbeddedFiles'), embeddedFiles)
 }
 
-const namesArray = context.obj([
-  PDFString.of('factur-x.xml'),
-  fileSpecRef
-]);
+const namesArray = context.obj([PDFString.of('factur-x.xml'), fileSpecRef])
 
-embeddedFiles.set(PDFName.of('Names'), namesArray);
+embeddedFiles.set(PDFName.of('Names'), namesArray)
 
 // 5. Associated Files Array (PDF/A-3 Requirement!)
-let af = pdfDoc.catalog.lookup(PDFName.of('AF'), PDFArray);
+let af = pdfDoc.catalog.lookup(PDFName.of('AF'), PDFArray)
 if (!af) {
-  af = context.obj([]);
-  pdfDoc.catalog.set(PDFName.of('AF'), af);
+  af = context.obj([])
+  pdfDoc.catalog.set(PDFName.of('AF'), af)
 }
 
-af.push(fileSpecRef);
+af.push(fileSpecRef)
 ```
 
 **Probleme:**
+
 - ❌ PDF Low-Level API Kenntnisse erforderlich
 - ❌ Katalog-Struktur manuell manipulieren
 - ❌ Compression manuell (pako)
@@ -319,10 +323,11 @@ af.push(fileSpecRef);
 
 ```typescript
 // Library macht ALLES!
-const eInvoice = await FacturX.embedInPDF(pdfBuffer, xml);
+const eInvoice = await FacturX.embedInPDF(pdfBuffer, xml)
 ```
 
 **Fertig!** Die Library:
+
 - ✅ Komprimiert XML automatisch
 - ✅ Erstellt FileSpec korrekt
 - ✅ Setzt AFRelationship = "Alternative"
@@ -338,20 +343,20 @@ const eInvoice = await FacturX.embedInPDF(pdfBuffer, xml);
 
 ```typescript
 // Sie müssen selbst XSD Schema Validierung implementieren!
-import { XMLValidator } from 'fast-xml-parser';
+import {XMLValidator} from 'fast-xml-parser'
 
 // 1. XSD Schema laden (200+ KB!)
-const xsdSchema = await fetch('https://www.ferd-net.de/standards/zugferd-2.1/EN16931-1_CII_v1.0.xsd');
+const xsdSchema = await fetch('https://www.ferd-net.de/standards/zugferd-2.1/EN16931-1_CII_v1.0.xsd')
 
 // 2. Validieren
-const validator = new XMLValidator();
+const validator = new XMLValidator()
 const result = validator.validate(zugferdXml, {
   schema: xsdSchema
-});
+})
 
 // 3. Fehlerbehandlung
 if (result !== true) {
-  console.error('Validation errors:', result.err);
+  console.error('Validation errors:', result.err)
   // Aber: Welches Feld ist falsch?
   // Welche Regel wurde verletzt?
   // Sehr schwer zu debuggen!
@@ -361,13 +366,14 @@ if (result !== true) {
 // COMFORT Level erfordert bestimmte Felder
 if (profile === 'COMFORT') {
   if (!invoice.paymentTerms) {
-    throw new Error('COMFORT requires paymentTerms');
+    throw new Error('COMFORT requires paymentTerms')
   }
   // ... 50+ weitere Rules!
 }
 ```
 
 **Probleme:**
+
 - ❌ XSD Schema manuell laden
 - ❌ Validierung implementieren
 - ❌ Profile-Rules manuell prüfen
@@ -380,14 +386,14 @@ if (profile === 'COMFORT') {
 
 ```typescript
 // Automatische Validierung!
-const xml = await FacturX.generateXML(invoice, Profile.COMFORT);
+const xml = await FacturX.generateXML(invoice, Profile.COMFORT)
 
 // Optional: Explizit validieren
-const isValid = await FacturX.validateXML(xml);
+const isValid = await FacturX.validateXML(xml)
 
 if (!isValid) {
-  const errors = await FacturX.getValidationErrors(xml);
-  
+  const errors = await FacturX.getValidationErrors(xml)
+
   // Hilfreiche Fehlermeldungen:
   // [
   //   {
@@ -396,12 +402,13 @@ if (!isValid) {
   //     rule: 'BR-CO-15'
   //   }
   // ]
-  
-  console.error('Validation errors:', errors);
+
+  console.error('Validation errors:', errors)
 }
 ```
 
 **Vorteile:**
+
 - ✅ XSD Schema eingebaut
 - ✅ Profile-Rules eingebaut
 - ✅ Hilfreiche Fehlermeldungen
@@ -419,28 +426,25 @@ if (!isValid) {
 
 // Format 102: YYYYMMDD (für Rechnungsdatum)
 function formatDate102(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}${month}${day}`;
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}${month}${day}`
 }
 
 // Format 610: YYYYMM (für Abrechnungszeitraum)
 function formatDate610(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  return `${year}${month}`;
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${year}${month}`
 }
 
 // PDF Date String: D:YYYYMMDDHHmmssZ
 function formatPdfDate(date: Date): string {
-  return `D:${formatDate102(date)}${
-    String(date.getHours()).padStart(2, '0')
-  }${
-    String(date.getMinutes()).padStart(2, '0')
-  }${
-    String(date.getSeconds()).padStart(2, '0')
-  }Z`;
+  return `D:${formatDate102(date)}${String(date.getHours()).padStart(2, '0')}${String(date.getMinutes()).padStart(
+    2,
+    '0'
+  )}${String(date.getSeconds()).padStart(2, '0')}Z`
 }
 
 // Im XML muss es dann so aussehen:
@@ -448,10 +452,11 @@ const xml = `
   <ram:IssueDateTime>
     <udt:DateTimeString format="102">${formatDate102(invoiceDate)}</udt:DateTimeString>
   </ram:IssueDateTime>
-`;
+`
 ```
 
 **Probleme:**
+
 - ❌ 3+ verschiedene Datumsformate
 - ❌ Formatcodes auswendig lernen (102, 610, etc.)
 - ❌ Manuell konvertieren
@@ -467,13 +472,14 @@ const invoice = {
   invoiceDate: new Date('2026-02-21'),
   dueDate: new Date('2026-03-15'),
   deliveryDate: new Date('2026-02-20')
-};
+}
 
 // Library konvertiert automatisch in die korrekten Formate!
-const xml = await FacturX.generateXML(invoice, Profile.COMFORT);
+const xml = await FacturX.generateXML(invoice, Profile.COMFORT)
 ```
 
 **Vorteile:**
+
 - ✅ Native JavaScript `Date` nutzen
 - ✅ Automatische Formatierung
 - ✅ Kein Formatcode-Wissen nötig
@@ -489,18 +495,18 @@ const xml = await FacturX.generateXML(invoice, Profile.COMFORT);
 
 function formatAmount(amount: number): string {
   // FALSCH:
-  return amount.toString(); // 100 → "100" ❌
-  
+  return amount.toString() // 100 → "100" ❌
+
   // RICHTIG:
-  return amount.toFixed(2); // 100 → "100.00" ✅
+  return amount.toFixed(2) // 100 → "100.00" ✅
 }
 
 // Aber: Was bei null/undefined?
 function formatAmountSafe(amount: number | null | undefined): string {
   if (amount === null || amount === undefined) {
-    return '0.00'; // Oder Fehler werfen?
+    return '0.00' // Oder Fehler werfen?
   }
-  return amount.toFixed(2);
+  return amount.toFixed(2)
 }
 
 // Im XML:
@@ -509,10 +515,11 @@ const xml = `
   <ram:TaxBasisTotalAmount>${formatAmount(taxBasis)}</ram:TaxBasisTotalAmount>
   <ram:TaxTotalAmount currencyID="EUR">${formatAmount(taxTotal)}</ram:TaxTotalAmount>
   <ram:GrandTotalAmount>${formatAmount(grandTotal)}</ram:GrandTotalAmount>
-`;
+`
 ```
 
 **Probleme:**
+
 - ❌ Immer .toFixed(2) nicht vergessen!
 - ❌ null/undefined Handling
 - ❌ Currency Code manuell setzen
@@ -525,15 +532,16 @@ const xml = `
 // Einfach Zahlen übergeben!
 const invoice = {
   totals: {
-    netAmount: 100,      // Library macht: "100.00"
-    vatAmount: 19,       // Library macht: "19.00"
-    grossAmount: 119     // Library macht: "119.00"
+    netAmount: 100, // Library macht: "100.00"
+    vatAmount: 19, // Library macht: "19.00"
+    grossAmount: 119 // Library macht: "119.00"
   },
   currency: 'EUR'
-};
+}
 ```
 
 **Vorteile:**
+
 - ✅ Automatische .toFixed(2)
 - ✅ Automatisches null-Handling
 - ✅ Currency Code automatisch gesetzt
@@ -549,37 +557,39 @@ const invoice = {
 
 if (profile === 'MINIMUM') {
   // Sehr wenige Felder erforderlich
-  requiredFields = ['invoiceNumber', 'invoiceDate', 'seller.name', 'buyer.name', 'grandTotal'];
+  requiredFields = ['invoiceNumber', 'invoiceDate', 'seller.name', 'buyer.name', 'grandTotal']
 }
 
 if (profile === 'BASIC') {
   // Mehr Felder erforderlich
-  requiredFields = [...requiredFields, 'lineItems', 'taxes'];
+  requiredFields = [...requiredFields, 'lineItems', 'taxes']
 }
 
 if (profile === 'COMFORT') {
   // Noch mehr Felder!
-  requiredFields = [...requiredFields, 
-    'paymentMeans', 
-    'paymentTerms', 
+  requiredFields = [
+    ...requiredFields,
+    'paymentMeans',
+    'paymentTerms',
     'seller.vatId',
     'seller.address',
     'buyer.address',
     'lineItems[].quantity',
-    'lineItems[].unitPrice',
+    'lineItems[].unitPrice'
     // ... 20+ weitere Felder!
-  ];
+  ]
 }
 
 // Manuell validieren
 for (const field of requiredFields) {
   if (!getNestedValue(invoice, field)) {
-    throw new Error(`Required field missing for ${profile}: ${field}`);
+    throw new Error(`Required field missing for ${profile}: ${field}`)
   }
 }
 ```
 
 **Probleme:**
+
 - ❌ Profile-Anforderungen manuell implementieren
 - ❌ Bei Standard-Update ändern sich Rules
 - ❌ Fehleranfällig
@@ -590,7 +600,7 @@ for (const field of requiredFields) {
 
 ```typescript
 // Library kennt alle Profile-Anforderungen!
-const xml = await FacturX.generateXML(invoice, Profile.COMFORT);
+const xml = await FacturX.generateXML(invoice, Profile.COMFORT)
 
 // Bei fehlendem Feld:
 // Error: Required field 'paymentMeans' missing for COMFORT profile
@@ -598,6 +608,7 @@ const xml = await FacturX.generateXML(invoice, Profile.COMFORT);
 ```
 
 **Vorteile:**
+
 - ✅ Profile-Rules eingebaut
 - ✅ Automatische Validierung
 - ✅ Updates bei Standard-Änderungen
@@ -612,21 +623,22 @@ const xml = await FacturX.generateXML(invoice, Profile.COMFORT);
 // ZUGFeRD nutzt UN/ECE Rec 20 Unit Codes!
 
 const unitCodeMapping = {
-  'piece': 'C62',      // Stück
-  'hour': 'HUR',       // Stunde
-  'day': 'DAY',        // Tag
-  'month': 'MON',      // Monat
-  'kilogram': 'KGM',   // Kilogramm
-  'liter': 'LTR',      // Liter
+  piece: 'C62', // Stück
+  hour: 'HUR', // Stunde
+  day: 'DAY', // Tag
+  month: 'MON', // Monat
+  kilogram: 'KGM', // Kilogramm
+  liter: 'LTR' // Liter
   // ... 1000+ weitere Codes!
-};
+}
 
 function getUnitCode(unit: string): string {
-  return unitCodeMapping[unit] || 'C62'; // Fallback
+  return unitCodeMapping[unit] || 'C62' // Fallback
 }
 ```
 
 **Probleme:**
+
 - ❌ 1000+ Unit Codes
 - ❌ Manuell mappen
 - ❌ Leicht falscher Code
@@ -639,13 +651,14 @@ function getUnitCode(unit: string): string {
 // Library macht das automatisch!
 const lineItem = {
   quantity: 10,
-  unit: 'piece'  // oder 'hour', 'day', etc.
-};
+  unit: 'piece' // oder 'hour', 'day', etc.
+}
 
 // Library konvertiert zu 'C62'
 ```
 
 **Vorteile:**
+
 - ✅ Automatisches Mapping
 - ✅ Alle 1000+ Codes eingebaut
 
@@ -659,23 +672,24 @@ const lineItem = {
 // ZUGFeRD Tax Category Codes:
 
 const taxCategoryMapping = {
-  'standard': 'S',        // Standard Rate (19%)
-  'reduced': 'S',         // Reduced Rate (7%)
-  'zero': 'Z',           // Zero Rate (0%)
-  'exempt': 'E',         // Exempt
-  'reverseCharge': 'AE', // Reverse Charge
-  'intraCommunity': 'K', // Intra-Community
-  'exportOutsideEU': 'G' // Export outside EU
-};
+  standard: 'S', // Standard Rate (19%)
+  reduced: 'S', // Reduced Rate (7%)
+  zero: 'Z', // Zero Rate (0%)
+  exempt: 'E', // Exempt
+  reverseCharge: 'AE', // Reverse Charge
+  intraCommunity: 'K', // Intra-Community
+  exportOutsideEU: 'G' // Export outside EU
+}
 
 function getTaxCategoryCode(vatRate: number, type: string): string {
-  if (vatRate === 0) return 'Z';
-  if (type === 'reverseCharge') return 'AE';
-  return 'S';
+  if (vatRate === 0) return 'Z'
+  if (type === 'reverseCharge') return 'AE'
+  return 'S'
 }
 ```
 
 **Probleme:**
+
 - ❌ Komplexe Logik
 - ❌ Länderspezifisch
 - ❌ Fehleranfällig
@@ -689,7 +703,7 @@ function getTaxCategoryCode(vatRate: number, type: string): string {
 const tax = {
   rate: 19,
   type: 'standard'
-};
+}
 
 // Library setzt: categoryCode = 'S'
 ```
@@ -704,11 +718,11 @@ const tax = {
 // Bei Fehlern: Kryptische Meldungen
 
 try {
-  const xml = buildZugferdXml(invoice);
+  const xml = buildZugferdXml(invoice)
 } catch (error) {
   // Error: undefined is not an object
   // Wo ist der Fehler? Welches Feld?
-  console.error(error); // Nicht hilfreich!
+  console.error(error) // Nicht hilfreich!
 }
 ```
 
@@ -718,20 +732,21 @@ try {
 
 ```typescript
 try {
-  const xml = await FacturX.generateXML(invoice, Profile.COMFORT);
+  const xml = await FacturX.generateXML(invoice, Profile.COMFORT)
 } catch (error) {
   // ValidationError: Field 'seller.vatId' is required for COMFORT profile
   //   at: invoice.seller.vatId
   //   rule: EN16931-1 BR-CO-15
   //   help: VAT identification number must be provided for standard rate tax
-  
-  console.error(error.message);
-  console.error('Field:', error.field);
-  console.error('Rule:', error.rule);
+
+  console.error(error.message)
+  console.error('Field:', error.field)
+  console.error('Rule:', error.rule)
 }
 ```
 
 **Vorteile:**
+
 - ✅ Hilfreiche Fehlermeldungen
 - ✅ Zeigt genau WO der Fehler ist
 - ✅ Zeigt WELCHE Regel verletzt wurde
@@ -741,21 +756,21 @@ try {
 
 ## Zusammenfassung: Was wird vereinfacht?
 
-| Aufgabe | Custom (Ohne Library) | Mit `factur-x` |
-|---------|----------------------|----------------|
-| **XML Generierung** | 200+ Zeilen Template | 10 Zeilen Objekt ✅ |
-| **PDF/A-3 Metadata** | 100+ Zeilen XMP | Automatisch ✅ |
-| **PDF Attachment** | 80+ Zeilen Low-Level | Automatisch ✅ |
-| **Validierung** | XSD + Rules selbst | Eingebaut ✅ |
-| **Datumsformate** | 3+ Funktionen | Automatisch ✅ |
-| **Betragsformate** | Manuell .toFixed(2) | Automatisch ✅ |
-| **Profile-Rules** | Selbst implementieren | Eingebaut ✅ |
-| **Unit Codes** | 1000+ manuell | Automatisch ✅ |
-| **Tax Categories** | Komplexe Logik | Automatisch ✅ |
-| **Error Messages** | Kryptisch | Hilfreich ✅ |
-| **Updates** | Manuell anpassen | npm update ✅ |
-| **Testing** | Selbst schreiben | Mitgeliefert ✅ |
-| **Wartung** | Sie allein | Community ✅ |
+| Aufgabe              | Custom (Ohne Library) | Mit `factur-x`      |
+| -------------------- | --------------------- | ------------------- |
+| **XML Generierung**  | 200+ Zeilen Template  | 10 Zeilen Objekt ✅ |
+| **PDF/A-3 Metadata** | 100+ Zeilen XMP       | Automatisch ✅      |
+| **PDF Attachment**   | 80+ Zeilen Low-Level  | Automatisch ✅      |
+| **Validierung**      | XSD + Rules selbst    | Eingebaut ✅        |
+| **Datumsformate**    | 3+ Funktionen         | Automatisch ✅      |
+| **Betragsformate**   | Manuell .toFixed(2)   | Automatisch ✅      |
+| **Profile-Rules**    | Selbst implementieren | Eingebaut ✅        |
+| **Unit Codes**       | 1000+ manuell         | Automatisch ✅      |
+| **Tax Categories**   | Komplexe Logik        | Automatisch ✅      |
+| **Error Messages**   | Kryptisch             | Hilfreich ✅        |
+| **Updates**          | Manuell anpassen      | npm update ✅       |
+| **Testing**          | Selbst schreiben      | Mitgeliefert ✅     |
+| **Wartung**          | Sie allein            | Community ✅        |
 
 ---
 
@@ -765,23 +780,29 @@ try {
 
 ```typescript
 // 1. XML Template (200+ Zeilen)
-const xmlTemplate = `...`;
+const xmlTemplate = `...`
 
 // 2. Mapping-Logik (150+ Zeilen)
-class MCBSToZUGFeRDMapper { /* ... */ }
+class MCBSToZUGFeRDMapper {
+  /* ... */
+}
 
 // 3. PDF Embedder (100+ Zeilen)
-class ZUGFeRDEmbedder { /* ... */ }
+class ZUGFeRDEmbedder {
+  /* ... */
+}
 
 // 4. Validierung (50+ Zeilen)
-function validate(xml) { /* ... */ }
+function validate(xml) {
+  /* ... */
+}
 
 // Nutzung:
-const mapper = new MCBSToZUGFeRDMapper();
-const zugferdData = mapper.map(mcbsInvoice);
-const xml = buildXmlFromTemplate(xmlTemplate, zugferdData);
-const embedder = new ZUGFeRDEmbedder();
-const pdf = await embedder.embed(pdfBuffer, xml);
+const mapper = new MCBSToZUGFeRDMapper()
+const zugferdData = mapper.map(mcbsInvoice)
+const xml = buildXmlFromTemplate(xmlTemplate, zugferdData)
+const embedder = new ZUGFeRDEmbedder()
+const pdf = await embedder.embed(pdfBuffer, xml)
 ```
 
 ---
@@ -789,28 +810,28 @@ const pdf = await embedder.embed(pdfBuffer, xml);
 ### ✅ **Nachher (Library - 50 Zeilen)**
 
 ```typescript
-import { FacturX, Profile } from 'factur-x';
+import {FacturX, Profile} from 'factur-x'
 
 // 1. Einfaches Mapping (50 Zeilen)
-const invoice = mapMCBSToFacturX(mcbsInvoice);
+const invoice = mapMCBSToFacturX(mcbsInvoice)
 
 // 2. XML generieren (1 Zeile!)
-const xml = await FacturX.generateXML(invoice, Profile.COMFORT);
+const xml = await FacturX.generateXML(invoice, Profile.COMFORT)
 
 // 3. In PDF einbetten (1 Zeile!)
-const pdf = await FacturX.embedInPDF(pdfBuffer, xml);
+const pdf = await FacturX.embedInPDF(pdfBuffer, xml)
 ```
 
 ---
 
 ## Zeitersparnis
 
-| Phase | Custom | Library | Ersparnis |
-|-------|--------|---------|-----------|
-| **Entwicklung** | 2-3 Wochen | 2-3 Tage | **90%** ✅ |
-| **Testing** | 1 Woche | 1 Tag | **80%** ✅ |
-| **Debugging** | Hoch | Niedrig | **70%** ✅ |
-| **Wartung/Jahr** | 2 Wochen | 1 Tag | **95%** ✅ |
+| Phase            | Custom     | Library  | Ersparnis  |
+| ---------------- | ---------- | -------- | ---------- |
+| **Entwicklung**  | 2-3 Wochen | 2-3 Tage | **90%** ✅ |
+| **Testing**      | 1 Woche    | 1 Tag    | **80%** ✅ |
+| **Debugging**    | Hoch       | Niedrig  | **70%** ✅ |
+| **Wartung/Jahr** | 2 Wochen   | 1 Tag    | **95%** ✅ |
 
 ---
 

@@ -28,13 +28,13 @@ S3 Struktur:
 ```
 
 **Matching Logic:**
+
 ```typescript
 function findMatchingXml(pdfKey: string): string {
-  const basename = path.basename(pdfKey, '.pdf');
-  const dirname = path.dirname(pdfKey);
-  
-  return dirname.replace('/pdf/', '/zugferd/') 
-    + `/${basename}_zugferd.xml`;
+  const basename = path.basename(pdfKey, '.pdf')
+  const dirname = path.dirname(pdfKey)
+
+  return dirname.replace('/pdf/', '/zugferd/') + `/${basename}_zugferd.xml`
 }
 ```
 
@@ -55,6 +55,7 @@ function findMatchingXml(pdfKey: string): string {
 ## 3. TypeScript Implementation
 
 Siehe separate Dateien:
+
 - `ZUGFERD_EMBEDDER_SERVICE.md` - Service Implementation
 - `ZUGFERD_LAMBDA_HANDLER.md` - Lambda Handler
 - `ZUGFERD_SERVERLESS_CONFIG.md` - Serverless.yml

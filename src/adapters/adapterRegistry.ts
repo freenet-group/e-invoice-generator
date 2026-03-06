@@ -1,4 +1,4 @@
-import { InvoiceAdapter } from './invoiceAdapter'
+import {InvoiceAdapter} from './invoiceAdapter'
 
 /**
  * Adapter Registry - Factory für Adapter-Instanzen

@@ -5,6 +5,7 @@
 **Aufgabe:** Konvertierung von MCBS Inhouse-XML (mcbs_billoutput.xsd) zu **ZUGFeRD XML** (Comfort Level)
 
 **Technologie-Stack:**
+
 - AWS Lambda (TypeScript)
 - AWS S3 (Input/Output Storage)
 - AWS EventBridge (Event-driven Trigger)
@@ -16,15 +17,16 @@
 
 ### ZUGFeRD Profile
 
-| Profile | Komplexität | Use Case |
-|---------|-------------|----------|
-| **MINIMUM** | Sehr einfach | Nur Basisdaten |
-| **BASIC WL** | Einfach | Ohne Positionsdaten |
-| **BASIC** | Standard | Mit Positionsdaten |
-| **COMFORT** ✅ | Erweitert | **Empfohlen - Ihr Ziel!** |
-| **EXTENDED** | Komplett | Alle Details |
+| Profile        | Komplexität  | Use Case                  |
+| -------------- | ------------ | ------------------------- |
+| **MINIMUM**    | Sehr einfach | Nur Basisdaten            |
+| **BASIC WL**   | Einfach      | Ohne Positionsdaten       |
+| **BASIC**      | Standard     | Mit Positionsdaten        |
+| **COMFORT** ✅ | Erweitert    | **Empfohlen - Ihr Ziel!** |
+| **EXTENDED**   | Komplett     | Alle Details              |
 
 **Comfort Level** enthält:
+
 - ✅ Rechnungskopf (Datum, Nummer, Beträge)
 - ✅ Lieferant/Käufer-Informationen
 - ✅ Positionsdaten (Artikel, Menge, Preis)
@@ -80,80 +82,80 @@
 export interface MCBSInvoice {
   DOCUMENT: {
     HEADER: {
-      BILLING_SYSTEM?: string;
-      SOURCE_SYSTEM?: string;
-      INVOICE_DATE?: string;
-      BILLRUN_ID?: string;
+      BILLING_SYSTEM?: string
+      SOURCE_SYSTEM?: string
+      INVOICE_DATE?: string
+      BILLRUN_ID?: string
       BRAND?: {
-        CODE_SHORTCUT: string;
-        CODE_DESC: string;
-        SHORTCUT: string;
-        DESC: string;
-      };
-      CLIENTBANK_ACNT?: string;
-      CLIENTBANK_CODE?: string;
-      CLIENTBANK_NAME?: string;
-    };
+        CODE_SHORTCUT: string
+        CODE_DESC: string
+        SHORTCUT: string
+        DESC: string
+      }
+      CLIENTBANK_ACNT?: string
+      CLIENTBANK_CODE?: string
+      CLIENTBANK_NAME?: string
+    }
     INVOICE_DATA: {
-      CUSTOMER_NO: string;
-      BILLNO: string;
-      INVOICE_DATE: string;
+      CUSTOMER_NO: string
+      BILLNO: string
+      INVOICE_DATE: string
       BILLING_PERIOD?: {
-        FROM: string;
-        TO: string;
-      };
+        FROM: string
+        TO: string
+      }
       AMOUNTS: {
-        NET_AMOUNT: string;
-        VAT_AMOUNT: string;
-        GROSS_AMOUNT: string;
-        TOTAL_AMOUNT: string;
-        OPEN_AMOUNT?: string;
-      };
+        NET_AMOUNT: string
+        VAT_AMOUNT: string
+        GROSS_AMOUNT: string
+        TOTAL_AMOUNT: string
+        OPEN_AMOUNT?: string
+      }
       PAYMENT_MODE: {
-        PAYMENT_TYPE: string; // SEPADEBIT, INVOICE, etc.
-        IBAN?: string;
-        BIC?: string;
-        MANDATE_REF?: string;
-        DUE_DATE?: string;
-      };
+        PAYMENT_TYPE: string // SEPADEBIT, INVOICE, etc.
+        IBAN?: string
+        BIC?: string
+        MANDATE_REF?: string
+        DUE_DATE?: string
+      }
       ADDRESS: {
-        SALUTATION?: string;
-        FIRST_NAME?: string;
-        LAST_NAME?: string;
-        COMPANY?: string;
-        STREET?: string;
-        STREET_NO?: string;
-        ZIPCODE?: string;
-        CITY?: string;
-        COUNTRY?: string;
-      };
+        SALUTATION?: string
+        FIRST_NAME?: string
+        LAST_NAME?: string
+        COMPANY?: string
+        STREET?: string
+        STREET_NO?: string
+        ZIPCODE?: string
+        CITY?: string
+        COUNTRY?: string
+      }
       SECTIONS?: {
         SECTION: Array<{
-          TYPE: string;
+          TYPE: string
           LINES?: {
             LINE: Array<{
-              TYPE: string;
-              DESCRIPTION: string;
-              QUANTITY?: string;
-              UNIT_PRICE?: string;
-              NET_AMOUNT?: string;
-              VAT_RATE?: string;
-              VAT_AMOUNT?: string;
-              GROSS_AMOUNT?: string;
-            }>;
-          };
-        }>;
-      };
+              TYPE: string
+              DESCRIPTION: string
+              QUANTITY?: string
+              UNIT_PRICE?: string
+              NET_AMOUNT?: string
+              VAT_RATE?: string
+              VAT_AMOUNT?: string
+              GROSS_AMOUNT?: string
+            }>
+          }
+        }>
+      }
       VAT_DETAILS?: {
         VAT_DETAIL: Array<{
-          VAT_RATE: string;
-          NET_AMOUNT: string;
-          VAT_AMOUNT: string;
-          GROSS_AMOUNT: string;
-        }>;
-      };
-    };
-  };
+          VAT_RATE: string
+          NET_AMOUNT: string
+          VAT_AMOUNT: string
+          GROSS_AMOUNT: string
+        }>
+      }
+    }
+  }
 }
 ```
 
@@ -164,150 +166,150 @@ export interface MCBSInvoice {
  */
 export interface ZUGFeRDInvoice {
   'rsm:CrossIndustryInvoice': {
-    '@_xmlns:rsm': string;
-    '@_xmlns:qdt': string;
-    '@_xmlns:ram': string;
-    '@_xmlns:xs': string;
-    '@_xmlns:udt': string;
-    
+    '@_xmlns:rsm': string
+    '@_xmlns:qdt': string
+    '@_xmlns:ram': string
+    '@_xmlns:xs': string
+    '@_xmlns:udt': string
+
     'rsm:ExchangedDocumentContext': {
       'ram:GuidelineSpecifiedDocumentContextParameter': {
-        'ram:ID': string; // "urn:cen.eu:en16931:2017#compliant#urn:factur-x.eu:1p0:comfort"
-      };
-    };
-    
+        'ram:ID': string // "urn:cen.eu:en16931:2017#compliant#urn:factur-x.eu:1p0:comfort"
+      }
+    }
+
     'rsm:ExchangedDocument': {
-      'ram:ID': string; // Rechnungsnummer
-      'ram:TypeCode': string; // 380 = Rechnung, 381 = Gutschrift
+      'ram:ID': string // Rechnungsnummer
+      'ram:TypeCode': string // 380 = Rechnung, 381 = Gutschrift
       'ram:IssueDateTime': {
         'udt:DateTimeString': {
-          '@_format': string;
-          '#text': string;
-        };
-      };
+          '@_format': string
+          '#text': string
+        }
+      }
       'ram:IncludedNote'?: Array<{
-        'ram:Content': string;
-      }>;
-    };
-    
+        'ram:Content': string
+      }>
+    }
+
     'rsm:SupplyChainTradeTransaction': {
       'ram:IncludedSupplyChainTradeLineItem': Array<{
         'ram:AssociatedDocumentLineDocument': {
-          'ram:LineID': string;
-        };
+          'ram:LineID': string
+        }
         'ram:SpecifiedTradeProduct': {
-          'ram:Name': string;
-          'ram:Description'?: string;
-        };
+          'ram:Name': string
+          'ram:Description'?: string
+        }
         'ram:SpecifiedLineTradeAgreement': {
           'ram:NetPriceProductTradePrice': {
-            'ram:ChargeAmount': string;
-          };
-        };
+            'ram:ChargeAmount': string
+          }
+        }
         'ram:SpecifiedLineTradeDelivery': {
           'ram:BilledQuantity': {
-            '@_unitCode': string; // C62 = Stück, H87 = Stück
-            '#text': string;
-          };
-        };
+            '@_unitCode': string // C62 = Stück, H87 = Stück
+            '#text': string
+          }
+        }
         'ram:SpecifiedLineTradeSettlement': {
           'ram:ApplicableTradeTax': {
-            'ram:TypeCode': string; // VAT
-            'ram:CategoryCode': string; // S = Standard, Z = Zero
-            'ram:RateApplicablePercent': string;
-          };
+            'ram:TypeCode': string // VAT
+            'ram:CategoryCode': string // S = Standard, Z = Zero
+            'ram:RateApplicablePercent': string
+          }
           'ram:SpecifiedTradeSettlementLineMonetarySummation': {
-            'ram:LineTotalAmount': string;
-          };
-        };
-      }>;
-      
+            'ram:LineTotalAmount': string
+          }
+        }
+      }>
+
       'ram:ApplicableHeaderTradeAgreement': {
         'ram:SellerTradeParty': {
-          'ram:Name': string;
+          'ram:Name': string
           'ram:SpecifiedLegalOrganization'?: {
-            'ram:ID': string; // Steuernummer oder Handelsregisternummer
-          };
+            'ram:ID': string // Steuernummer oder Handelsregisternummer
+          }
           'ram:PostalTradeAddress': {
-            'ram:PostcodeCode': string;
-            'ram:LineOne': string;
-            'ram:CityName': string;
-            'ram:CountryID': string; // ISO 3166-1 alpha-2
-          };
+            'ram:PostcodeCode': string
+            'ram:LineOne': string
+            'ram:CityName': string
+            'ram:CountryID': string // ISO 3166-1 alpha-2
+          }
           'ram:SpecifiedTaxRegistration': {
             'ram:ID': {
-              '@_schemeID': string; // VA = VAT, FC = Fiscal
-              '#text': string; // USt-IdNr
-            };
-          };
-        };
+              '@_schemeID': string // VA = VAT, FC = Fiscal
+              '#text': string // USt-IdNr
+            }
+          }
+        }
         'ram:BuyerTradeParty': {
-          'ram:Name': string;
+          'ram:Name': string
           'ram:PostalTradeAddress': {
-            'ram:PostcodeCode': string;
-            'ram:LineOne': string;
-            'ram:CityName': string;
-            'ram:CountryID': string;
-          };
-        };
-      };
-      
+            'ram:PostcodeCode': string
+            'ram:LineOne': string
+            'ram:CityName': string
+            'ram:CountryID': string
+          }
+        }
+      }
+
       'ram:ApplicableHeaderTradeDelivery': {
         'ram:ActualDeliverySupplyChainEvent': {
           'ram:OccurrenceDateTime': {
             'udt:DateTimeString': {
-              '@_format': string;
-              '#text': string;
-            };
-          };
-        };
-      };
-      
+              '@_format': string
+              '#text': string
+            }
+          }
+        }
+      }
+
       'ram:ApplicableHeaderTradeSettlement': {
-        'ram:InvoiceCurrencyCode': string; // EUR
+        'ram:InvoiceCurrencyCode': string // EUR
         'ram:SpecifiedTradeSettlementPaymentMeans': {
-          'ram:TypeCode': string; // 58 = SEPA, 30 = Überweisung
-          'ram:Information'?: string;
+          'ram:TypeCode': string // 58 = SEPA, 30 = Überweisung
+          'ram:Information'?: string
           'ram:PayeePartyCreditorFinancialAccount': {
-            'ram:IBANID': string;
-            'ram:AccountName'?: string;
-          };
+            'ram:IBANID': string
+            'ram:AccountName'?: string
+          }
           'ram:PayeeSpecifiedCreditorFinancialInstitution': {
-            'ram:BICID': string;
-          };
-        };
+            'ram:BICID': string
+          }
+        }
         'ram:ApplicableTradeTax': Array<{
-          'ram:CalculatedAmount': string; // MwSt-Betrag
-          'ram:TypeCode': string; // VAT
-          'ram:BasisAmount': string; // Nettobetrag
-          'ram:CategoryCode': string; // S = Standard
-          'ram:RateApplicablePercent': string; // 19
-        }>;
+          'ram:CalculatedAmount': string // MwSt-Betrag
+          'ram:TypeCode': string // VAT
+          'ram:BasisAmount': string // Nettobetrag
+          'ram:CategoryCode': string // S = Standard
+          'ram:RateApplicablePercent': string // 19
+        }>
         'ram:SpecifiedTradePaymentTerms': {
-          'ram:Description': string;
+          'ram:Description': string
           'ram:DueDateDateTime'?: {
             'udt:DateTimeString': {
-              '@_format': string;
-              '#text': string;
-            };
-          };
-        };
+              '@_format': string
+              '#text': string
+            }
+          }
+        }
         'ram:SpecifiedTradeSettlementHeaderMonetarySummation': {
-          'ram:LineTotalAmount': string; // Summe Netto
-          'ram:ChargeTotalAmount'?: string; // Zuschläge
-          'ram:AllowanceTotalAmount'?: string; // Abschläge
-          'ram:TaxBasisTotalAmount': string; // Steuerbemessungsgrundlage
+          'ram:LineTotalAmount': string // Summe Netto
+          'ram:ChargeTotalAmount'?: string // Zuschläge
+          'ram:AllowanceTotalAmount'?: string // Abschläge
+          'ram:TaxBasisTotalAmount': string // Steuerbemessungsgrundlage
           'ram:TaxTotalAmount': {
-            '@_currencyID': string;
-            '#text': string; // Gesamt MwSt
-          };
-          'ram:GrandTotalAmount': string; // Bruttobetrag
-          'ram:TotalPrepaidAmount'?: string; // Anzahlungen
-          'ram:DuePayableAmount': string; // Zahlbetrag
-        };
-      };
-    };
-  };
+            '@_currencyID': string
+            '#text': string // Gesamt MwSt
+          }
+          'ram:GrandTotalAmount': string // Bruttobetrag
+          'ram:TotalPrepaidAmount'?: string // Anzahlungen
+          'ram:DuePayableAmount': string // Zahlbetrag
+        }
+      }
+    }
+  }
 }
 ```
 
@@ -317,20 +319,18 @@ export interface ZUGFeRDInvoice {
 
 ```typescript
 // src/mappers/mcbs-to-zugferd-mapper.ts
-import { MCBSInvoice } from '../types/mcbs-invoice';
-import { ZUGFeRDInvoice } from '../types/zugferd';
-import { format, parse } from 'date-fns';
+import {MCBSInvoice} from '../types/mcbs-invoice'
+import {ZUGFeRDInvoice} from '../types/zugferd'
+import {format, parse} from 'date-fns'
 
 export class MCBSToZUGFeRDMapper {
-  
   /**
    * Hauptkonvertierungsmethode
    */
   public mapToZUGFeRD(mcbs: MCBSInvoice): ZUGFeRDInvoice {
-    
-    const invoice = mcbs.DOCUMENT.INVOICE_DATA;
-    const header = mcbs.DOCUMENT.HEADER;
-    
+    const invoice = mcbs.DOCUMENT.INVOICE_DATA
+    const header = mcbs.DOCUMENT.HEADER
+
     return {
       'rsm:CrossIndustryInvoice': {
         '@_xmlns:rsm': 'urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100',
@@ -338,14 +338,14 @@ export class MCBSToZUGFeRDMapper {
         '@_xmlns:ram': 'urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100',
         '@_xmlns:xs': 'http://www.w3.org/2001/XMLSchema',
         '@_xmlns:udt': 'urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100',
-        
+
         'rsm:ExchangedDocumentContext': this.mapDocumentContext(),
         'rsm:ExchangedDocument': this.mapExchangedDocument(invoice),
         'rsm:SupplyChainTradeTransaction': this.mapSupplyChainTradeTransaction(invoice, header)
       }
-    };
+    }
   }
-  
+
   /**
    * Document Context - ZUGFeRD Profil
    */
@@ -354,9 +354,9 @@ export class MCBSToZUGFeRDMapper {
       'ram:GuidelineSpecifiedDocumentContextParameter': {
         'ram:ID': 'urn:cen.eu:en16931:2017#compliant#urn:factur-x.eu:1p0:comfort'
       }
-    };
+    }
   }
-  
+
   /**
    * Exchanged Document - Rechnungskopf
    */
@@ -375,9 +375,9 @@ export class MCBSToZUGFeRDMapper {
           'ram:Content': `Rechnung ${invoice.BILLNO} vom ${invoice.INVOICE_DATE}`
         }
       ]
-    };
+    }
   }
-  
+
   /**
    * Supply Chain Trade Transaction - Hauptteil
    */
@@ -390,21 +390,20 @@ export class MCBSToZUGFeRDMapper {
       'ram:ApplicableHeaderTradeAgreement': this.mapTradeAgreement(invoice, header),
       'ram:ApplicableHeaderTradeDelivery': this.mapTradeDelivery(invoice),
       'ram:ApplicableHeaderTradeSettlement': this.mapTradeSettlement(invoice, header)
-    };
+    }
   }
-  
+
   /**
    * Line Items - Rechnungspositionen
    */
   private mapLineItems(invoice: MCBSInvoice['DOCUMENT']['INVOICE_DATA']) {
-    const lineItems: any[] = [];
-    let lineNumber = 1;
-    
+    const lineItems: any[] = []
+    let lineNumber = 1
+
     if (invoice.SECTIONS?.SECTION) {
       for (const section of invoice.SECTIONS.SECTION) {
         if (section.LINES?.LINE) {
           for (const line of section.LINES.LINE) {
-            
             // Nur Positionen mit Betrag
             if (line.NET_AMOUNT && parseFloat(line.NET_AMOUNT) !== 0) {
               lineItems.push({
@@ -436,15 +435,15 @@ export class MCBSToZUGFeRDMapper {
                     'ram:LineTotalAmount': this.formatAmount(line.NET_AMOUNT)
                   }
                 }
-              });
-              
-              lineNumber++;
+              })
+
+              lineNumber++
             }
           }
         }
       }
     }
-    
+
     // Fallback: Mindestens eine Position
     if (lineItems.length === 0) {
       lineItems.push({
@@ -476,19 +475,16 @@ export class MCBSToZUGFeRDMapper {
             'ram:LineTotalAmount': this.formatAmount(invoice.AMOUNTS.NET_AMOUNT)
           }
         }
-      });
+      })
     }
-    
-    return lineItems;
+
+    return lineItems
   }
-  
+
   /**
    * Trade Agreement - Verkäufer/Käufer
    */
-  private mapTradeAgreement(
-    invoice: MCBSInvoice['DOCUMENT']['INVOICE_DATA'],
-    header: MCBSInvoice['DOCUMENT']['HEADER']
-  ) {
+  private mapTradeAgreement(invoice: MCBSInvoice['DOCUMENT']['INVOICE_DATA'], header: MCBSInvoice['DOCUMENT']['HEADER']) {
     return {
       'ram:SellerTradeParty': {
         'ram:Name': header.BRAND?.DESC || 'freenet DLS GmbH',
@@ -517,9 +513,9 @@ export class MCBSToZUGFeRDMapper {
           'ram:CountryID': invoice.ADDRESS.COUNTRY || 'DE'
         }
       }
-    };
+    }
   }
-  
+
   /**
    * Trade Delivery - Lieferung
    */
@@ -533,23 +529,20 @@ export class MCBSToZUGFeRDMapper {
           }
         }
       }
-    };
+    }
   }
-  
+
   /**
    * Trade Settlement - Zahlungsbedingungen & Summen
    */
-  private mapTradeSettlement(
-    invoice: MCBSInvoice['DOCUMENT']['INVOICE_DATA'],
-    header: MCBSInvoice['DOCUMENT']['HEADER']
-  ) {
+  private mapTradeSettlement(invoice: MCBSInvoice['DOCUMENT']['INVOICE_DATA'], header: MCBSInvoice['DOCUMENT']['HEADER']) {
     return {
       'ram:InvoiceCurrencyCode': 'EUR',
-      
+
       'ram:SpecifiedTradeSettlementPaymentMeans': this.mapPaymentMeans(invoice, header),
-      
+
       'ram:ApplicableTradeTax': this.mapTaxDetails(invoice),
-      
+
       'ram:SpecifiedTradePaymentTerms': {
         'ram:Description': this.getPaymentTermsDescription(invoice),
         ...(invoice.PAYMENT_MODE.DUE_DATE && {
@@ -561,7 +554,7 @@ export class MCBSToZUGFeRDMapper {
           }
         })
       },
-      
+
       'ram:SpecifiedTradeSettlementHeaderMonetarySummation': {
         'ram:LineTotalAmount': this.formatAmount(invoice.AMOUNTS.NET_AMOUNT),
         'ram:TaxBasisTotalAmount': this.formatAmount(invoice.AMOUNTS.NET_AMOUNT),
@@ -572,18 +565,15 @@ export class MCBSToZUGFeRDMapper {
         'ram:GrandTotalAmount': this.formatAmount(invoice.AMOUNTS.GROSS_AMOUNT),
         'ram:DuePayableAmount': this.formatAmount(invoice.AMOUNTS.OPEN_AMOUNT || invoice.AMOUNTS.TOTAL_AMOUNT)
       }
-    };
+    }
   }
-  
+
   /**
    * Payment Means - Zahlungsart
    */
-  private mapPaymentMeans(
-    invoice: MCBSInvoice['DOCUMENT']['INVOICE_DATA'],
-    header: MCBSInvoice['DOCUMENT']['HEADER']
-  ) {
-    const payment = invoice.PAYMENT_MODE;
-    
+  private mapPaymentMeans(invoice: MCBSInvoice['DOCUMENT']['INVOICE_DATA'], header: MCBSInvoice['DOCUMENT']['HEADER']) {
+    const payment = invoice.PAYMENT_MODE
+
     // SEPA Lastschrift
     if (payment.PAYMENT_TYPE === 'SEPADEBIT' && payment.IBAN) {
       return {
@@ -598,9 +588,9 @@ export class MCBSToZUGFeRDMapper {
             'ram:BICID': payment.BIC
           }
         })
-      };
+      }
     }
-    
+
     // Überweisung (Standard)
     return {
       'ram:TypeCode': '58', // 58 = SEPA Überweisung
@@ -612,15 +602,15 @@ export class MCBSToZUGFeRDMapper {
       'ram:PayeeSpecifiedCreditorFinancialInstitution': {
         'ram:BICID': header.CLIENTBANK_CODE || 'COBADEFFXXX'
       }
-    };
+    }
   }
-  
+
   /**
    * Tax Details - MwSt-Aufschlüsselung
    */
   private mapTaxDetails(invoice: MCBSInvoice['DOCUMENT']['INVOICE_DATA']) {
-    const taxes: any[] = [];
-    
+    const taxes: any[] = []
+
     if (invoice.VAT_DETAILS?.VAT_DETAIL) {
       for (const vat of invoice.VAT_DETAILS.VAT_DETAIL) {
         taxes.push({
@@ -629,7 +619,7 @@ export class MCBSToZUGFeRDMapper {
           'ram:BasisAmount': this.formatAmount(vat.NET_AMOUNT),
           'ram:CategoryCode': parseFloat(vat.VAT_RATE) > 0 ? 'S' : 'Z',
           'ram:RateApplicablePercent': this.formatAmount(vat.VAT_RATE)
-        });
+        })
       }
     } else {
       // Fallback: Eine MwSt-Position
@@ -639,80 +629,76 @@ export class MCBSToZUGFeRDMapper {
         'ram:BasisAmount': this.formatAmount(invoice.AMOUNTS.NET_AMOUNT),
         'ram:CategoryCode': 'S',
         'ram:RateApplicablePercent': '19'
-      });
+      })
     }
-    
-    return taxes;
+
+    return taxes
   }
-  
+
   /**
    * Hilfsfunktionen
    */
-  
+
   private formatAmount(amount: string | number | undefined): string {
-    if (!amount) return '0.00';
-    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-    return num.toFixed(2);
+    if (!amount) return '0.00'
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount
+    return num.toFixed(2)
   }
-  
+
   private formatDateToZUGFeRD(date: string): string {
     // MCBS Format: DD.MM.YYYY oder YYYY-MM-DD
     // ZUGFeRD Format: YYYYMMDD
     try {
-      let parsed: Date;
+      let parsed: Date
       if (date.includes('.')) {
-        parsed = parse(date, 'dd.MM.yyyy', new Date());
+        parsed = parse(date, 'dd.MM.yyyy', new Date())
       } else if (date.includes('-')) {
-        parsed = parse(date, 'yyyy-MM-dd', new Date());
+        parsed = parse(date, 'yyyy-MM-dd', new Date())
       } else if (date.length === 8) {
-        return date; // Bereits im richtigen Format
+        return date // Bereits im richtigen Format
       } else {
-        return format(new Date(), 'yyyyMMdd');
+        return format(new Date(), 'yyyyMMdd')
       }
-      return format(parsed, 'yyyyMMdd');
+      return format(parsed, 'yyyyMMdd')
     } catch {
-      return format(new Date(), 'yyyyMMdd');
+      return format(new Date(), 'yyyyMMdd')
     }
   }
-  
+
   private formatBuyerName(address: MCBSInvoice['DOCUMENT']['INVOICE_DATA']['ADDRESS']): string {
     if (address.COMPANY) {
-      return address.COMPANY;
+      return address.COMPANY
     }
-    const parts = [
-      address.SALUTATION,
-      address.FIRST_NAME,
-      address.LAST_NAME
-    ].filter(Boolean);
-    return parts.join(' ');
+    const parts = [address.SALUTATION, address.FIRST_NAME, address.LAST_NAME].filter(Boolean)
+    return parts.join(' ')
   }
-  
+
   private formatStreet(address: MCBSInvoice['DOCUMENT']['INVOICE_DATA']['ADDRESS']): string {
-    const parts = [address.STREET, address.STREET_NO].filter(Boolean);
-    return parts.join(' ');
+    const parts = [address.STREET, address.STREET_NO].filter(Boolean)
+    return parts.join(' ')
   }
-  
+
   private getPaymentTermsDescription(invoice: MCBSInvoice['DOCUMENT']['INVOICE_DATA']): string {
-    const payment = invoice.PAYMENT_MODE;
-    
+    const payment = invoice.PAYMENT_MODE
+
     if (payment.PAYMENT_TYPE === 'SEPADEBIT') {
-      return 'Zahlung per SEPA-Lastschrift';
+      return 'Zahlung per SEPA-Lastschrift'
     } else if (payment.DUE_DATE) {
-      return `Zahlung bis ${invoice.PAYMENT_MODE.DUE_DATE}`;
+      return `Zahlung bis ${invoice.PAYMENT_MODE.DUE_DATE}`
     } else {
-      return 'Zahlung sofort fällig';
+      return 'Zahlung sofort fällig'
     }
   }
-  
+
   private cleanText(text: string | undefined): string {
-    if (!text) return '';
+    if (!text) return ''
     return text
       .replace(/<[^>]*>/g, '') // HTML Tags entfernen
       .replace(/&nbsp;/g, ' ')
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
-      .trim();
+      .trim()
   }
 }
 ```
@@ -725,79 +711,73 @@ export class MCBSToZUGFeRDMapper {
 
 ```typescript
 // src/handlers/convert-invoice-handler.ts
-import { S3Event, S3Handler } from 'aws-lambda';
-import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-import { XMLParser, XMLBuilder } from 'fast-xml-parser';
-import { MCBSToZUGFeRDMapper } from '../mappers/mcbs-to-zugferd-mapper';
-import { MCBSInvoice } from '../types/mcbs-invoice';
+import {S3Event, S3Handler} from 'aws-lambda'
+import {S3Client, GetObjectCommand, PutObjectCommand} from '@aws-sdk/client-s3'
+import {XMLParser, XMLBuilder} from 'fast-xml-parser'
+import {MCBSToZUGFeRDMapper} from '../mappers/mcbs-to-zugferd-mapper'
+import {MCBSInvoice} from '../types/mcbs-invoice'
 
-const s3Client = new S3Client({ region: process.env.AWS_REGION });
+const s3Client = new S3Client({region: process.env.AWS_REGION})
 const xmlParser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: '@_'
-});
+})
 const xmlBuilder = new XMLBuilder({
   ignoreAttributes: false,
   attributeNamePrefix: '@_',
   format: true,
   suppressEmptyNode: true
-});
+})
 
 export const handler: S3Handler = async (event: S3Event) => {
-  
   for (const record of event.Records) {
     try {
-      const bucket = record.s3.bucket.name;
-      const key = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
-      
-      console.log(`Processing invoice: s3://${bucket}/${key}`);
-      
+      const bucket = record.s3.bucket.name
+      const key = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '))
+
+      console.log(`Processing invoice: s3://${bucket}/${key}`)
+
       // 1. MCBS XML von S3 laden
-      const mcbsXml = await loadXmlFromS3(bucket, key);
-      
+      const mcbsXml = await loadXmlFromS3(bucket, key)
+
       // 2. XML parsen
-      const mcbsInvoice: MCBSInvoice = xmlParser.parse(mcbsXml);
-      
-      console.log(`Parsed MCBS invoice: ${mcbsInvoice.DOCUMENT.INVOICE_DATA.BILLNO}`);
-      
+      const mcbsInvoice: MCBSInvoice = xmlParser.parse(mcbsXml)
+
+      console.log(`Parsed MCBS invoice: ${mcbsInvoice.DOCUMENT.INVOICE_DATA.BILLNO}`)
+
       // 3. Zu ZUGFeRD konvertieren
-      const mapper = new MCBSToZUGFeRDMapper();
-      const zugferdInvoice = mapper.mapToZUGFeRD(mcbsInvoice);
-      
+      const mapper = new MCBSToZUGFeRDMapper()
+      const zugferdInvoice = mapper.mapToZUGFeRD(mcbsInvoice)
+
       // 4. ZUGFeRD XML generieren
-      const zugferdXml = xmlBuilder.build(zugferdInvoice);
-      
+      const zugferdXml = xmlBuilder.build(zugferdInvoice)
+
       // 5. XML-Deklaration hinzufügen
-      const completeXml = `<?xml version="1.0" encoding="UTF-8"?>\n${zugferdXml}`;
-      
+      const completeXml = `<?xml version="1.0" encoding="UTF-8"?>\n${zugferdXml}`
+
       // 6. ZUGFeRD XML nach S3 speichern
-      const outputKey = key.replace('.xml', '_zugferd.xml').replace('raw/', 'zugferd/');
-      await saveXmlToS3(
-        process.env.OUTPUT_BUCKET!,
-        outputKey,
-        completeXml
-      );
-      
-      console.log(`Successfully converted to ZUGFeRD: s3://${process.env.OUTPUT_BUCKET}/${outputKey}`);
-      
+      const outputKey = key.replace('.xml', '_zugferd.xml').replace('raw/', 'zugferd/')
+      await saveXmlToS3(process.env.OUTPUT_BUCKET!, outputKey, completeXml)
+
+      console.log(`Successfully converted to ZUGFeRD: s3://${process.env.OUTPUT_BUCKET}/${outputKey}`)
+
       // 7. Optional: Metadata aktualisieren
       await updateInvoiceMetadata(mcbsInvoice.DOCUMENT.INVOICE_DATA.BILLNO, {
         zugferdGenerated: true,
         zugferdS3Key: outputKey,
         processedAt: new Date().toISOString()
-      });
-      
+      })
     } catch (error) {
-      console.error(`Failed to process invoice:`, error);
-      throw error;
+      console.error(`Failed to process invoice:`, error)
+      throw error
     }
   }
-};
+}
 
 async function loadXmlFromS3(bucket: string, key: string): Promise<string> {
-  const command = new GetObjectCommand({ Bucket: bucket, Key: key });
-  const response = await s3Client.send(command);
-  return response.Body!.transformToString('utf-8');
+  const command = new GetObjectCommand({Bucket: bucket, Key: key})
+  const response = await s3Client.send(command)
+  return response.Body!.transformToString('utf-8')
 }
 
 async function saveXmlToS3(bucket: string, key: string, xml: string): Promise<void> {
@@ -810,8 +790,8 @@ async function saveXmlToS3(bucket: string, key: string, xml: string): Promise<vo
       'zugferd-version': '2.1',
       'zugferd-profile': 'COMFORT'
     }
-  });
-  await s3Client.send(command);
+  })
+  await s3Client.send(command)
 }
 
 async function updateInvoiceMetadata(billNo: string, metadata: any): Promise<void> {
@@ -844,7 +824,7 @@ provider:
         - Effect: Allow
           Action:
             - s3:GetObject
-          Resource: 
+          Resource:
             - 'arn:aws:s3:::${self:custom.inputBucket}/*'
         - Effect: Allow
           Action:
@@ -881,14 +861,14 @@ resources:
             - Id: DeleteOldInvoices
               Status: Enabled
               ExpirationInDays: 90
-    
+
     OutputBucket:
       Type: AWS::S3::Bucket
       Properties:
         BucketName: ${self:custom.outputBucket}
         VersioningConfiguration:
           Status: Enabled
-    
+
     # Optional: DynamoDB für Tracking
     InvoiceTrackingTable:
       Type: AWS::DynamoDB::Table
@@ -984,16 +964,16 @@ serverless invoke local -f convertInvoice -p test/events/s3-event.json
 
 ```typescript
 // test/mappers/mcbs-to-zugferd-mapper.test.ts
-import { MCBSToZUGFeRDMapper } from '../../src/mappers/mcbs-to-zugferd-mapper';
-import { MCBSInvoice } from '../../src/types/mcbs-invoice';
+import {MCBSToZUGFeRDMapper} from '../../src/mappers/mcbs-to-zugferd-mapper'
+import {MCBSInvoice} from '../../src/types/mcbs-invoice'
 
 describe('MCBSToZUGFeRDMapper', () => {
-  let mapper: MCBSToZUGFeRDMapper;
-  
+  let mapper: MCBSToZUGFeRDMapper
+
   beforeEach(() => {
-    mapper = new MCBSToZUGFeRDMapper();
-  });
-  
+    mapper = new MCBSToZUGFeRDMapper()
+  })
+
   it('should convert MCBS invoice to ZUGFeRD', () => {
     const mcbsInvoice: MCBSInvoice = {
       DOCUMENT: {
@@ -1037,15 +1017,19 @@ describe('MCBSToZUGFeRDMapper', () => {
           }
         }
       }
-    };
-    
-    const zugferd = mapper.mapToZUGFeRD(mcbsInvoice);
-    
-    expect(zugferd['rsm:CrossIndustryInvoice']).toBeDefined();
-    expect(zugferd['rsm:CrossIndustryInvoice']['rsm:ExchangedDocument']['ram:ID']).toBe('INV-2026-000001');
-    expect(zugferd['rsm:CrossIndustryInvoice']['rsm:SupplyChainTradeTransaction']['ram:ApplicableHeaderTradeSettlement']['ram:SpecifiedTradeSettlementHeaderMonetarySummation']['ram:GrandTotalAmount']).toBe('119.00');
-  });
-});
+    }
+
+    const zugferd = mapper.mapToZUGFeRD(mcbsInvoice)
+
+    expect(zugferd['rsm:CrossIndustryInvoice']).toBeDefined()
+    expect(zugferd['rsm:CrossIndustryInvoice']['rsm:ExchangedDocument']['ram:ID']).toBe('INV-2026-000001')
+    expect(
+      zugferd['rsm:CrossIndustryInvoice']['rsm:SupplyChainTradeTransaction']['ram:ApplicableHeaderTradeSettlement'][
+        'ram:SpecifiedTradeSettlementHeaderMonetarySummation'
+      ]['ram:GrandTotalAmount']
+    ).toBe('119.00')
+  })
+})
 ```
 
 ---
@@ -1093,12 +1077,14 @@ describe('MCBSToZUGFeRDMapper', () => {
 **AWS Lambda + TypeScript** für MCBS → ZUGFeRD Konvertierung
 
 **Workflow:**
+
 1. **MCBS XML** wird in S3 hochgeladen (`mcbs-invoices-raw/`)
 2. **S3 Event** triggert Lambda
 3. **Lambda** lädt XML, konvertiert zu ZUGFeRD
 4. **ZUGFeRD XML** wird nach S3 gespeichert (`zugferd-invoices/`)
 
 **Kosten** (bei 10.000 Rechnungen/Monat):
+
 - Lambda: ~$0.20
 - S3: ~$1.00
 - **GESAMT**: ~$1.20/Monat

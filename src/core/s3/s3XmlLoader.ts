@@ -1,6 +1,6 @@
-import { readFile } from 'node:fs/promises'
-import { GetObjectCommand } from '@aws-sdk/client-s3'
-import { s3Client } from './s3Client'
+import {readFile} from 'node:fs/promises'
+import {GetObjectCommand} from '@aws-sdk/client-s3'
+import {s3Client} from './s3Client'
 
 export interface S3OrLocalSource {
     bucket?: string
@@ -9,17 +9,13 @@ export interface S3OrLocalSource {
     filePath?: string
 }
 
-export async function loadXmlFromS3OrLocal(
-    source: S3OrLocalSource
-): Promise<string> {
+export async function loadXmlFromS3OrLocal(source: S3OrLocalSource): Promise<string> {
     if (source.filePath !== undefined) {
-        return readFile(source.filePath, { encoding: 'utf-8' })
+        return readFile(source.filePath, {encoding: 'utf-8'})
     }
 
     if (source.bucket !== undefined && source.key !== undefined) {
-        const response = await s3Client.send(
-            new GetObjectCommand({ Bucket: source.bucket, Key: source.key })
-        )
+        const response = await s3Client.send(new GetObjectCommand({Bucket: source.bucket, Key: source.key}))
         const content = await response.Body?.transformToString('utf-8')
         if (content === undefined) {
             throw new Error(`Empty response from S3: s3://${source.bucket}/${source.key}`)
@@ -35,8 +31,8 @@ export async function loadXmlFromS3(bucket: string, key: string): Promise<string
         const response = await s3Client.send(
             new GetObjectCommand({
                 Bucket: bucket,
-                Key: key,
-            }),
+                Key: key
+            })
         )
 
         if (response.Body === undefined) {

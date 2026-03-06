@@ -8,12 +8,12 @@ provider:
   runtime: nodejs22.x
   region: eu-central-1
   stage: ${opt:stage, 'dev'}
-  stackTags: {}  # Verhindert iam:TagRole (AWSPowerUserAccess hat keine Tag-Rechte auf IAM)
-  
+  stackTags: {} # Verhindert iam:TagRole (AWSPowerUserAccess hat keine Tag-Rechte auf IAM)
+
   # Lambda Defaults
-  memorySize: 2048  # 2 GB
-  timeout: 60       # 60 Sekunden
-  
+  memorySize: 2048 # 2 GB
+  timeout: 60 # 60 Sekunden
+
   # Environment Variables
   environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
@@ -24,55 +24,53 @@ provider:
     ACTIVE_ADAPTER: ${self:custom.stages.${self:provider.stage}.activeAdapter, self:custom.stages.dev.activeAdapter}
     E_INVOICE_PROFILE: ${self:custom.stages.${self:provider.stage}.eInvoiceProfile, self:custom.stages.dev.eInvoiceProfile}
     ALERT_TOPIC_ARN: !Ref AlertTopic
-  
+
   # IAM: Vorhandene Rolle verwenden → verhindert iam:TagRole-Fehler (AWSPowerUserAccess)
   iam:
     role: arn:aws:iam::${aws:accountId}:role/e-invoice-generator-lambda-role
 
 # Lambda Functions
 functions:
-  
   # Main Function: Unified E-Invoice Processor (Multi-Source)
   createEInvoice:
     handler: src/handlers/unifiedEInvoiceProcessor.handler
     description: Creates E-Invoices from MCBS (Legacy) or AWS Billing Service
     memorySize: 2048
     timeout: 60
-    reservedConcurrency: 100  # Max 100 parallel executions
-    
+    reservedConcurrency: 100 # Max 100 parallel executions
+
     events:
       # SQS Queue Trigger (Batching!)
       - sqs:
           arn: !GetAtt InvoiceProcessingQueue.Arn
-          batchSize: 10  # ← Process 10 messages at once (90% cost savings!)
-          functionResponseType: ReportBatchItemFailures  # Partial batch failures
-    
+          batchSize: 10 # ← Process 10 messages at once (90% cost savings!)
+          functionResponseType: ReportBatchItemFailures # Partial batch failures
+
     # Function-specific environment
     environment:
       BUCKET_NAME: ${self:custom.outputBucketName}
-    
+
   # DLQ Processor (Alerting bei fehlgeschlagenen Nachrichten)
   processDLQ:
     handler: src/handlers/dlqProcessor.handler
     description: Processes DLQ messages - logs details and sends SNS alerts
     memorySize: 512
     timeout: 30
-    
+
     events:
       - sqs:
           arn: !GetAtt InvoiceProcessingDLQ.Arn
           batchSize: 1
           functionResponseType: ReportBatchItemFailures
-    
+
     environment:
       ALERT_TOPIC_ARN: !Ref AlertTopic
 
 # AWS Resources
 resources:
   Resources:
-    
     # ==================== S3 Buckets ====================
-    
+
     # MCBS Invoices Bucket (Legacy)
     McbsInvoicesBucket:
       Type: AWS::S3::Bucket
@@ -82,7 +80,7 @@ resources:
         BucketName: ${self:custom.pdfBucketName}
         VersioningConfiguration:
           Status: Enabled
-        
+
         # Lifecycle Rules
         LifecycleConfiguration:
           Rules:
@@ -93,40 +91,40 @@ resources:
               Transitions:
                 - TransitionInDays: 30
                   StorageClass: GLACIER
-            
+
             # Delete raw XML after 90 days
             - Id: DeleteRawXMLAfter90Days
               Status: Enabled
               Prefix: raw/
               ExpirationInDays: 90
-        
+
         # EventBridge Integration (S3 → EventBridge)
         NotificationConfiguration:
           EventBridgeConfiguration:
-            EventBridgeEnabled: true  # ← Enable S3 → EventBridge
-        
+            EventBridgeEnabled: true # ← Enable S3 → EventBridge
+
         # Encryption
         BucketEncryption:
           ServerSideEncryptionConfiguration:
             - ServerSideEncryptionByDefault:
                 SSEAlgorithm: AES256
-        
+
         # Public Access Block
         PublicAccessBlockConfiguration:
           BlockPublicAcls: true
           BlockPublicPolicy: true
           IgnorePublicAcls: true
           RestrictPublicBuckets: true
-        
+
         # Tags
         Tags:
           - Key: Service
             Value: ${self:service}
           - Key: Stage
             Value: ${self:provider.stage}
-    
+
     # ==================== EventBridge Rules ====================
-    
+
     # EventBridge Rule: S3 Events → SQS (MCBS Legacy)
     S3EventsToSQSRule:
       Type: AWS::Events::Rule
@@ -135,7 +133,7 @@ resources:
         Description: Routes S3 Object Created events to SQS for batching
         EventBusName: default
         State: ${self:custom.stages.${self:provider.stage}.s3RuleState, self:custom.stages.dev.s3RuleState}
-        
+
         # Pattern: S3 Object Created in mcbs-invoices bucket
         EventPattern:
           source:
@@ -148,13 +146,13 @@ resources:
                 - ${self:custom.pdfBucketName}
             object:
               key:
-                - wildcard: "raw/*.pdf"
-        
+                - wildcard: 'raw/*.pdf'
+
         # Target: SQS Queue (for batching)
         Targets:
           - Arn: !GetAtt InvoiceProcessingQueue.Arn
             Id: SQSBatchingTarget
-    
+
     # Eine Rule — aktiver Adapter bestimmt das Pattern (vorbereitet für zweiten Adapter)
     ActiveAdapterRule:
       Type: AWS::Events::Rule
@@ -169,23 +167,23 @@ resources:
         Targets:
           - Arn: !GetAtt InvoiceProcessingQueue.Arn
             Id: SQSBatchingTarget
-    
+
     # ==================== SQS Queues ====================
-    
+
     # Main Processing Queue (Batching Layer)
     InvoiceProcessingQueue:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: mcbs-invoice-processing-${self:provider.stage}
-        VisibilityTimeout: 360  # 6 Minutes (Lambda timeout × 6)
-        MessageRetentionPeriod: 1209600  # 14 Days
-        ReceiveMessageWaitTimeSeconds: 20  # Long Polling (reduces empty receives)
-        
+        VisibilityTimeout: 360 # 6 Minutes (Lambda timeout × 6)
+        MessageRetentionPeriod: 1209600 # 14 Days
+        ReceiveMessageWaitTimeSeconds: 20 # Long Polling (reduces empty receives)
+
         # Dead Letter Queue Configuration
         RedrivePolicy:
           deadLetterTargetArn: !GetAtt InvoiceProcessingDLQ.Arn
-          maxReceiveCount: 3  # After 3 failed attempts → DLQ
-        
+          maxReceiveCount: 3 # After 3 failed attempts → DLQ
+
         # Tags
         Tags:
           - Key: Service
@@ -194,14 +192,14 @@ resources:
             Value: ${self:provider.stage}
           - Key: Purpose
             Value: Batching
-    
+
     # Dead Letter Queue (für fehlgeschlagene Messages)
     InvoiceProcessingDLQ:
       Type: AWS::SQS::Queue
       Properties:
         QueueName: mcbs-invoice-processing-dlq-${self:provider.stage}
-        MessageRetentionPeriod: 1209600  # 14 Days
-        
+        MessageRetentionPeriod: 1209600 # 14 Days
+
         Tags:
           - Key: Service
             Value: ${self:service}
@@ -209,7 +207,7 @@ resources:
             Value: ${self:provider.stage}
           - Key: Type
             Value: DeadLetterQueue
-    
+
     # ==================== CloudWatch Dashboard ====================
 
     EInvoiceDashboard:
@@ -290,7 +288,7 @@ resources:
           }
 
     # ==================== SNS ====================
-    
+
     # Alert Topic für DLQ-Fehler und Lambda-Errors
     AlertTopic:
       Type: AWS::SNS::Topic
@@ -302,7 +300,7 @@ resources:
             Value: ${self:service}
           - Key: Stage
             Value: ${self:provider.stage}
-    
+
     # SQS Queue Policy (allows EventBridge to send messages)
     InvoiceProcessingQueuePolicy:
       Type: AWS::SQS::QueuePolicy
@@ -325,25 +323,24 @@ resources:
                     - !GetAtt ActiveAdapterRule.Arn
 
   Outputs:
-    
     S3BucketName:
       Description: S3 Bucket for MCBS Invoices
       Value: !Ref McbsInvoicesBucket
       Export:
         Name: ${self:service}-${self:provider.stage}-mcbs-invoices-bucket
-    
+
     SQSQueueURL:
       Description: SQS Queue URL for Invoice Processing (Batching Layer)
       Value: !Ref InvoiceProcessingQueue
       Export:
         Name: ${self:service}-${self:provider.stage}-invoice-queue-url
-    
+
     SQSQueueARN:
       Description: SQS Queue ARN
       Value: !GetAtt InvoiceProcessingQueue.Arn
       Export:
         Name: ${self:service}-${self:provider.stage}-invoice-queue-arn
-    
+
     DLQQueueURL:
       Description: Dead Letter Queue URL
       Value: !Ref InvoiceProcessingDLQ
@@ -355,13 +352,13 @@ resources:
       Value: !GetAtt CreateEInvoiceLambdaFunction.Arn
       Export:
         Name: ${self:service}-${self:provider.stage}-create-einvoice-lambda
-    
+
     AlertTopicARN:
       Description: SNS Topic for Alerts
       Value: !Ref AlertTopic
       Export:
         Name: ${self:service}-${self:provider.stage}-alert-topic
-    
+
     DashboardURL:
       Description: CloudWatch Dashboard URL
       Value: !Sub 'https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${self:service}-${self:provider.stage}'
@@ -385,11 +382,10 @@ build:
 
 # Custom Configuration
 custom:
-  
   # Stage-specific settings
   pdfBucketName: mcbs-invoices-${self:provider.stage}
   outputBucketName: mcbs-invoices-${self:provider.stage}
-  
+
   # Stage-specific overrides
   stages:
     dev:
@@ -400,11 +396,11 @@ custom:
       lambdaTimeout: 60
       batchSize: 10
       maxBatchingWindow: 5
-      s3RuleState: ENABLED       # S3 Events → MCBS Adapter
-      activeRuleState: DISABLED  # Kein zweiter Adapter aktiv
+      s3RuleState: ENABLED # S3 Events → MCBS Adapter
+      activeRuleState: DISABLED # Kein zweiter Adapter aktiv
       eventSource: custom.mcbs
       eventDetailType: Object Created
-    
+
     staging:
       logLevel: info
       eInvoiceProfile: factur-x-en16931
@@ -417,7 +413,7 @@ custom:
       activeRuleState: DISABLED
       eventSource: custom.mcbs
       eventDetailType: Object Created
-    
+
     production:
       logLevel: warn
       eInvoiceProfile: factur-x-en16931
@@ -427,8 +423,8 @@ custom:
       batchSize: 10
       maxBatchingWindow: 5
       reservedConcurrency: 200
-      s3RuleState: DISABLED      # MCBS nicht aktiv in production
-      activeRuleState: ENABLED   # Billing Adapter aktiv
+      s3RuleState: DISABLED # MCBS nicht aktiv in production
+      activeRuleState: ENABLED # Billing Adapter aktiv
       eventSource: custom.billing
       eventDetailType: Invoice Created
 
@@ -442,4 +438,4 @@ package:
     - '!coverage/**'
     - '!docs/**'
     - '!*.md'
-    - '!node_modules/aws-sdk/**'  # Already in Lambda runtime
+    - '!node_modules/aws-sdk/**' # Already in Lambda runtime

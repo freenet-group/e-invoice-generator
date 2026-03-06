@@ -5,6 +5,7 @@
 **Ziel:** Production-ready E-Rechnungs-System im ZUGFeRD 2.1.1 Standard für 250.000 Rechnungen täglich
 
 **Technologie-Stack:**
+
 - TypeScript (Node.js 18)
 - AWS Lambda (Serverless)
 - Custom ZUGFeRD 2.1.1 Generator (kein factur-x - existiert nicht!)
@@ -320,7 +321,6 @@ on:
     branches: [main, develop]
 
 jobs:
-  
   # Job 1: Lint & Type Check
   lint:
     runs-on: ubuntu-latest
@@ -330,16 +330,16 @@ jobs:
         with:
           node-version: 18
           cache: 'npm'
-      
+
       - name: Install Dependencies
         run: npm ci
-      
+
       - name: Lint
         run: npm run lint
-      
+
       - name: Type Check
         run: npm run type-check
-  
+
   # Job 2: Unit Tests
   test-unit:
     runs-on: ubuntu-latest
@@ -349,18 +349,18 @@ jobs:
         with:
           node-version: 18
           cache: 'npm'
-      
+
       - name: Install Dependencies
         run: npm ci
-      
+
       - name: Run Unit Tests
         run: npm run test:unit
-      
+
       - name: Upload Coverage
         uses: codecov/codecov-action@v3
         with:
           files: ./coverage/lcov.info
-  
+
   # Job 3: Integration Tests
   test-integration:
     runs-on: ubuntu-latest
@@ -370,13 +370,13 @@ jobs:
         with:
           node-version: 18
           cache: 'npm'
-      
+
       - name: Install Dependencies
         run: npm ci
-      
+
       - name: Run Integration Tests
         run: npm run test:integration
-  
+
   # Job 4: Build
   build:
     runs-on: ubuntu-latest
@@ -387,22 +387,22 @@ jobs:
         with:
           node-version: 18
           cache: 'npm'
-      
+
       - name: Install Dependencies
         run: npm ci
-      
+
       - name: Build
         run: npm run build
-      
+
       - name: Package
         run: npm run package
-      
+
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
           name: dist
           path: dist/
-  
+
   # Job 5: Deploy Dev (Auto)
   deploy-dev:
     runs-on: ubuntu-latest
@@ -414,29 +414,29 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-      
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
-      
+
       - name: Install Dependencies
         run: npm ci
-      
+
       - name: Deploy to Dev
         run: npm run deploy:dev
-      
+
       - name: Run Smoke Tests
         run: npm run test:smoke -- --env=dev
-  
+
   # Job 6: Deploy Production (Manual with Approval)
   deploy-production:
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
-    environment: 
+    environment:
       name: production
       url: https://zugferd-converter.prod.freenet.de
     steps:
@@ -444,23 +444,23 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: 18
-      
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
           aws-region: eu-central-1
-      
+
       - name: Install Dependencies
         run: npm ci
-      
+
       - name: Deploy to Production
         run: npm run deploy:prod
-      
+
       - name: Run Smoke Tests
         run: npm run test:smoke -- --env=prod
-      
+
       - name: Notify Slack
         uses: slackapi/slack-github-action@v1
         with:
@@ -528,8 +528,8 @@ Ergebnis: ✅ System kann 4x Peak-Load handlen!
 functions:
   convertToZugferd:
     handler: src/handlers/mcbs-to-zugferd.handler
-    reservedConcurrency: 1000  # Max parallel executions
-    provisionedConcurrency: 50  # Always-on instances
+    reservedConcurrency: 1000 # Max parallel executions
+    provisionedConcurrency: 50 # Always-on instances
     events:
       - sqs:
           arn: !GetAtt InvoiceProcessingQueue.Arn
@@ -604,22 +604,21 @@ Dashboard 4: Business Metrics
 
 ```yaml
 Alarms:
-  
   HighErrorRate:
     Condition: ErrorRate > 1% for 5 minutes
     Action: SNS → Ops Team + PagerDuty
     Priority: P1
-  
+
   HighLatency:
     Condition: P95 Latency > 5s for 10 minutes
     Action: SNS → Ops Team
     Priority: P2
-  
+
   QueueBacklog:
     Condition: SQS Messages > 10,000 for 15 minutes
     Action: SNS → Ops Team
     Priority: P2
-  
+
   LambdaThrottle:
     Condition: Throttles > 10 for 5 minutes
     Action: SNS → Ops Team + Auto-Scale
@@ -873,12 +872,14 @@ Post-Go-Live:
 ### **JA, es ist absolut machbar!**
 
 **Zahlen:**
+
 - 250.000 Rechnungen/Tag ✅
 - Kosten: ~$450/Monat ✅
 - Timeline: 6-8 Wochen ✅
 - Success Rate: >99.9% ✅
 
 **Stack:**
+
 - TypeScript + Node.js 18 ✅
 - AWS Lambda (Serverless) ✅
 - Custom ZUGFeRD 2.1.1 Generator ✅
@@ -886,6 +887,7 @@ Post-Go-Live:
 - CI/CD mit GitHub Actions ✅
 
 **Ergebnis:**
+
 - Production-ready E-Rechnungs-System
 - Skalierbar bis 1M Rechnungen/Tag
 - Compliance mit EU-Verordnung

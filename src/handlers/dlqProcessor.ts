@@ -5,14 +5,14 @@
  * Dead Letter Queue verschoben wurden. Logged den Fehler und sendet einen SNS-Alert.
  */
 
-import type { SQSEvent, SQSHandler } from 'aws-lambda'
-import { SNSClient, PublishCommand } from '@aws-sdk/client-sns'
-import { logger } from '../core/logger'
+import type {SQSEvent, SQSHandler} from 'aws-lambda'
+import {SNSClient, PublishCommand} from '@aws-sdk/client-sns'
+import {logger} from '../core/logger'
 
 let _snsClient: SNSClient | undefined
 const getSnsClient = (): SNSClient => (_snsClient ??= new SNSClient({}))
 
-const dlqLogger = logger.child({ name: 'DLQProcessor' })
+const dlqLogger = logger.child({name: 'DLQProcessor'})
 
 export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
     const alertTopicArn = process.env['ALERT_TOPIC_ARN']
@@ -21,16 +21,14 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
     for (const record of event.Records) {
         const receiveCount = record.attributes.ApproximateReceiveCount
         const sentAt =
-            record.attributes.SentTimestamp === ''
-                ? 'unknown'
-                : new Date(Number(record.attributes.SentTimestamp)).toISOString()
+            record.attributes.SentTimestamp === '' ? 'unknown' : new Date(Number(record.attributes.SentTimestamp)).toISOString()
 
         dlqLogger.error(
             {
                 messageId: record.messageId,
                 body: record.body,
                 receiveCount,
-                sentAt,
+                sentAt
             },
             'DLQ message received – invoice processing failed after all retries'
         )
@@ -58,19 +56,16 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
                             messageId: record.messageId,
                             receiveCount,
                             sentAt,
-                            body: parsedBody,
+                            body: parsedBody
                         },
                         null,
                         2
-                    ),
+                    )
                 })
             )
-            dlqLogger.info({ messageId: record.messageId }, 'SNS alert sent')
+            dlqLogger.info({messageId: record.messageId}, 'SNS alert sent')
         } catch (err) {
-            dlqLogger.error(
-                { messageId: record.messageId, err },
-                'SNS alert failed – continuing with next record'
-            )
+            dlqLogger.error({messageId: record.messageId, err}, 'SNS alert failed – continuing with next record')
         }
     }
 }

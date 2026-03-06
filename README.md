@@ -128,13 +128,13 @@ Neue Quellsysteme können durch Implementierung von `InvoiceAdapter` und Registr
 
 Konfigurierbar über `E_INVOICE_PROFILE` (Umgebungsvariable):
 
-| Profil | Format | Verwendung |
-|--------|--------|------------|
-| `factur-x-minimum` | XML eingebettet in PDF | Minimalprofil |
-| `factur-x-basic-wl` | XML eingebettet in PDF | Basis ohne Zeilen |
-| `factur-x-basic` | XML eingebettet in PDF | Basis |
-| `factur-x-en16931` | XML eingebettet in PDF | **Standard (B2B)** |
-| `factur-x-xrechnung` | Reines XML | B2G (Behörden) |
+| Profil               | Format                 | Verwendung         |
+| -------------------- | ---------------------- | ------------------ |
+| `factur-x-minimum`   | XML eingebettet in PDF | Minimalprofil      |
+| `factur-x-basic-wl`  | XML eingebettet in PDF | Basis ohne Zeilen  |
+| `factur-x-basic`     | XML eingebettet in PDF | Basis              |
+| `factur-x-en16931`   | XML eingebettet in PDF | **Standard (B2B)** |
+| `factur-x-xrechnung` | Reines XML             | B2G (Behörden)     |
 
 > Bei `factur-x-xrechnung` wird **kein PDF eingebettet** – XRechnung ist bewusst rein maschinenlesbar.
 
@@ -145,12 +145,14 @@ Konfigurierbar über `E_INVOICE_PROFILE` (Umgebungsvariable):
 Die Library übernimmt das komplexe UBL/CII XML-Templating inklusive Namespace-Verwaltung, PDF/A-3b Metadata und Validierung gemäß EN 16931 Business Rules.
 
 **Mapping-Schicht** (`src/mappers/eInvoiceMapper.ts`):
+
 ```typescript
 // CommonInvoice → @e-invoice-eu/core UBL-Objekt
 export function mapToEInvoice(ci: CommonInvoice): Invoice { ... }
 ```
 
 **Generator-Service** (`src/services/eInvoiceGeneratorService.ts`):
+
 ```typescript
 export async function generateEInvoice(
   commonInvoice: CommonInvoice,
@@ -177,18 +179,19 @@ mcbs-invoices-{stage}/
 ```
 
 **Lifecycle Rules** (in `serverless.yml`):
+
 - `e-invoices/` → Glacier nach 30 Tagen
 - `raw/` → Löschen nach 90 Tagen
 
 ### Umgebungsvariablen
 
-| Variable | Beschreibung | Beispiel |
-|----------|--------------|---------|
-| `PDF_BUCKET_NAME` | Bucket mit eingehenden PDFs | `mcbs-invoices-dev` |
-| `OUTPUT_BUCKET_NAME` | Bucket für generierte E-Rechnungen | `mcbs-invoices-dev` |
-| `E_INVOICE_PROFILE` | Factur-X / XRechnung Profil | `factur-x-en16931` |
-| `ACTIVE_ADAPTER` | EventBridge source des aktiven Adapters | `custom.mcbs` |
-| `AWS_ENDPOINT_URL` | Nur lokal/LocalStack | `http://localhost:4566` |
+| Variable             | Beschreibung                            | Beispiel                |
+| -------------------- | --------------------------------------- | ----------------------- |
+| `PDF_BUCKET_NAME`    | Bucket mit eingehenden PDFs             | `mcbs-invoices-dev`     |
+| `OUTPUT_BUCKET_NAME` | Bucket für generierte E-Rechnungen      | `mcbs-invoices-dev`     |
+| `E_INVOICE_PROFILE`  | Factur-X / XRechnung Profil             | `factur-x-en16931`      |
+| `ACTIVE_ADAPTER`     | EventBridge source des aktiven Adapters | `custom.mcbs`           |
+| `AWS_ENDPOINT_URL`   | Nur lokal/LocalStack                    | `http://localhost:4566` |
 
 ---
 
@@ -230,6 +233,7 @@ npm run setup:validator   # KOSIT Validator herunterladen (einmalig)
 Der Validator wird unter `tools/validator/` abgelegt. Beim erneuten Aufruf wird geprüft ob die Version bereits aktuell ist — ist sie es, überspringt das Script den Download.
 
 Die Versionen sind zentral in `package.json` unter `validatorConfig` steuerbar:
+
 ```json
 "validatorConfig": {
   "validatorVersion": "1.6.0",
@@ -270,11 +274,13 @@ npm run test:e2e          # E2E (gegen deployed Stack)
 ## Monitoring
 
 **CloudWatch Dashboard** nach Deployment:
+
 ```
 https://console.aws.amazon.com/cloudwatch/home#dashboards:name=e-invoice-processing-{stage}
 ```
 
 **Alarms** bei:
+
 - Messages in Dead Letter Queue (`maxReceiveCount: 3`)
 - Lambda Error Rate >10/5min
 - Queue Depth >10.000
@@ -283,28 +289,28 @@ https://console.aws.amazon.com/cloudwatch/home#dashboards:name=e-invoice-process
 
 ## Dokumentation
 
-| Dokument | Beschreibung |
-|----------|--------------|
-| [EVENTBRIDGE_VS_SQS_BATCHING.md](docs/EVENTBRIDGE_VS_SQS_BATCHING.md) | Batching-Strategie & Kostenvergleich |
-| [FACTURX_LIBRARY_DETAILED_BENEFITS.md](docs/FACTURX_LIBRARY_DETAILED_BENEFITS.md) | Warum `@e-invoice-eu/core`? |
-| [MULTI_SOURCE_ARCHITECTURE_PART1.md](docs/MULTI_SOURCE_ARCHITECTURE_PART1.md) | Adapter Pattern & Common Invoice Model |
-| [ZUGFERD_PDF_EMBEDDING.md](docs/ZUGFERD_PDF_EMBEDDING.md) | PDF/A-3b Embedding Details |
-| [DEVELOPMENT.md](DEVELOPMENT.md) | Entwicklungssetup & Konventionen |
+| Dokument                                                                          | Beschreibung                           |
+| --------------------------------------------------------------------------------- | -------------------------------------- |
+| [EVENTBRIDGE_VS_SQS_BATCHING.md](docs/EVENTBRIDGE_VS_SQS_BATCHING.md)             | Batching-Strategie & Kostenvergleich   |
+| [FACTURX_LIBRARY_DETAILED_BENEFITS.md](docs/FACTURX_LIBRARY_DETAILED_BENEFITS.md) | Warum `@e-invoice-eu/core`?            |
+| [MULTI_SOURCE_ARCHITECTURE_PART1.md](docs/MULTI_SOURCE_ARCHITECTURE_PART1.md)     | Adapter Pattern & Common Invoice Model |
+| [ZUGFERD_PDF_EMBEDDING.md](docs/ZUGFERD_PDF_EMBEDDING.md)                         | PDF/A-3b Embedding Details             |
+| [DEVELOPMENT.md](DEVELOPMENT.md)                                                  | Entwicklungssetup & Konventionen       |
 
 ---
 
 ## Technologie-Stack
 
-| Kategorie | Technologie |
-|-----------|-------------|
-| Runtime | Node.js 22, TypeScript 5 |
-| IaC | Serverless Framework v4 |
-| AWS | Lambda, EventBridge, SQS, S3, CloudWatch |
-| E-Invoice | `@e-invoice-eu/core` |
-| PDF | `pdf-lib` |
-| XML Parsing | `fast-xml-parser` + Zod |
-| Logging | `pino` |
-| Testing | Jest |
+| Kategorie   | Technologie                              |
+| ----------- | ---------------------------------------- |
+| Runtime     | Node.js 22, TypeScript 5                 |
+| IaC         | Serverless Framework v4                  |
+| AWS         | Lambda, EventBridge, SQS, S3, CloudWatch |
+| E-Invoice   | `@e-invoice-eu/core`                     |
+| PDF         | `pdf-lib`                                |
+| XML Parsing | `fast-xml-parser` + Zod                  |
+| Logging     | `pino`                                   |
+| Testing     | Jest                                     |
 
 ---
 
@@ -312,5 +318,3 @@ https://console.aws.amazon.com/cloudwatch/home#dashboards:name=e-invoice-process
 
 - **Slack**: `#e-invoice-generator`
 - **Email**: tp.sd.back.mcbs@freenet.ag
-
-

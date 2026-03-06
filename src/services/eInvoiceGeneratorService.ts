@@ -7,16 +7,12 @@
  * Orchestrierung liegt im EInvoiceProcessingService (Handler-Schicht).
  */
 
-import {
-    InvoiceService,
-    type InvoiceServiceOptions,
-    type Logger,
-} from '@e-invoice-eu/core'
-import { CommonInvoice } from '../models/commonInvoice'
-import { logger } from '../core/logger'
-import { mapToEInvoice } from '../mappers/eInvoiceMapper'
-export type { InvoiceFormat } from '../config/eInvoiceProfileConfiguration'
-import type { InvoiceFormat } from '../config/eInvoiceProfileConfiguration'
+import {InvoiceService, type InvoiceServiceOptions, type Logger} from '@e-invoice-eu/core'
+import {CommonInvoice} from '../models/commonInvoice'
+import {logger} from '../core/logger'
+import {mapToEInvoice} from '../mappers/eInvoiceMapper'
+export type {InvoiceFormat} from '../config/eInvoiceProfileConfiguration'
+import type {InvoiceFormat} from '../config/eInvoiceProfileConfiguration'
 
 export interface EInvoiceGeneratorOptions {
     /** E-Invoice Format/Profil (default: factur-x-en16931) */
@@ -27,7 +23,7 @@ export interface EInvoiceGeneratorOptions {
     pdfFilename?: string
 }
 
-const serviceLogger = logger.child({ name: 'EInvoiceGenerator' })
+const serviceLogger = logger.child({name: 'EInvoiceGenerator'})
 
 const lambdaLogger: Logger = {
     log(m: string): void {
@@ -38,7 +34,7 @@ const lambdaLogger: Logger = {
     },
     error(m: string): void {
         serviceLogger.error(m)
-    },
+    }
 }
 
 /**
@@ -58,7 +54,7 @@ export async function generateEInvoice(
     const serviceOptions: InvoiceServiceOptions = {
         format: profile,
         lang: 'de',
-        noWarnings: true,
+        noWarnings: true
     }
 
     // ZUGFeRD XML in das PDF einbetten (PDF/A-3 Attachment)
@@ -66,7 +62,7 @@ export async function generateEInvoice(
         serviceOptions.pdf = {
             buffer: options.pdf,
             filename: options.pdfFilename ?? `${commonInvoice.invoiceNumber}.pdf`,
-            mimetype: 'application/pdf',
+            mimetype: 'application/pdf'
         }
     }
 
@@ -75,10 +71,7 @@ export async function generateEInvoice(
         return await service.generate(invoice, serviceOptions)
     } catch (e) {
         const message = e instanceof Error ? e.message : String(e)
-        logger.error(
-            { invoiceNumber: commonInvoice.invoiceNumber, error: message },
-            'E-Invoice Generierung fehlgeschlagen'
-        )
+        logger.error({invoiceNumber: commonInvoice.invoiceNumber, error: message}, 'E-Invoice Generierung fehlgeschlagen')
         throw e
     }
 }

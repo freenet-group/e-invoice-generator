@@ -11,16 +11,16 @@ korrekt ausgeglichen, sodass das Gesamt-Brutto der transformierten Rechnung exak
 
 ## Datenstrukturen
 
-| Feld | Typ | Beschreibung |
-|------|-----|--------------|
-| `originalPrices` | `Map<Percentage, Price>` | 4-stellige Netto-Preise je USt-Satz |
-| `roundupPrices` | `Map<Percentage, Price>` | Auf 2 Stellen gerundete Netto-Preise je USt-Satz |
-| `documentLevelChargeVatMap` | `Map<Percentage, Price>` | Berechnete Korrekturbeträge je USt-Satz |
-| `originalTotalNet` | `Price` | Summe aller originalen Netto-Beträge |
-| `originalTotalVat` | `Price` | Summe aller originalen USt-Beträge |
-| `roundedTotalNet` | `Price` | Summe aller gerundeten Netto-Beträge |
-| `roundedTotalVat` | `Price` | Summe aller gerundeten USt-Beträge |
-| `additionalDiffVatsAmount` | `Price` | Verbleibende Netto-Differenz nach USt-Korrektur |
+| Feld                        | Typ                      | Beschreibung                                     |
+| --------------------------- | ------------------------ | ------------------------------------------------ |
+| `originalPrices`            | `Map<Percentage, Price>` | 4-stellige Netto-Preise je USt-Satz              |
+| `roundupPrices`             | `Map<Percentage, Price>` | Auf 2 Stellen gerundete Netto-Preise je USt-Satz |
+| `documentLevelChargeVatMap` | `Map<Percentage, Price>` | Berechnete Korrekturbeträge je USt-Satz          |
+| `originalTotalNet`          | `Price`                  | Summe aller originalen Netto-Beträge             |
+| `originalTotalVat`          | `Price`                  | Summe aller originalen USt-Beträge               |
+| `roundedTotalNet`           | `Price`                  | Summe aller gerundeten Netto-Beträge             |
+| `roundedTotalVat`           | `Price`                  | Summe aller gerundeten USt-Beträge               |
+| `additionalDiffVatsAmount`  | `Price`                  | Verbleibende Netto-Differenz nach USt-Korrektur  |
 
 ---
 
@@ -40,6 +40,7 @@ chargeNodePriceRounded = chargeNodePrice.setPrecision(2, HALF_UP)
   - `roundupPrices[vatRate] += roundedCharge`
 
 Subtotals werden laufend akkumuliert:
+
 - `billItemGroupSubtotalRounded`
 - `unitSubtotalRounded`
 - `chargeSubtotalRounded`
@@ -72,6 +73,7 @@ den im XML hinterlegten `AMOUNTS`-Elementen verglichen. Bei Abweichung wird eine
 Dies ist der mathematische Kern des Algorithmus.
 
 **Eingangsdifferenzen:**
+
 ```
 originalTotal        = originalTotalNet + originalTotalVat
 roundedTotal         = roundedTotalNet  + roundedTotalVat
@@ -105,6 +107,7 @@ while (roundedPrice + correctionByVatRate) × vatRate ≠ origVatRateAmount:
 ```
 
 **Restdifferenz:**
+
 ```
 additionalDiffVatsAmount += differenceAmount - correctionByVatRate
 ```
@@ -122,6 +125,7 @@ Für jeden Eintrag in `documentLevelChargeVatMap`:
 - `correctionByVatRate < 0` → `DOCUMENT_LEVEL_ALLOWENCE`
 
 Jedes Element enthält:
+
 ```xml
 <DOCUMENT_LEVEL_CHARGE>
     <CHARGE>0,12</CHARGE>
@@ -131,6 +135,7 @@ Jedes Element enthält:
 ```
 
 Die Gesamtsummen werden in `AMOUNTS` eingetragen:
+
 - `TOTAL_DOCUMENT_LEVEL_CHARGES`
 - `TOTAL_DOCUMENT_LEVEL_ALLOWENCES`
 
@@ -146,6 +151,7 @@ adjustedVat = gross(adjustedNet, vatRate) - adjustedNet
 ```
 
 Falls `vatRate = 0%` und `additionalDiffVatsAmount ≠ 0`:
+
 ```
 adjustedNet += additionalDiffVatsAmount
 ```
@@ -154,6 +160,7 @@ Falls kein `DIFF_VAT` mit `vatRate = 0%` existiert aber `additionalDiffVatsAmoun
 → Neues `DIFF_VAT`-Element wird erzeugt und eingefügt.
 
 **Abschlusskontrolle:**
+
 ```
 Σ NET aus DIFF_VATs = originalTotalNet  ← sonst TransformException
 Σ VAT aus DIFF_VATs = originalTotalVat  ← sonst TransformException
@@ -212,20 +219,20 @@ Falls kein `DIFF_VAT` mit `vatRate = 0%` existiert aber `additionalDiffVatsAmoun
 
 ## Konstanten
 
-| Konstante | Wert | Bedeutung |
-|-----------|------|-----------|
-| `B2G_INVOICE_PRECISION` | `2` | Ziel-Nachkommastellen für Ausgabe |
-| `BILL_TOTALNET_VAT_CALCULATE_PRECISION` | `6` | Interne Rechengenauigkeit |
+| Konstante                               | Wert | Bedeutung                         |
+| --------------------------------------- | ---- | --------------------------------- |
+| `B2G_INVOICE_PRECISION`                 | `2`  | Ziel-Nachkommastellen für Ausgabe |
+| `BILL_TOTALNET_VAT_CALCULATE_PRECISION` | `6`  | Interne Rechengenauigkeit         |
 
 ---
 
 ## Fehlerbehandlung
 
-| Situation | Verhalten |
-|-----------|-----------|
-| XML-Dokument leer | Leerer String wird zurückgegeben |
-| `originalTotalNet = 0` | Korrekturberechnung wird übersprungen |
-| Berechnetes `TOTAL_NET` ≠ XML-Wert | `TransformException` |
-| Berechnetes `TOTAL_VAT` ≠ XML-Wert | `TransformException` |
-| `Σ DIFF_VAT NET` ≠ `originalTotalNet` | `TransformException` |
-| `Σ DIFF_VAT VAT` ≠ `originalTotalVat` | `TransformException` |
+| Situation                             | Verhalten                             |
+| ------------------------------------- | ------------------------------------- |
+| XML-Dokument leer                     | Leerer String wird zurückgegeben      |
+| `originalTotalNet = 0`                | Korrekturberechnung wird übersprungen |
+| Berechnetes `TOTAL_NET` ≠ XML-Wert    | `TransformException`                  |
+| Berechnetes `TOTAL_VAT` ≠ XML-Wert    | `TransformException`                  |
+| `Σ DIFF_VAT NET` ≠ `originalTotalNet` | `TransformException`                  |
+| `Σ DIFF_VAT VAT` ≠ `originalTotalVat` | `TransformException`                  |

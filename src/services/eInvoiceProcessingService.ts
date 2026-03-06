@@ -1,15 +1,15 @@
-import { SQSRecord } from 'aws-lambda'
-import { z } from 'zod'
-import { AdapterRegistry } from '../adapters/adapterRegistry'
-import { generateEInvoice } from './eInvoiceGeneratorService'
-import { uploadToS3 } from '../core/s3/s3Uploader'
-import { logger as rootLogger } from '../core/logger'
-import { getInvoiceFormat, type InvoiceFormat } from '../config/eInvoiceProfileConfiguration'
+import {SQSRecord} from 'aws-lambda'
+import {z} from 'zod'
+import {AdapterRegistry} from '../adapters/adapterRegistry'
+import {generateEInvoice} from './eInvoiceGeneratorService'
+import {uploadToS3} from '../core/s3/s3Uploader'
+import {logger as rootLogger} from '../core/logger'
+import {getInvoiceFormat, type InvoiceFormat} from '../config/eInvoiceProfileConfiguration'
 
 const EventBridgeEventSchema = z.object({
     source: z.string(),
     'detail-type': z.string(),
-    detail: z.record(z.string(), z.unknown()),
+    detail: z.record(z.string(), z.unknown())
 })
 
 type LoggerLike = Pick<typeof rootLogger, 'info' | 'error'>
@@ -21,7 +21,7 @@ interface ProcessingDependencies {
     logger?: LoggerLike
 }
 
-const defaultLogger: LoggerLike = rootLogger.child({ name: 'EInvoiceProcessingService' })
+const defaultLogger: LoggerLike = rootLogger.child({name: 'EInvoiceProcessingService'})
 
 export class EInvoiceProcessingService {
     private readonly adapterRegistry: AdapterRegistry
@@ -36,27 +36,25 @@ export class EInvoiceProcessingService {
         this.logger = dependencies.logger ?? defaultLogger
     }
 
-    async processBatch(
-        records: SQSRecord[]
-    ): Promise<{ batchItemFailures: { itemIdentifier: string }[] }> {
-        this.logger.info({ totalCount: records.length }, 'Processing batch')
+    async processBatch(records: SQSRecord[]): Promise<{batchItemFailures: {itemIdentifier: string}[]}> {
+        this.logger.info({totalCount: records.length}, 'Processing batch')
 
-        const batchItemFailures: { itemIdentifier: string }[] = []
+        const batchItemFailures: {itemIdentifier: string}[] = []
 
         for (const record of records) {
             try {
                 await this.processRecord(record)
             } catch (error) {
-                this.logger.error({ err: error, messageId: record.messageId }, `Failed to process record ${record.messageId}`)
-                batchItemFailures.push({ itemIdentifier: record.messageId })
+                this.logger.error({err: error, messageId: record.messageId}, `Failed to process record ${record.messageId}`)
+                batchItemFailures.push({itemIdentifier: record.messageId})
             }
         }
 
-        return { batchItemFailures }
+        return {batchItemFailures}
     }
 
     async processRecord(record: SQSRecord): Promise<void> {
-        this.logger.info({ messageId: record.messageId }, `Processing message: ${record.messageId}`)
+        this.logger.info({messageId: record.messageId}, `Processing message: ${record.messageId}`)
 
         const parseResult = EventBridgeEventSchema.safeParse(JSON.parse(record.body))
         if (!parseResult.success) {
@@ -64,11 +62,13 @@ export class EInvoiceProcessingService {
         }
         const eventBridgeEvent = parseResult.data
 
-        this.logger.info({ source: eventBridgeEvent.source, detailType: eventBridgeEvent['detail-type'] }, 'Event received')
+        this.logger.info({source: eventBridgeEvent.source, detailType: eventBridgeEvent['detail-type']}, 'Event received')
 
         const activeAdapter = process.env['ACTIVE_ADAPTER'] ?? 'custom.mcbs'
         if (!this.adapterRegistry.hasAdapter(activeAdapter)) {
-            throw new Error(`Unknown adapter: '${activeAdapter}' – check ACTIVE_ADAPTER environment variable. Available adapters: ${this.adapterRegistry.getSources().join(', ')}`)
+            throw new Error(
+                `Unknown adapter: '${activeAdapter}' – check ACTIVE_ADAPTER environment variable. Available adapters: ${this.adapterRegistry.getSources().join(', ')}`
+            )
         }
         const adapter = this.adapterRegistry.getAdapter(activeAdapter)
 
@@ -81,7 +81,7 @@ export class EInvoiceProcessingService {
         try {
             profile = getInvoiceFormat()
         } catch (error) {
-            this.logger.error({ err: error }, 'Failed to get invoice format')
+            this.logger.error({err: error}, 'Failed to get invoice format')
             throw error
         }
         const isXRechnung = profile.startsWith('xrechnung')
@@ -91,10 +91,10 @@ export class EInvoiceProcessingService {
             // kein PDF bei XRechnung
             ...(!isXRechnung && pdf !== null
                 ? {
-                    pdf: new Uint8Array(pdf),
-                    pdfFilename: `${invoice.invoiceNumber}.pdf`,
-                }
-                : {}),
+                      pdf: new Uint8Array(pdf),
+                      pdfFilename: `${invoice.invoiceNumber}.pdf`
+                  }
+                : {})
         })
 
         await this.uploadResult(zugferdResult, invoice.invoiceNumber)
@@ -112,6 +112,6 @@ async function defaultUploadResult(zugferdResult: string | Uint8Array, invoiceNu
         key: `e-invoices/${invoiceNumber}.${isXml ? 'xml' : 'pdf'}`,
         body: isXml ? Buffer.from(zugferdResult, 'utf-8') : Buffer.from(zugferdResult),
         contentType: isXml ? 'application/xml' : 'application/pdf',
-        metadata: { invoiceNumber },
+        metadata: {invoiceNumber}
     })
 }

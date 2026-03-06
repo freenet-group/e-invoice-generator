@@ -1,7 +1,6 @@
-import { McbsXmlRootSchema as McbsXmlInvoiceSchema, parseMcbsDocument } from '../../src/adapters/mcbs/zod/mcbsXmlInvoiceSchema'
+import {McbsXmlRootSchema as McbsXmlInvoiceSchema, parseMcbsDocument} from '../../src/adapters/mcbs/zod/mcbsXmlInvoiceSchema'
 
 describe('mcbsXmlInvoiceSchema', () => {
-
     const validBase = {
         DOCUMENT: {
             TYPE: 'RE',
@@ -10,7 +9,7 @@ describe('mcbsXmlInvoiceSchema', () => {
                 INVOICE_NO: 'INV-001',
                 INVOICE_DATE: '01.01.2025',
                 INV_CURRENCY: 'EUR',
-                BRAND: { DESC: 'Test' },
+                BRAND: {DESC: 'Test'}
             },
             RECIPIENT: {
                 PERSON_NO: 'R-001',
@@ -19,32 +18,32 @@ describe('mcbsXmlInvoiceSchema', () => {
                     STREET: 'Str. 1',
                     CITY: 'Berlin',
                     POSTCODE: '10001',
-                    COUNTRY: 'DE',
-                },
+                    COUNTRY: 'DE'
+                }
             },
             INVOICE_DATA: {
                 PAYMENT_MODE: {
                     PAYMENT_TYPE: 'TRANSFER',
                     DUE_DATE: '01.02.2025',
                     BANK_ACCOUNT: 'DE89370400440532013000',
-                    BANK_CODE: 'COBADEFFXXX',
+                    BANK_CODE: 'COBADEFFXXX'
                 },
                 FRAMES: {
                     AMOUNTS: {
                         AMOUNT: [
-                            { TYPE: 'TOTAL_NET', VALUE: '100,00' },
-                            { TYPE: 'TOTAL_VAT', VALUE: '19,00' },
-                            { TYPE: 'TOTAL', VALUE: '119,00' },
-                            { TYPE: 'TO_PAY', VALUE: '119,00' },
-                        ],
+                            {TYPE: 'TOTAL_NET', VALUE: '100,00'},
+                            {TYPE: 'TOTAL_VAT', VALUE: '19,00'},
+                            {TYPE: 'TOTAL', VALUE: '119,00'},
+                            {TYPE: 'TO_PAY', VALUE: '119,00'}
+                        ]
                     },
                     DIFF_VATS: {
-                        DIFF_VAT: { VAT_RATE: 19, NET: '100,00', VAT: '19,00' },
+                        DIFF_VAT: {VAT_RATE: 19, NET: '100,00', VAT: '19,00'}
                     },
-                    FRAME: { ID: 'MAIN' },
-                },
-            },
-        },
+                    FRAME: {ID: 'MAIN'}
+                }
+            }
+        }
     }
 
     it('parses valid invoice', () => {
@@ -57,8 +56,8 @@ describe('mcbsXmlInvoiceSchema', () => {
             ...validBase,
             DOCUMENT: {
                 ...validBase.DOCUMENT,
-                HEADER: { ...validBase.DOCUMENT.HEADER, INVOICE_DATE: '2025-01-01' },
-            },
+                HEADER: {...validBase.DOCUMENT.HEADER, INVOICE_DATE: '2025-01-01'}
+            }
         }
         expect(McbsXmlInvoiceSchema.safeParse(invalid).success).toBe(false)
     })
@@ -72,10 +71,10 @@ describe('mcbsXmlInvoiceSchema', () => {
                     ...validBase.DOCUMENT.INVOICE_DATA,
                     PAYMENT_MODE: {
                         ...validBase.DOCUMENT.INVOICE_DATA.PAYMENT_MODE,
-                        DUE_DATE: '2025-02-01',
-                    },
-                },
-            },
+                        DUE_DATE: '2025-02-01'
+                    }
+                }
+            }
         }
         expect(McbsXmlInvoiceSchema.safeParse(invalid).success).toBe(false)
     })
@@ -92,13 +91,11 @@ describe('mcbsXmlInvoiceSchema', () => {
                     FRAMES: {
                         ...validBase.DOCUMENT.INVOICE_DATA.FRAMES,
                         AMOUNTS: {
-                            AMOUNT: [
-                                { TYPE: 'TOTAL_NET', VALUE: 'not-a-number' },
-                            ],
-                        },
-                    },
-                },
-            },
+                            AMOUNT: [{TYPE: 'TOTAL_NET', VALUE: 'not-a-number'}]
+                        }
+                    }
+                }
+            }
         }
         expect(() => McbsXmlInvoiceSchema.safeParse(invalid)).toThrow('Expected German decimal number')
     })
@@ -114,10 +111,10 @@ describe('mcbsXmlInvoiceSchema', () => {
                     ...validBase.DOCUMENT.INVOICE_DATA,
                     FRAMES: {
                         ...validBase.DOCUMENT.INVOICE_DATA.FRAMES,
-                        DIFF_VATS: {},
-                    },
-                },
-            },
+                        DIFF_VATS: {}
+                    }
+                }
+            }
         }
         const result = McbsXmlInvoiceSchema.safeParse(base)
         expect(result.success).toBe(true)
@@ -136,16 +133,16 @@ describe('mcbsXmlInvoiceSchema', () => {
                         ...validBase.DOCUMENT.INVOICE_DATA.FRAMES,
                         AMOUNTS: {
                             AMOUNT: [
-                                { TYPE: 'TOTAL_NET', VALUE: '100,00' },
-                                { TYPE: 'TOTAL_VAT', VALUE: '19,00' },
-                                { TYPE: 'TOTAL', VALUE: '119,00' },
-                                { TYPE: 'UNPAID', VALUE: '50,00' },
-                                { TYPE: 'TO_PAY', VALUE: '69,00' },
-                            ],
-                        },
-                    },
-                },
-            },
+                                {TYPE: 'TOTAL_NET', VALUE: '100,00'},
+                                {TYPE: 'TOTAL_VAT', VALUE: '19,00'},
+                                {TYPE: 'TOTAL', VALUE: '119,00'},
+                                {TYPE: 'UNPAID', VALUE: '50,00'},
+                                {TYPE: 'TO_PAY', VALUE: '69,00'}
+                            ]
+                        }
+                    }
+                }
+            }
         }
         const result = McbsXmlInvoiceSchema.safeParse(base)
         expect(result.success).toBe(true)
@@ -164,9 +161,9 @@ describe('mcbsXmlInvoiceSchema', () => {
                 ...validBase.DOCUMENT,
                 RECIPIENT: {
                     ...validBase.DOCUMENT.RECIPIENT,
-                    ADDRESS: { ...validBase.DOCUMENT.RECIPIENT.ADDRESS, COUNTRY: '' },
-                },
-            },
+                    ADDRESS: {...validBase.DOCUMENT.RECIPIENT.ADDRESS, COUNTRY: ''}
+                }
+            }
         }
         const result = McbsXmlInvoiceSchema.safeParse(base)
         expect(result.success).toBe(true)
@@ -182,8 +179,8 @@ describe('mcbsXmlInvoiceSchema', () => {
             ...validBase,
             DOCUMENT: {
                 ...validBase.DOCUMENT,
-                RECIPIENT: { ...validBase.DOCUMENT.RECIPIENT, PERSON_NO: '' },
-            },
+                RECIPIENT: {...validBase.DOCUMENT.RECIPIENT, PERSON_NO: ''}
+            }
         }
         const result = McbsXmlInvoiceSchema.safeParse(base)
         expect(result.success).toBe(true)
@@ -199,8 +196,8 @@ describe('mcbsXmlInvoiceSchema', () => {
             ...validBase,
             DOCUMENT: {
                 ...validBase.DOCUMENT,
-                CUSTOMER: { PERSON_NO: '', VAT_ID: '' },
-            },
+                CUSTOMER: {PERSON_NO: '', VAT_ID: ''}
+            }
         }
         const result = McbsXmlInvoiceSchema.safeParse(base)
         expect(result.success).toBe(true)
@@ -220,9 +217,9 @@ describe('mcbsXmlInvoiceSchema', () => {
     // ── parseMcbsDocument: error path ──
 
     it('parseMcbsDocument throws with formatted error for invalid input', () => {
-        expect(() =>
-            parseMcbsDocument(<Record<string, unknown>>{ HEADER: { INVOICE_DATE: 'invalid' } })
-        ).toThrow('Invalid MCBS XML structure:')
+        expect(() => parseMcbsDocument(<Record<string, unknown>>{HEADER: {INVOICE_DATE: 'invalid'}})).toThrow(
+            'Invalid MCBS XML structure:'
+        )
     })
 
     // ── germanDecimal: Tausenderpunkt-Format ──
@@ -238,14 +235,14 @@ describe('mcbsXmlInvoiceSchema', () => {
                         ...validBase.DOCUMENT.INVOICE_DATA.FRAMES,
                         AMOUNTS: {
                             AMOUNT: [
-                                { TYPE: 'TOTAL_NET', VALUE: '1.234,56' },
-                                { TYPE: 'TOTAL_VAT', VALUE: '234,56' },
-                                { TYPE: 'TOTAL', VALUE: '1.469,12' },
-                            ],
-                        },
-                    },
-                },
-            },
+                                {TYPE: 'TOTAL_NET', VALUE: '1.234,56'},
+                                {TYPE: 'TOTAL_VAT', VALUE: '234,56'},
+                                {TYPE: 'TOTAL', VALUE: '1.469,12'}
+                            ]
+                        }
+                    }
+                }
+            }
         }
         const result = McbsXmlInvoiceSchema.safeParse(base)
         expect(result.success).toBe(true)

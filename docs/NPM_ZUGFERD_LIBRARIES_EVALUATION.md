@@ -9,6 +9,7 @@ npm install factur-x
 ```
 
 **Features:**
+
 - ✅ ZUGFeRD 2.1 / Factur-X 1.0 Support
 - ✅ Alle Profile (MINIMUM, BASIC, COMFORT, EXTENDED)
 - ✅ PDF/A-3 Embedding
@@ -17,8 +18,9 @@ npm install factur-x
 - ✅ Aktiv maintained
 
 **Beispiel:**
+
 ```typescript
-import { FacturX, Profile } from 'factur-x';
+import {FacturX, Profile} from 'factur-x'
 
 const invoice = {
   invoiceNumber: 'INV-2026-000001',
@@ -35,28 +37,30 @@ const invoice = {
   },
   buyer: {
     name: 'Max Mustermann',
-    address: { /* ... */ }
+    address: {
+      /* ... */
+    }
   },
   lineItems: [
     {
       name: 'Telekommunikationsdienstleistungen',
       quantity: 1,
-      unitPrice: 100.00,
+      unitPrice: 100.0,
       vatRate: 19
     }
   ],
   totals: {
-    netAmount: 100.00,
-    vatAmount: 19.00,
-    grossAmount: 119.00
+    netAmount: 100.0,
+    vatAmount: 19.0,
+    grossAmount: 119.0
   }
-};
+}
 
 // XML generieren
-const xml = await FacturX.generateXML(invoice, Profile.COMFORT);
+const xml = await FacturX.generateXML(invoice, Profile.COMFORT)
 
 // In PDF einbetten
-const pdfWithZugferd = await FacturX.embedInPDF(pdfBuffer, xml);
+const pdfWithZugferd = await FacturX.embedInPDF(pdfBuffer, xml)
 ```
 
 ---
@@ -68,6 +72,7 @@ npm install zugferd-node
 ```
 
 **Features:**
+
 - ✅ ZUGFeRD 1.0 und 2.0 Support
 - ✅ XML Generierung
 - ⚠️ Weniger aktiv maintained
@@ -82,6 +87,7 @@ npm install node-facturx
 ```
 
 **Features:**
+
 - ✅ Factur-X Support
 - ✅ PDF Embedding
 - ⚠️ Limitierte Dokumentation
@@ -93,16 +99,16 @@ npm install node-facturx
 
 ### Warum?
 
-| Aspekt | Custom Implementation | factur-x Library |
-|--------|----------------------|------------------|
-| **Entwicklungszeit** | 2-3 Wochen | 2-3 Tage ✅ |
-| **Wartung** | Selbst pflegen ⚠️ | Community maintained ✅ |
-| **Standard-Konformität** | Manuell sicherstellen | Garantiert ✅ |
-| **Updates** | Manuell anpassen | npm update ✅ |
-| **Testing** | Selbst schreiben | Bereits getestet ✅ |
-| **Validierung** | Selbst implementieren | Eingebaut ✅ |
-| **Komplexität** | Hoch ⚠️ | Niedrig ✅ |
-| **Fehleranfälligkeit** | Höher ⚠️ | Niedriger ✅ |
+| Aspekt                   | Custom Implementation | factur-x Library        |
+| ------------------------ | --------------------- | ----------------------- |
+| **Entwicklungszeit**     | 2-3 Wochen            | 2-3 Tage ✅             |
+| **Wartung**              | Selbst pflegen ⚠️     | Community maintained ✅ |
+| **Standard-Konformität** | Manuell sicherstellen | Garantiert ✅           |
+| **Updates**              | Manuell anpassen      | npm update ✅           |
+| **Testing**              | Selbst schreiben      | Bereits getestet ✅     |
+| **Validierung**          | Selbst implementieren | Eingebaut ✅            |
+| **Komplexität**          | Hoch ⚠️               | Niedrig ✅              |
+| **Fehleranfälligkeit**   | Höher ⚠️              | Niedriger ✅            |
 
 ---
 
@@ -112,41 +118,36 @@ npm install node-facturx
 
 ```typescript
 // src/handlers/convert-mcbs-to-zugferd.ts
-import { FacturX, Invoice, Profile } from 'factur-x';
-import { MCBSInvoice } from '../types/mcbs-invoice';
+import {FacturX, Invoice, Profile} from 'factur-x'
+import {MCBSInvoice} from '../types/mcbs-invoice'
 
 export class MCBSToZUGFeRDConverter {
-  
   async convert(mcbsInvoice: MCBSInvoice): Promise<string> {
-    
     // 1. MCBS → factur-x Format transformieren
-    const facturxInvoice = this.mapToFacturX(mcbsInvoice);
-    
+    const facturxInvoice = this.mapToFacturX(mcbsInvoice)
+
     // 2. XML generieren (factur-x macht alles!)
-    const xml = await FacturX.generateXML(
-      facturxInvoice, 
-      Profile.COMFORT
-    );
-    
+    const xml = await FacturX.generateXML(facturxInvoice, Profile.COMFORT)
+
     // 3. Validierung (optional, aber empfohlen)
-    const isValid = await FacturX.validateXML(xml);
+    const isValid = await FacturX.validateXML(xml)
     if (!isValid) {
-      throw new Error('Generated ZUGFeRD XML is not valid!');
+      throw new Error('Generated ZUGFeRD XML is not valid!')
     }
-    
-    return xml;
+
+    return xml
   }
-  
+
   private mapToFacturX(mcbs: MCBSInvoice): Invoice {
-    const invoice = mcbs.DOCUMENT.INVOICE_DATA;
-    const header = mcbs.DOCUMENT.HEADER;
-    
+    const invoice = mcbs.DOCUMENT.INVOICE_DATA
+    const header = mcbs.DOCUMENT.HEADER
+
     return {
       // Header
       invoiceNumber: invoice.BILLNO,
       invoiceTypeCode: '380', // Rechnung
       issueDate: this.parseDate(invoice.INVOICE_DATE),
-      
+
       // Seller (Verkäufer)
       seller: {
         name: header.BRAND?.DESC || 'freenet DLS GmbH',
@@ -164,18 +165,20 @@ export class MCBSToZUGFeRDConverter {
           cityName: 'Flensburg',
           countryCode: 'DE'
         },
-        taxRegistration: [{
-          id: {
-            value: 'DE123456789',
-            schemeId: 'VA' // VAT
+        taxRegistration: [
+          {
+            id: {
+              value: 'DE123456789',
+              schemeId: 'VA' // VAT
+            }
           }
-        }],
+        ],
         contact: {
           telephone: '+49 461 66050',
           email: 'rechnung@freenet.de'
         }
       },
-      
+
       // Buyer (Käufer)
       buyer: {
         name: this.formatBuyerName(invoice.ADDRESS),
@@ -187,23 +190,25 @@ export class MCBSToZUGFeRDConverter {
           countryCode: invoice.ADDRESS.COUNTRY || 'DE'
         }
       },
-      
+
       // Line Items (Positionen)
       lineItems: this.mapLineItems(invoice),
-      
+
       // Payment (Zahlungsinformationen)
-      paymentMeans: [{
-        typeCode: invoice.PAYMENT_MODE.PAYMENT_TYPE === 'SEPADEBIT' ? '59' : '58',
-        information: this.getPaymentInfo(invoice.PAYMENT_MODE),
-        payeeAccount: {
-          iban: invoice.PAYMENT_MODE.IBAN || header.CLIENTBANK_ACNT,
-          accountName: this.formatBuyerName(invoice.ADDRESS)
-        },
-        payeeInstitution: {
-          bic: invoice.PAYMENT_MODE.BIC || header.CLIENTBANK_CODE
+      paymentMeans: [
+        {
+          typeCode: invoice.PAYMENT_MODE.PAYMENT_TYPE === 'SEPADEBIT' ? '59' : '58',
+          information: this.getPaymentInfo(invoice.PAYMENT_MODE),
+          payeeAccount: {
+            iban: invoice.PAYMENT_MODE.IBAN || header.CLIENTBANK_ACNT,
+            accountName: this.formatBuyerName(invoice.ADDRESS)
+          },
+          payeeInstitution: {
+            bic: invoice.PAYMENT_MODE.BIC || header.CLIENTBANK_CODE
+          }
         }
-      }],
-      
+      ],
+
       // Payment Terms
       paymentTerms: {
         description: this.getPaymentTermsDescription(invoice),
@@ -211,10 +216,10 @@ export class MCBSToZUGFeRDConverter {
           dueDate: this.parseDate(invoice.PAYMENT_MODE.DUE_DATE)
         })
       },
-      
+
       // Tax (MwSt)
       taxes: this.mapTaxes(invoice),
-      
+
       // Totals (Summen)
       totals: {
         lineTotal: parseFloat(invoice.AMOUNTS.NET_AMOUNT),
@@ -223,15 +228,15 @@ export class MCBSToZUGFeRDConverter {
         grandTotal: parseFloat(invoice.AMOUNTS.GROSS_AMOUNT),
         duePayable: parseFloat(invoice.AMOUNTS.OPEN_AMOUNT || invoice.AMOUNTS.TOTAL_AMOUNT)
       },
-      
+
       // Currency
       currency: 'EUR'
-    };
+    }
   }
-  
+
   private mapLineItems(invoice: MCBSInvoice['DOCUMENT']['INVOICE_DATA']) {
-    const items = [];
-    
+    const items = []
+
     if (invoice.SECTIONS?.SECTION) {
       for (const section of invoice.SECTIONS.SECTION) {
         if (section.LINES?.LINE) {
@@ -249,13 +254,13 @@ export class MCBSToZUGFeRDConverter {
                   categoryCode: parseFloat(line.VAT_RATE || '19') > 0 ? 'S' : 'Z',
                   rate: parseFloat(line.VAT_RATE || '19')
                 }
-              });
+              })
             }
           }
         }
       }
     }
-    
+
     // Fallback
     if (items.length === 0) {
       items.push({
@@ -270,15 +275,15 @@ export class MCBSToZUGFeRDConverter {
           categoryCode: 'S',
           rate: 19
         }
-      });
+      })
     }
-    
-    return items;
+
+    return items
   }
-  
+
   private mapTaxes(invoice: MCBSInvoice['DOCUMENT']['INVOICE_DATA']) {
-    const taxes = [];
-    
+    const taxes = []
+
     if (invoice.VAT_DETAILS?.VAT_DETAIL) {
       for (const vat of invoice.VAT_DETAILS.VAT_DETAIL) {
         taxes.push({
@@ -287,7 +292,7 @@ export class MCBSToZUGFeRDConverter {
           rate: parseFloat(vat.VAT_RATE),
           basisAmount: parseFloat(vat.NET_AMOUNT),
           calculatedAmount: parseFloat(vat.VAT_AMOUNT)
-        });
+        })
       }
     } else {
       taxes.push({
@@ -296,48 +301,48 @@ export class MCBSToZUGFeRDConverter {
         rate: 19,
         basisAmount: parseFloat(invoice.AMOUNTS.NET_AMOUNT),
         calculatedAmount: parseFloat(invoice.AMOUNTS.VAT_AMOUNT)
-      });
+      })
     }
-    
-    return taxes;
+
+    return taxes
   }
-  
+
   // Hilfsfunktionen
   private parseDate(dateStr: string): Date {
     // DD.MM.YYYY → Date
     if (dateStr.includes('.')) {
-      const [day, month, year] = dateStr.split('.');
-      return new Date(+year, +month - 1, +day);
+      const [day, month, year] = dateStr.split('.')
+      return new Date(+year, +month - 1, +day)
     }
-    return new Date(dateStr);
+    return new Date(dateStr)
   }
-  
+
   private cleanText(text: string | undefined): string {
-    if (!text) return '';
-    return text.replace(/<[^>]*>/g, '').trim();
+    if (!text) return ''
+    return text.replace(/<[^>]*>/g, '').trim()
   }
-  
+
   private formatBuyerName(address: any): string {
-    if (address.COMPANY) return address.COMPANY;
-    return [address.FIRST_NAME, address.LAST_NAME].filter(Boolean).join(' ');
+    if (address.COMPANY) return address.COMPANY
+    return [address.FIRST_NAME, address.LAST_NAME].filter(Boolean).join(' ')
   }
-  
+
   private getPaymentInfo(payment: any): string {
     if (payment.PAYMENT_TYPE === 'SEPADEBIT') {
-      return `SEPA Lastschrift - Mandatsreferenz: ${payment.MANDATE_REF || ''}`;
+      return `SEPA Lastschrift - Mandatsreferenz: ${payment.MANDATE_REF || ''}`
     }
-    return 'Überweisung';
+    return 'Überweisung'
   }
-  
+
   private getPaymentTermsDescription(invoice: any): string {
-    const payment = invoice.PAYMENT_MODE;
+    const payment = invoice.PAYMENT_MODE
     if (payment.PAYMENT_TYPE === 'SEPADEBIT') {
-      return 'Zahlung per SEPA-Lastschrift';
+      return 'Zahlung per SEPA-Lastschrift'
     }
     if (payment.DUE_DATE) {
-      return `Zahlung bis ${payment.DUE_DATE}`;
+      return `Zahlung bis ${payment.DUE_DATE}`
     }
-    return 'Zahlung sofort fällig';
+    return 'Zahlung sofort fällig'
   }
 }
 ```
@@ -348,38 +353,34 @@ export class MCBSToZUGFeRDConverter {
 
 ```typescript
 // src/handlers/embed-zugferd-handler.ts
-import { FacturX } from 'factur-x';
-import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import {FacturX} from 'factur-x'
+import {S3Client, GetObjectCommand, PutObjectCommand} from '@aws-sdk/client-s3'
 
 export const handler = async (event: S3Event) => {
-  
   for (const record of event.Records) {
-    const bucket = record.s3.bucket.name;
-    const xmlKey = record.s3.object.key;
-    
+    const bucket = record.s3.bucket.name
+    const xmlKey = record.s3.object.key
+
     // 1. Finde PDF
-    const pdfKey = findMatchingPdfKey(xmlKey);
-    
+    const pdfKey = findMatchingPdfKey(xmlKey)
+
     // 2. Lade PDF und XML
-    const [pdfBuffer, xmlContent] = await Promise.all([
-      loadFileFromS3(bucket, pdfKey),
-      loadTextFromS3(bucket, xmlKey)
-    ]);
-    
+    const [pdfBuffer, xmlContent] = await Promise.all([loadFileFromS3(bucket, pdfKey), loadTextFromS3(bucket, xmlKey)])
+
     // 3. ✅ factur-x macht alles automatisch!
     const eInvoicePdf = await FacturX.embedInPDF(pdfBuffer, xmlContent, {
       profile: 'COMFORT',
       pdfAVersion: '3b',
       filename: 'factur-x.xml'
-    });
-    
+    })
+
     // 4. Speichern
-    const outputKey = pdfKey.replace('/pdf/', '/e-rechnung/');
-    await saveFileToS3(bucket, outputKey, eInvoicePdf);
-    
-    console.log(`E-Invoice created: ${outputKey}`);
+    const outputKey = pdfKey.replace('/pdf/', '/e-rechnung/')
+    await saveFileToS3(bucket, outputKey, eInvoicePdf)
+
+    console.log(`E-Invoice created: ${outputKey}`)
   }
-};
+}
 ```
 
 ---
@@ -392,7 +393,7 @@ export const handler = async (event: S3Event) => {
   "version": "1.0.0",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
-    "factur-x": "^2.0.0"  // ← NUR DIESE EINE LIBRARY!
+    "factur-x": "^2.0.0" // ← NUR DIESE EINE LIBRARY!
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.0",
@@ -403,13 +404,14 @@ export const handler = async (event: S3Event) => {
 ```
 
 **Statt:**
+
 ```json
 {
   "dependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
     "pdf-lib": "^1.17.1",
     "pako": "^2.1.0",
-    "fast-xml-parser": "^4.3.0",
+    "fast-xml-parser": "^4.3.0"
     // ... viele manuelle Dependencies
   }
 }
@@ -423,8 +425,12 @@ export const handler = async (event: S3Event) => {
 
 ```typescript
 // 500+ Zeilen Code
-class MCBSToZUGFeRDMapper { /* ... */ }
-class ZUGFeRDEmbedder { /* ... */ }
+class MCBSToZUGFeRDMapper {
+  /* ... */
+}
+class ZUGFeRDEmbedder {
+  /* ... */
+}
 // Manuelles XML Building
 // Manuelles PDF Embedding
 // Manuelle Validierung
@@ -439,13 +445,13 @@ class ZUGFeRDEmbedder { /* ... */ }
 
 ```typescript
 // ~100 Zeilen Code
-import { FacturX } from 'factur-x';
+import {FacturX} from 'factur-x'
 
 // XML generieren
-const xml = await FacturX.generateXML(invoice, Profile.COMFORT);
+const xml = await FacturX.generateXML(invoice, Profile.COMFORT)
 
 // In PDF einbetten
-const pdf = await FacturX.embedInPDF(pdfBuffer, xml);
+const pdf = await FacturX.embedInPDF(pdfBuffer, xml)
 ```
 
 **Aufwand:** ~2-3 Tage
@@ -457,6 +463,7 @@ const pdf = await FacturX.embedInPDF(pdfBuffer, xml);
 ### 1. **Standard-Konformität garantiert** ✅
 
 Die Library implementiert exakt den Standard:
+
 - EN 16931 (Europäische Norm)
 - ZUGFeRD 2.1 / Factur-X 1.0
 - PDF/A-3b Compliance
@@ -465,13 +472,13 @@ Die Library implementiert exakt den Standard:
 ### 2. **Automatische Validierung** ✅
 
 ```typescript
-const xml = await FacturX.generateXML(invoice, Profile.COMFORT);
+const xml = await FacturX.generateXML(invoice, Profile.COMFORT)
 
 // Validiert automatisch gegen Schema
-const isValid = await FacturX.validateXML(xml);
+const isValid = await FacturX.validateXML(xml)
 if (!isValid) {
-  const errors = await FacturX.getValidationErrors(xml);
-  console.error('Validation errors:', errors);
+  const errors = await FacturX.getValidationErrors(xml)
+  console.error('Validation errors:', errors)
 }
 ```
 
@@ -511,6 +518,7 @@ npm update factur-x
 - Kann deprecated werden
 
 **Mitigation:**
+
 - Große, aktive Community
 - Mehrere Maintainer
 - Regelmäßige Updates
@@ -521,6 +529,7 @@ npm update factur-x
 - API-Limitierungen möglich
 
 **Aber:**
+
 - Für Standard-Fälle perfekt
 - Meist ausreichend flexibel
 
@@ -548,45 +557,45 @@ npm uninstall pdf-lib pako fast-xml-parser
 
 ```typescript
 // Alt:
-const mapper = new MCBSToZUGFeRDMapper();
-const zugferdXml = mapper.mapToZUGFeRD(mcbsInvoice);
+const mapper = new MCBSToZUGFeRDMapper()
+const zugferdXml = mapper.mapToZUGFeRD(mcbsInvoice)
 
 // Neu:
-const converter = new MCBSToZUGFeRDConverter();
-const facturxInvoice = converter.mapToFacturX(mcbsInvoice);
-const zugferdXml = await FacturX.generateXML(facturxInvoice, Profile.COMFORT);
+const converter = new MCBSToZUGFeRDConverter()
+const facturxInvoice = converter.mapToFacturX(mcbsInvoice)
+const zugferdXml = await FacturX.generateXML(facturxInvoice, Profile.COMFORT)
 ```
 
 ### Schritt 3: Testing
 
 ```typescript
 // test/convert.test.ts
-import { FacturX, Profile } from 'factur-x';
+import {FacturX, Profile} from 'factur-x'
 
 describe('MCBS to ZUGFeRD Conversion', () => {
   it('should generate valid ZUGFeRD XML', async () => {
-    const converter = new MCBSToZUGFeRDConverter();
-    const invoice = converter.mapToFacturX(mcbsInvoice);
-    
-    const xml = await FacturX.generateXML(invoice, Profile.COMFORT);
-    
+    const converter = new MCBSToZUGFeRDConverter()
+    const invoice = converter.mapToFacturX(mcbsInvoice)
+
+    const xml = await FacturX.generateXML(invoice, Profile.COMFORT)
+
     // Validate
-    const isValid = await FacturX.validateXML(xml);
-    expect(isValid).toBe(true);
-  });
-});
+    const isValid = await FacturX.validateXML(xml)
+    expect(isValid).toBe(true)
+  })
+})
 ```
 
 ---
 
 ## Alternative Libraries (Vergleich)
 
-| Library | Version | Downloads/Woche | TypeScript | Maintained |
-|---------|---------|-----------------|------------|------------|
-| **factur-x** | 2.x | ~5k | ✅ | ✅ |
-| zugferd-node | 1.x | ~500 | ❌ | ⚠️ |
-| node-facturx | 1.x | ~200 | ⚠️ | ⚠️ |
-| **Custom** | - | - | ✅ | ⚠️ (Sie!) |
+| Library      | Version | Downloads/Woche | TypeScript | Maintained |
+| ------------ | ------- | --------------- | ---------- | ---------- |
+| **factur-x** | 2.x     | ~5k             | ✅         | ✅         |
+| zugferd-node | 1.x     | ~500            | ❌         | ⚠️         |
+| node-facturx | 1.x     | ~200            | ⚠️         | ⚠️         |
+| **Custom**   | -       | -               | ✅         | ⚠️ (Sie!)  |
 
 ---
 
@@ -617,15 +626,12 @@ describe('MCBS to ZUGFeRD Conversion', () => {
 
 ```typescript
 // Lambda 1: MCBS → ZUGFeRD
-import { FacturX, Profile } from 'factur-x';
+import {FacturX, Profile} from 'factur-x'
 
-const xml = await FacturX.generateXML(
-  converter.mapToFacturX(mcbsInvoice),
-  Profile.COMFORT
-);
+const xml = await FacturX.generateXML(converter.mapToFacturX(mcbsInvoice), Profile.COMFORT)
 
 // Lambda 2: PDF Embedding
-const eInvoice = await FacturX.embedInPDF(pdfBuffer, xml);
+const eInvoice = await FacturX.embedInPDF(pdfBuffer, xml)
 ```
 
 **Fertig!** 🎉

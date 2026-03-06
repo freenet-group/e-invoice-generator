@@ -161,113 +161,99 @@ s3://mcbs-invoices/
 
 ```typescript
 // src/handlers/homer-pdf-generator-handler.ts
-import { S3Event, S3Handler } from 'aws-lambda';
-import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-import FormData from 'form-data';
-import axios from 'axios';
+import {S3Event, S3Handler} from 'aws-lambda'
+import {S3Client, GetObjectCommand, PutObjectCommand} from '@aws-sdk/client-s3'
+import FormData from 'form-data'
+import axios from 'axios'
 
-const s3Client = new S3Client({ region: process.env.AWS_REGION });
+const s3Client = new S3Client({region: process.env.AWS_REGION})
 
 export const handler: S3Handler = async (event: S3Event) => {
-  
   for (const record of event.Records) {
     try {
-      const bucket = record.s3.bucket.name;
-      const xmlKey = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
-      
-      console.log(`Processing MCBS XML: s3://${bucket}/${xmlKey}`);
-      
+      const bucket = record.s3.bucket.name
+      const xmlKey = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '))
+
+      console.log(`Processing MCBS XML: s3://${bucket}/${xmlKey}`)
+
       // 1. Lade MCBS XML von S3
-      const mcbsXml = await loadXmlFromS3(bucket, xmlKey);
-      
+      const mcbsXml = await loadXmlFromS3(bucket, xmlKey)
+
       // 2. Rufe HOMER REST API auf
-      const pdfBuffer = await callHomerApi(mcbsXml, xmlKey);
-      
+      const pdfBuffer = await callHomerApi(mcbsXml, xmlKey)
+
       // 3. Speichere PDF in S3
-      const pdfKey = xmlKey
-        .replace('/raw/', '/pdf/')
-        .replace('.xml', '.pdf');
-      
-      await savePdfToS3(bucket, pdfKey, pdfBuffer);
-      
-      console.log(`PDF generated and saved: s3://${bucket}/${pdfKey}`);
-      
+      const pdfKey = xmlKey.replace('/raw/', '/pdf/').replace('.xml', '.pdf')
+
+      await savePdfToS3(bucket, pdfKey, pdfBuffer)
+
+      console.log(`PDF generated and saved: s3://${bucket}/${pdfKey}`)
     } catch (error) {
-      console.error('Failed to generate PDF via HOMER:', error);
-      throw error;
+      console.error('Failed to generate PDF via HOMER:', error)
+      throw error
     }
   }
-};
+}
 
 /**
  * Lädt MCBS XML von S3
  */
 async function loadXmlFromS3(bucket: string, key: string): Promise<string> {
-  const command = new GetObjectCommand({ Bucket: bucket, Key: key });
-  const response = await s3Client.send(command);
-  return response.Body!.transformToString('utf-8');
+  const command = new GetObjectCommand({Bucket: bucket, Key: key})
+  const response = await s3Client.send(command)
+  return response.Body!.transformToString('utf-8')
 }
 
 /**
  * Ruft HOMER REST API auf und empfängt PDF als Multipart Response
  */
 async function callHomerApi(mcbsXml: string, filename: string): Promise<Buffer> {
-  
-  const homerUrl = process.env.HOMER_API_URL || 'https://homer.internal.company.com';
-  const homerApiKey = process.env.HOMER_API_KEY;
-  
-  console.log(`Calling HOMER API: ${homerUrl}/api/v1/invoices/generate`);
-  
+  const homerUrl = process.env.HOMER_API_URL || 'https://homer.internal.company.com'
+  const homerApiKey = process.env.HOMER_API_KEY
+
+  console.log(`Calling HOMER API: ${homerUrl}/api/v1/invoices/generate`)
+
   // 1. Erstelle multipart/form-data Request
-  const formData = new FormData();
+  const formData = new FormData()
   formData.append('invoice', mcbsXml, {
     filename: filename,
     contentType: 'application/xml'
-  });
-  
+  })
+
   // Optional: Weitere Parameter
-  formData.append('format', 'pdf');
-  formData.append('template', 'standard_invoice');
-  
+  formData.append('format', 'pdf')
+  formData.append('template', 'standard_invoice')
+
   // 2. POST Request zu HOMER
-  const response = await axios.post(
-    `${homerUrl}/api/v1/invoices/generate`,
-    formData,
-    {
-      headers: {
-        ...formData.getHeaders(),
-        'Authorization': `Bearer ${homerApiKey}`,
-        'Accept': 'application/pdf'
-      },
-      responseType: 'arraybuffer', // Wichtig für PDF!
-      timeout: 60000 // 60 Sekunden
-    }
-  );
-  
+  const response = await axios.post(`${homerUrl}/api/v1/invoices/generate`, formData, {
+    headers: {
+      ...formData.getHeaders(),
+      Authorization: `Bearer ${homerApiKey}`,
+      Accept: 'application/pdf'
+    },
+    responseType: 'arraybuffer', // Wichtig für PDF!
+    timeout: 60000 // 60 Sekunden
+  })
+
   // 3. Validiere Response
   if (response.status !== 200) {
-    throw new Error(`HOMER API returned status ${response.status}`);
+    throw new Error(`HOMER API returned status ${response.status}`)
   }
-  
-  const contentType = response.headers['content-type'];
+
+  const contentType = response.headers['content-type']
   if (!contentType || !contentType.includes('application/pdf')) {
-    throw new Error(`HOMER API returned unexpected content-type: ${contentType}`);
+    throw new Error(`HOMER API returned unexpected content-type: ${contentType}`)
   }
-  
-  console.log(`Received PDF from HOMER (${response.data.length} bytes)`);
-  
-  return Buffer.from(response.data);
+
+  console.log(`Received PDF from HOMER (${response.data.length} bytes)`)
+
+  return Buffer.from(response.data)
 }
 
 /**
  * Speichert PDF in S3
  */
-async function savePdfToS3(
-  bucket: string,
-  key: string,
-  pdfBuffer: Buffer
-): Promise<void> {
-  
+async function savePdfToS3(bucket: string, key: string, pdfBuffer: Buffer): Promise<void> {
   const command = new PutObjectCommand({
     Bucket: bucket,
     Key: key,
@@ -275,12 +261,12 @@ async function savePdfToS3(
     ContentType: 'application/pdf',
     Metadata: {
       'generated-by': 'homer',
-      'source': 'mcbs-billing',
+      source: 'mcbs-billing',
       'created-at': new Date().toISOString()
     }
-  });
-  
-  await s3Client.send(command);
+  })
+
+  await s3Client.send(command)
 }
 ```
 
@@ -292,84 +278,70 @@ async function savePdfToS3(
 
 ```typescript
 // src/handlers/mcbs-to-zugferd-converter-handler.ts
-import { S3Event, S3Handler } from 'aws-lambda';
-import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
-import { FacturX, Profile } from 'factur-x';
-import { MCBSToZUGFeRDConverter } from '../services/mcbs-to-zugferd-converter';
+import {S3Event, S3Handler} from 'aws-lambda'
+import {S3Client, GetObjectCommand, PutObjectCommand} from '@aws-sdk/client-s3'
+import {FacturX, Profile} from 'factur-x'
+import {MCBSToZUGFeRDConverter} from '../services/mcbs-to-zugferd-converter'
 
-const s3Client = new S3Client({ region: process.env.AWS_REGION });
+const s3Client = new S3Client({region: process.env.AWS_REGION})
 
 export const handler: S3Handler = async (event: S3Event) => {
-  
   for (const record of event.Records) {
     try {
-      const bucket = record.s3.bucket.name;
-      const pdfKey = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '));
-      
-      console.log(`PDF created: s3://${bucket}/${pdfKey}`);
-      console.log(`Now generating ZUGFeRD XML...`);
-      
+      const bucket = record.s3.bucket.name
+      const pdfKey = decodeURIComponent(record.s3.object.key.replace(/\+/g, ' '))
+
+      console.log(`PDF created: s3://${bucket}/${pdfKey}`)
+      console.log(`Now generating ZUGFeRD XML...`)
+
       // 1. Finde zugehöriges MCBS XML
-      const mcbsXmlKey = pdfKey
-        .replace('/pdf/', '/raw/')
-        .replace('.pdf', '.xml');
-      
-      console.log(`Loading MCBS XML: ${mcbsXmlKey}`);
-      
+      const mcbsXmlKey = pdfKey.replace('/pdf/', '/raw/').replace('.pdf', '.xml')
+
+      console.log(`Loading MCBS XML: ${mcbsXmlKey}`)
+
       // 2. Lade MCBS XML
-      const mcbsXml = await loadXmlFromS3(bucket, mcbsXmlKey);
-      
+      const mcbsXml = await loadXmlFromS3(bucket, mcbsXmlKey)
+
       // 3. Parse MCBS XML
-      const mcbsInvoice = parseMCBSXml(mcbsXml);
-      
+      const mcbsInvoice = parseMCBSXml(mcbsXml)
+
       // 4. Konvertiere zu factur-x Format
-      const converter = new MCBSToZUGFeRDConverter();
-      const facturxInvoice = converter.mapToFacturX(mcbsInvoice);
-      
+      const converter = new MCBSToZUGFeRDConverter()
+      const facturxInvoice = converter.mapToFacturX(mcbsInvoice)
+
       // 5. Generiere ZUGFeRD XML mit factur-x Library
-      const zugferdXml = await FacturX.generateXML(
-        facturxInvoice,
-        Profile.COMFORT
-      );
-      
+      const zugferdXml = await FacturX.generateXML(facturxInvoice, Profile.COMFORT)
+
       // 6. Validiere ZUGFeRD XML
-      const isValid = await FacturX.validateXML(zugferdXml);
+      const isValid = await FacturX.validateXML(zugferdXml)
       if (!isValid) {
-        const errors = await FacturX.getValidationErrors(zugferdXml);
-        console.error('ZUGFeRD validation errors:', errors);
-        throw new Error('Generated ZUGFeRD XML is not valid');
+        const errors = await FacturX.getValidationErrors(zugferdXml)
+        console.error('ZUGFeRD validation errors:', errors)
+        throw new Error('Generated ZUGFeRD XML is not valid')
       }
-      
-      console.log('ZUGFeRD XML validated successfully');
-      
+
+      console.log('ZUGFeRD XML validated successfully')
+
       // 7. Speichere ZUGFeRD XML
-      const zugferdKey = pdfKey
-        .replace('/pdf/', '/zugferd/')
-        .replace('.pdf', '_zugferd.xml');
-      
-      await saveXmlToS3(bucket, zugferdKey, zugferdXml);
-      
-      console.log(`ZUGFeRD XML saved: s3://${bucket}/${zugferdKey}`);
-      
+      const zugferdKey = pdfKey.replace('/pdf/', '/zugferd/').replace('.pdf', '_zugferd.xml')
+
+      await saveXmlToS3(bucket, zugferdKey, zugferdXml)
+
+      console.log(`ZUGFeRD XML saved: s3://${bucket}/${zugferdKey}`)
     } catch (error) {
-      console.error('Failed to generate ZUGFeRD XML:', error);
-      throw error;
+      console.error('Failed to generate ZUGFeRD XML:', error)
+      throw error
     }
   }
-};
-
-async function loadXmlFromS3(bucket: string, key: string): Promise<string> {
-  const command = new GetObjectCommand({ Bucket: bucket, Key: key });
-  const response = await s3Client.send(command);
-  return response.Body!.transformToString('utf-8');
 }
 
-async function saveXmlToS3(
-  bucket: string,
-  key: string,
-  xml: string
-): Promise<void> {
-  
+async function loadXmlFromS3(bucket: string, key: string): Promise<string> {
+  const command = new GetObjectCommand({Bucket: bucket, Key: key})
+  const response = await s3Client.send(command)
+  return response.Body!.transformToString('utf-8')
+}
+
+async function saveXmlToS3(bucket: string, key: string, xml: string): Promise<void> {
   const command = new PutObjectCommand({
     Bucket: bucket,
     Key: key,
@@ -380,18 +352,18 @@ async function saveXmlToS3(
       'zugferd-profile': 'COMFORT',
       'created-at': new Date().toISOString()
     }
-  });
-  
-  await s3Client.send(command);
+  })
+
+  await s3Client.send(command)
 }
 
 function parseMCBSXml(xml: string): any {
-  const { XMLParser } = require('fast-xml-parser');
+  const {XMLParser} = require('fast-xml-parser')
   const parser = new XMLParser({
     ignoreAttributes: false,
     attributeNamePrefix: '@_'
-  });
-  return parser.parse(xml);
+  })
+  return parser.parse(xml)
 }
 ```
 
@@ -401,42 +373,34 @@ function parseMCBSXml(xml: string): any {
 
 ```typescript
 // src/handlers/zugferd-pdf-embedder-handler.ts
-import { S3Event, S3Handler } from 'aws-lambda';
-import { FacturX } from 'factur-x';
+import {S3Event, S3Handler} from 'aws-lambda'
+import {FacturX} from 'factur-x'
 
 export const handler: S3Handler = async (event: S3Event) => {
-  
   for (const record of event.Records) {
-    const bucket = record.s3.bucket.name;
-    const zugferdXmlKey = record.s3.object.key;
-    
+    const bucket = record.s3.bucket.name
+    const zugferdXmlKey = record.s3.object.key
+
     // 1. Finde zugehöriges PDF
-    const pdfKey = zugferdXmlKey
-      .replace('/zugferd/', '/pdf/')
-      .replace('_zugferd.xml', '.pdf');
-    
+    const pdfKey = zugferdXmlKey.replace('/zugferd/', '/pdf/').replace('_zugferd.xml', '.pdf')
+
     // 2. Lade PDF + XML
-    const [pdfBuffer, zugferdXml] = await Promise.all([
-      loadPdfFromS3(bucket, pdfKey),
-      loadXmlFromS3(bucket, zugferdXmlKey)
-    ]);
-    
+    const [pdfBuffer, zugferdXml] = await Promise.all([loadPdfFromS3(bucket, pdfKey), loadXmlFromS3(bucket, zugferdXmlKey)])
+
     // 3. Bette ZUGFeRD XML in PDF ein
     const eInvoicePdf = await FacturX.embedInPDF(pdfBuffer, zugferdXml, {
       profile: 'COMFORT',
       pdfAVersion: '3b'
-    });
-    
+    })
+
     // 4. Speichere E-Rechnung
-    const eInvoiceKey = pdfKey
-      .replace('/pdf/', '/e-rechnung/')
-      .replace('.pdf', '_zugferd.pdf');
-    
-    await savePdfToS3(bucket, eInvoiceKey, eInvoicePdf);
-    
-    console.log(`E-Invoice created: s3://${bucket}/${eInvoiceKey}`);
+    const eInvoiceKey = pdfKey.replace('/pdf/', '/e-rechnung/').replace('.pdf', '_zugferd.pdf')
+
+    await savePdfToS3(bucket, eInvoiceKey, eInvoicePdf)
+
+    console.log(`E-Invoice created: s3://${bucket}/${eInvoiceKey}`)
   }
-};
+}
 ```
 
 ---
@@ -464,7 +428,6 @@ provider:
           Resource: 'arn:aws:s3:::mcbs-invoices/*'
 
 functions:
-  
   # Lambda 1: HOMER PDF Generator
   homerPdfGenerator:
     handler: src/handlers/homer-pdf-generator-handler.handler
@@ -477,7 +440,7 @@ functions:
           rules:
             - suffix: .xml
             - prefix: raw/
-  
+
   # Lambda 2: MCBS to ZUGFeRD Converter
   mcbsToZugferdConverter:
     handler: src/handlers/mcbs-to-zugferd-converter-handler.handler
@@ -490,7 +453,7 @@ functions:
           rules:
             - suffix: .pdf
             - prefix: pdf/
-  
+
   # Lambda 3: ZUGFeRD PDF Embedder
   zugferdPdfEmbedder:
     handler: src/handlers/zugferd-pdf-embedder-handler.handler
@@ -649,27 +612,27 @@ T+15s   | ✅ E-Rechnung fertig!               | Komplett
 ```typescript
 // CloudWatch Metrics
 const metrics = {
-  'HOMER_API_Calls': {
+  HOMER_API_Calls: {
     namespace: 'EInvoicePipeline',
     metricName: 'HomerApiCalls',
     unit: 'Count'
   },
-  'HOMER_API_Latency': {
+  HOMER_API_Latency: {
     namespace: 'EInvoicePipeline',
     metricName: 'HomerApiLatency',
     unit: 'Milliseconds'
   },
-  'ZUGFeRD_Validations': {
+  ZUGFeRD_Validations: {
     namespace: 'EInvoicePipeline',
     metricName: 'ZugferdValidations',
     unit: 'Count'
   },
-  'E_Invoice_Created': {
+  E_Invoice_Created: {
     namespace: 'EInvoicePipeline',
     metricName: 'EInvoicesCreated',
     unit: 'Count'
   }
-};
+}
 ```
 
 ### CloudWatch Alarms
@@ -702,47 +665,41 @@ resources:
 ### Lambda 1: HOMER API Fehlerbehandlung
 
 ```typescript
-async function callHomerApiWithRetry(
-  mcbsXml: string,
-  filename: string,
-  maxRetries: number = 3
-): Promise<Buffer> {
-  
-  let lastError: Error;
-  
+async function callHomerApiWithRetry(mcbsXml: string, filename: string, maxRetries: number = 3): Promise<Buffer> {
+  let lastError: Error
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Calling HOMER API (attempt ${attempt}/${maxRetries})`);
-      
-      const pdfBuffer = await callHomerApi(mcbsXml, filename);
-      
-      console.log(`HOMER API call successful on attempt ${attempt}`);
-      return pdfBuffer;
-      
+      console.log(`Calling HOMER API (attempt ${attempt}/${maxRetries})`)
+
+      const pdfBuffer = await callHomerApi(mcbsXml, filename)
+
+      console.log(`HOMER API call successful on attempt ${attempt}`)
+      return pdfBuffer
     } catch (error) {
-      lastError = error as Error;
-      
-      console.error(`HOMER API call failed (attempt ${attempt}/${maxRetries}):`, error);
-      
+      lastError = error as Error
+
+      console.error(`HOMER API call failed (attempt ${attempt}/${maxRetries}):`, error)
+
       // Bei 4xx Fehler nicht retrying (Client Error)
       if (axios.isAxiosError(error) && error.response?.status < 500) {
-        throw error;
+        throw error
       }
-      
+
       // Exponential Backoff
       if (attempt < maxRetries) {
-        const delayMs = Math.pow(2, attempt) * 1000;
-        console.log(`Retrying in ${delayMs}ms...`);
-        await sleep(delayMs);
+        const delayMs = Math.pow(2, attempt) * 1000
+        console.log(`Retrying in ${delayMs}ms...`)
+        await sleep(delayMs)
       }
     }
   }
-  
-  throw new Error(`HOMER API failed after ${maxRetries} attempts: ${lastError.message}`);
+
+  throw new Error(`HOMER API failed after ${maxRetries} attempts: ${lastError.message}`)
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 ```
 
@@ -754,64 +711,54 @@ function sleep(ms: number): Promise<void> {
 
 ```typescript
 // test/integration/e-invoice-pipeline.test.ts
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import {S3Client, PutObjectCommand, GetObjectCommand} from '@aws-sdk/client-s3'
 
 describe('E-Invoice Pipeline Integration Test', () => {
-  
   it('should create E-Invoice from MCBS XML', async () => {
-    
-    const s3Client = new S3Client({ region: 'eu-central-1' });
-    const testInvoiceNumber = 'TEST-001';
-    
+    const s3Client = new S3Client({region: 'eu-central-1'})
+    const testInvoiceNumber = 'TEST-001'
+
     // 1. Upload MCBS XML
-    const mcbsXml = loadTestMCBSXml();
-    await s3Client.send(new PutObjectCommand({
-      Bucket: 'mcbs-invoices',
-      Key: `raw/test/${testInvoiceNumber}.xml`,
-      Body: mcbsXml
-    }));
-    
+    const mcbsXml = loadTestMCBSXml()
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: 'mcbs-invoices',
+        Key: `raw/test/${testInvoiceNumber}.xml`,
+        Body: mcbsXml
+      })
+    )
+
     // 2. Warte auf Pipeline (15 Sekunden)
-    await sleep(15000);
-    
+    await sleep(15000)
+
     // 3. Prüfe ob PDF erstellt wurde
-    const pdfExists = await objectExists(
-      s3Client,
-      'mcbs-invoices',
-      `pdf/test/${testInvoiceNumber}.pdf`
-    );
-    expect(pdfExists).toBe(true);
-    
+    const pdfExists = await objectExists(s3Client, 'mcbs-invoices', `pdf/test/${testInvoiceNumber}.pdf`)
+    expect(pdfExists).toBe(true)
+
     // 4. Prüfe ob ZUGFeRD XML erstellt wurde
-    const zugferdXmlExists = await objectExists(
-      s3Client,
-      'mcbs-invoices',
-      `zugferd/test/${testInvoiceNumber}_zugferd.xml`
-    );
-    expect(zugferdXmlExists).toBe(true);
-    
+    const zugferdXmlExists = await objectExists(s3Client, 'mcbs-invoices', `zugferd/test/${testInvoiceNumber}_zugferd.xml`)
+    expect(zugferdXmlExists).toBe(true)
+
     // 5. Prüfe ob E-Rechnung erstellt wurde
-    const eInvoiceExists = await objectExists(
-      s3Client,
-      'mcbs-invoices',
-      `e-rechnung/test/${testInvoiceNumber}_zugferd.pdf`
-    );
-    expect(eInvoiceExists).toBe(true);
-    
+    const eInvoiceExists = await objectExists(s3Client, 'mcbs-invoices', `e-rechnung/test/${testInvoiceNumber}_zugferd.pdf`)
+    expect(eInvoiceExists).toBe(true)
+
     // 6. Validiere E-Rechnung
-    const eInvoicePdf = await s3Client.send(new GetObjectCommand({
-      Bucket: 'mcbs-invoices',
-      Key: `e-rechnung/test/${testInvoiceNumber}_zugferd.pdf`
-    }));
-    
-    const pdfBuffer = await eInvoicePdf.Body!.transformToByteArray();
-    expect(pdfBuffer.length).toBeGreaterThan(0);
-    
+    const eInvoicePdf = await s3Client.send(
+      new GetObjectCommand({
+        Bucket: 'mcbs-invoices',
+        Key: `e-rechnung/test/${testInvoiceNumber}_zugferd.pdf`
+      })
+    )
+
+    const pdfBuffer = await eInvoicePdf.Body!.transformToByteArray()
+    expect(pdfBuffer.length).toBeGreaterThan(0)
+
     // Optional: Validiere PDF/A-3 & ZUGFeRD
-    const isValidPdfA3 = await validatePdfA3(Buffer.from(pdfBuffer));
-    expect(isValidPdfA3).toBe(true);
-  });
-});
+    const isValidPdfA3 = await validatePdfA3(Buffer.from(pdfBuffer))
+    expect(isValidPdfA3).toBe(true)
+  })
+})
 ```
 
 ---
@@ -847,15 +794,15 @@ serverless logs -f zugferdPdfEmbedder --tail
 
 ### ✅ Workflow bleibt gleich!
 
-| Schritt | Beschreibung | Trigger |
-|---------|--------------|---------|
-| **1** | MCBS XML → S3 (raw/) | MCBS Billing Upload |
-| **2** | Lambda 1: HOMER API Call → PDF | S3 Event (raw/*.xml) |
-| **3** | PDF → S3 (pdf/) | Lambda 1 |
-| **4** | Lambda 2: MCBS XML → ZUGFeRD XML | S3 Event (pdf/*.pdf) |
-| **5** | ZUGFeRD XML → S3 (zugferd/) | Lambda 2 |
-| **6** | Lambda 3: PDF + XML → E-Rechnung | S3 Event (zugferd/*_zugferd.xml) |
-| **7** | E-Rechnung → S3 (e-rechnung/) | Lambda 3 |
+| Schritt | Beschreibung                     | Trigger                            |
+| ------- | -------------------------------- | ---------------------------------- |
+| **1**   | MCBS XML → S3 (raw/)             | MCBS Billing Upload                |
+| **2**   | Lambda 1: HOMER API Call → PDF   | S3 Event (raw/\*.xml)              |
+| **3**   | PDF → S3 (pdf/)                  | Lambda 1                           |
+| **4**   | Lambda 2: MCBS XML → ZUGFeRD XML | S3 Event (pdf/\*.pdf)              |
+| **5**   | ZUGFeRD XML → S3 (zugferd/)      | Lambda 2                           |
+| **6**   | Lambda 3: PDF + XML → E-Rechnung | S3 Event (zugferd/\*\_zugferd.xml) |
+| **7**   | E-Rechnung → S3 (e-rechnung/)    | Lambda 3                           |
 
 ### ✅ Wichtige Punkte
 

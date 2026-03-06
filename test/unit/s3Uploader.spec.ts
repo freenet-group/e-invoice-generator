@@ -1,11 +1,11 @@
-import { PutObjectCommand } from '@aws-sdk/client-s3'
-import { uploadToS3 } from '../../src/core/s3/s3Uploader'
+import {PutObjectCommand} from '@aws-sdk/client-s3'
+import {uploadToS3} from '../../src/core/s3/s3Uploader'
 
 jest.mock('../../src/core/s3/s3Client', () => ({
-    s3Client: { send: jest.fn() },
+    s3Client: {send: jest.fn()}
 }))
 
-import { s3Client } from '../../src/core/s3/s3Client'
+import {s3Client} from '../../src/core/s3/s3Client'
 
 const mockSend = jest.mocked(s3Client.send)
 
@@ -21,7 +21,7 @@ describe('s3Uploader', () => {
             bucketName: 'my-bucket',
             key: 'invoice.xml',
             body: Buffer.from('<xml/>'),
-            contentType: 'application/xml',
+            contentType: 'application/xml'
         })
 
         expect(mockSend).toHaveBeenCalledTimes(1)
@@ -35,7 +35,7 @@ describe('s3Uploader', () => {
                 Bucket: 'my-bucket',
                 Key: 'invoice.xml',
                 Body: Buffer.from('<xml/>'),
-                ContentType: 'application/xml',
+                ContentType: 'application/xml'
             })
         )
         expect(command.input.Metadata).toBeUndefined()
@@ -49,7 +49,7 @@ describe('s3Uploader', () => {
             key: 'invoice.pdf',
             body: Buffer.from([1, 2, 3]),
             contentType: 'application/pdf',
-            metadata: { source: 'unit-test', type: 'invoice' },
+            metadata: {source: 'unit-test', type: 'invoice'}
         })
 
         expect(mockSend).toHaveBeenCalledTimes(1)
@@ -62,7 +62,7 @@ describe('s3Uploader', () => {
                 Bucket: 'my-bucket',
                 Key: 'invoice.pdf',
                 ContentType: 'application/pdf',
-                Metadata: { source: 'unit-test', type: 'invoice' },
+                Metadata: {source: 'unit-test', type: 'invoice'}
             })
         )
     })
@@ -75,7 +75,7 @@ describe('s3Uploader', () => {
             key: 'invoice.xml',
             body: Buffer.from('<xml/>'),
             contentType: 'application/xml',
-            metadata: {},
+            metadata: {}
         })
 
         const callArgs = <unknown[]>mockSend.mock.calls[0]
@@ -92,7 +92,7 @@ describe('s3Uploader', () => {
                 bucketName: 'my-bucket',
                 key: 'invoice.xml',
                 body: Buffer.from('<xml/>'),
-                contentType: 'application/xml',
+                contentType: 'application/xml'
             })
         ).rejects.toThrow('S3 failed')
     })

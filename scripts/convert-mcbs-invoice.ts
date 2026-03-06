@@ -1,18 +1,18 @@
-import { readFile, mkdir, writeFile } from 'node:fs/promises'
-import { parseArgs } from 'node:util'
-import { parseMcbsXml, mapMcbsToCommonInvoice } from '../src/adapters/mcbs/mcbsInvoiceMapper'
-import { generateEInvoice } from '../src/services/eInvoiceGeneratorService'
-import { spawnSync } from 'node:child_process'
+import {readFile, mkdir, writeFile} from 'node:fs/promises'
+import {parseArgs} from 'node:util'
+import {parseMcbsXml, mapMcbsToCommonInvoice} from '../src/adapters/mcbs/mcbsInvoiceMapper'
+import {generateEInvoice} from '../src/services/eInvoiceGeneratorService'
+import {spawnSync} from 'node:child_process'
 import * as path from 'node:path'
 import * as zlib from 'node:zlib'
-import { logger } from '../src/core/logger'
+import {logger} from '../src/core/logger'
 
-const { values } = parseArgs({
+const {values} = parseArgs({
     options: {
-        xml:    { type: 'string' },
-        pdf:    { type: 'string' },
-        output: { type: 'string', default: '/tmp/zugferd-result.pdf' },
-    },
+        xml: {type: 'string'},
+        pdf: {type: 'string'},
+        output: {type: 'string', default: '/tmp/zugferd-result.pdf'}
+    }
 })
 
 function isValidString(value: unknown): value is string {
@@ -108,19 +108,17 @@ function filterKositOutput(output: string): string {
 
 async function runKositValidation(xmlPath: string, rootDir: string): Promise<void> {
     const validatorJar = path.join(rootDir, 'tools/validator/validator.jar')
-    const configDir   = path.join(rootDir, 'tools/validator/config')
+    const configDir = path.join(rootDir, 'tools/validator/config')
     const scenariosXml = path.join(configDir, 'scenarios.xml')
-    const reportDir   = path.join(rootDir, 'artifacts/validator-report')
+    const reportDir = path.join(rootDir, 'artifacts/validator-report')
 
-    await mkdir(reportDir, { recursive: true })
+    await mkdir(reportDir, {recursive: true})
 
-    const result = spawnSync('java', [
-        '-jar', validatorJar,
-        '-s', scenariosXml,
-        '-r', configDir,
-        '-o', reportDir,
-        '-p', xmlPath,
-    ], { encoding: 'utf-8' })
+    const result = spawnSync(
+        'java',
+        ['-jar', validatorJar, '-s', scenariosXml, '-r', configDir, '-o', reportDir, '-p', xmlPath],
+        {encoding: 'utf-8'}
+    )
 
     const output = (result.stdout === '' ? '' : result.stdout) + (result.stderr === '' ? '' : result.stderr)
 
@@ -137,7 +135,7 @@ async function runKositValidation(xmlPath: string, rootDir: string): Promise<voi
 async function run(): Promise<void> {
     const xmlValid = isValidString(values.xml)
     const pdfValid = isValidString(values.pdf)
-    
+
     if (!xmlValid || !pdfValid) {
         logger.error('Usage: ts-node convert-mcbs-invoice.ts --xml <path> --pdf <path> [--output <path>]')
         process.exit(1)
@@ -147,9 +145,9 @@ async function run(): Promise<void> {
 
     logger.info(`📄 Lade XML: ${values.xml}`)
     const xmlContent = await readFile(<string>values.xml, 'utf-8')
-    
+
     logger.info(`📄 Lade PDF: ${values.pdf}`)
-    const pdfBuffer  = await readFile(<string>values.pdf)
+    const pdfBuffer = await readFile(<string>values.pdf)
 
     logger.info('🔄 Parse MCBS XML...')
     const rawData = parseMcbsXml(xmlContent, <string>values.xml, {
@@ -157,7 +155,7 @@ async function run(): Promise<void> {
         timestamp: new Date().toISOString(),
         s3Bucket: undefined,
         s3Key: <string>values.xml,
-        pdfKey: <string>values.pdf,
+        pdfKey: <string>values.pdf
     })
     const invoice = mapMcbsToCommonInvoice(rawData)
     logger.info(`✅ Rechnung: ${invoice.invoiceNumber}`)
@@ -166,10 +164,10 @@ async function run(): Promise<void> {
     const result = await generateEInvoice(invoice, {
         profile: 'factur-x-en16931',
         pdf: pdfBuffer,
-        pdfFilename: 'invoice.pdf',
+        pdfFilename: 'invoice.pdf'
     })
 
-    await mkdir('artifacts', { recursive: true })
+    await mkdir('artifacts', {recursive: true})
     await writeFile(values.output, result)
     logger.info(`✅ ZUGFeRD-PDF gespeichert: ${values.output}`)
 
@@ -177,7 +175,7 @@ async function run(): Promise<void> {
     logger.info('\n🔍 Validiere eingebettetes ZUGFeRD XML...')
     // KOSIT Validierung
 
-// Eingebettetes XML extrahieren
+    // Eingebettetes XML extrahieren
     logger.info('\n🔍 Extrahiere eingebettetes ZUGFeRD XML...')
     const pdfResult = Buffer.from(<Uint8Array>result)
     const xmlExtracted = extractZugferdXml(pdfResult)
@@ -191,9 +189,11 @@ async function run(): Promise<void> {
     await writeFile(xmlOutputPath, xmlExtracted, 'utf-8')
     logger.info(`✅ XML extrahiert: ${xmlOutputPath}`)
 
-
     logger.info('\n🔍 Starte KOSIT Validierung...')
     await runKositValidation(xmlOutputPath, rootDir)
 }
 
-run().catch(e => { logger.error(e); process.exit(1) })
+run().catch((e) => {
+    logger.error(e)
+    process.exit(1)
+})

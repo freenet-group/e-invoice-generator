@@ -1,10 +1,6 @@
-import { MCBSAdapter } from '../../src/adapters/mcbs/mcbsInvoiceAdapter'
-import {
-    CommonInvoice,
-    InvoiceType,
-    PaymentMeansCode,
-} from '../../src/models/commonInvoice'
-import { RawInvoiceData } from '../../src/adapters/invoiceAdapter'
+import {MCBSAdapter} from '../../src/adapters/mcbs/mcbsInvoiceAdapter'
+import {CommonInvoice, InvoiceType, PaymentMeansCode} from '../../src/models/commonInvoice'
+import {RawInvoiceData} from '../../src/adapters/invoiceAdapter'
 
 // ==================== Mocks ====================
 
@@ -14,18 +10,17 @@ const mockParseMcbsXml = jest.fn()
 const mockMapMcbsToCommonInvoice = jest.fn()
 
 jest.mock('../../src/core/s3/s3XmlLoader', () => ({
-    loadXmlFromS3OrLocal: async (...args: unknown[]): Promise<string> =>
-        <string>(await mockLoadXmlFromS3OrLocal(...args)),
+    loadXmlFromS3OrLocal: async (...args: unknown[]): Promise<string> => <string>await mockLoadXmlFromS3OrLocal(...args)
 }))
 
 jest.mock('../../src/core/s3/s3PdfLoader', () => ({
-    loadPdfFromS3: async (...args: unknown[]): Promise<Buffer | null> => <Promise<Buffer | null>>(await mockLoadPdfFromS3(...args)),
+    loadPdfFromS3: async (...args: unknown[]): Promise<Buffer | null> =>
+        <Promise<Buffer | null>>await mockLoadPdfFromS3(...args)
 }))
 
 jest.mock('../../src/adapters/mcbs/mcbsInvoiceMapper', () => ({
     parseMcbsXml: (...args: unknown[]): RawInvoiceData => <RawInvoiceData>mockParseMcbsXml(...args),
-    mapMcbsToCommonInvoice: (...args: unknown[]): CommonInvoice =>
-        <CommonInvoice>mockMapMcbsToCommonInvoice(...args),
+    mapMcbsToCommonInvoice: (...args: unknown[]): CommonInvoice => <CommonInvoice>mockMapMcbsToCommonInvoice(...args)
 }))
 
 // ==================== Fixtures ====================
@@ -36,9 +31,9 @@ const mockRawData: RawInvoiceData = {
         id: 'test-invoice.xml',
         timestamp: '2026-02-22T00:00:00.000Z',
         s3Bucket: 'my-bucket',
-        s3Key: 'invoices/test-invoice.xml',
+        s3Key: 'invoices/test-invoice.xml'
     },
-    data: {},
+    data: {}
 }
 
 const mockInvoice: CommonInvoice = {
@@ -49,7 +44,7 @@ const mockInvoice: CommonInvoice = {
     source: {
         system: 'MCBS',
         id: 'test-invoice.xml',
-        timestamp: '2026-02-22T00:00:00.000Z',
+        timestamp: '2026-02-22T00:00:00.000Z'
     },
     seller: {
         name: 'freenet DLS GmbH',
@@ -57,8 +52,8 @@ const mockInvoice: CommonInvoice = {
             streetName: '',
             cityName: '',
             postalCode: '',
-            countryCode: 'DE',
-        },
+            countryCode: 'DE'
+        }
     },
     buyer: {
         name: 'Erika Mustermann',
@@ -66,23 +61,23 @@ const mockInvoice: CommonInvoice = {
             streetName: 'Musterstraße 1',
             cityName: 'Hamburg',
             postalCode: '20095',
-            countryCode: 'DE',
-        },
+            countryCode: 'DE'
+        }
     },
-    paymentMeans: [{ typeCode: PaymentMeansCode.SEPA_DIRECT_DEBIT }],
+    paymentMeans: [{typeCode: PaymentMeansCode.SEPA_DIRECT_DEBIT}],
     totals: {
         lineTotal: 24.35,
         taxBasisTotal: 24.35,
         taxTotal: 4.63,
         grandTotal: 29.97,
-        duePayable: 29.97,
+        duePayable: 29.97
     },
     taxes: [],
     lineItems: [],
     pdf: {
         s3Bucket: 'my-bucket',
-        s3Key: 'invoices/test-invoice.pdf', // ← XML → PDF
-    },
+        s3Key: 'invoices/test-invoice.pdf' // ← XML → PDF
+    }
 }
 
 // ==================== Tests ====================
@@ -100,8 +95,8 @@ describe('MCBSAdapter', () => {
     describe('loadInvoiceData', () => {
         it('loads XML from S3 and returns RawInvoiceData', async () => {
             const payload = {
-                bucket: { name: 'my-bucket' },
-                object: { key: 'invoices/test-invoice.pdf' },
+                bucket: {name: 'my-bucket'},
+                object: {key: 'invoices/test-invoice.pdf'}
             }
             mockLoadXmlFromS3OrLocal.mockResolvedValue('<DOCUMENT/>')
             mockParseMcbsXml.mockReturnValue(mockRawData)
@@ -110,7 +105,7 @@ describe('MCBSAdapter', () => {
 
             expect(mockLoadXmlFromS3OrLocal).toHaveBeenCalledWith({
                 bucket: 'my-bucket',
-                key: 'invoices/test-invoice.xml',
+                key: 'invoices/test-invoice.xml'
             })
             expect(mockParseMcbsXml).toHaveBeenCalledWith(
                 '<DOCUMENT/>',
@@ -119,17 +114,17 @@ describe('MCBSAdapter', () => {
                     id: 'invoices/test-invoice.xml',
                     s3Bucket: 'my-bucket',
                     s3Key: 'invoices/test-invoice.xml',
-                    pdfKey: 'invoices/test-invoice.pdf',
+                    pdfKey: 'invoices/test-invoice.pdf'
                 })
             )
             expect(result).toBe(mockRawData)
         })
 
         it('uses primaryBucket from config when provided', async () => {
-            adapter = new MCBSAdapter({ primaryBucket: 'primary-bucket' })
+            adapter = new MCBSAdapter({primaryBucket: 'primary-bucket'})
             const payload = {
-                bucket: { name: 'trigger-bucket' },
-                object: { key: 'invoices/test-invoice.pdf' },
+                bucket: {name: 'trigger-bucket'},
+                object: {key: 'invoices/test-invoice.pdf'}
             }
             mockLoadXmlFromS3OrLocal.mockResolvedValue('<DOCUMENT/>')
             mockParseMcbsXml.mockReturnValue(mockRawData)
@@ -138,18 +133,17 @@ describe('MCBSAdapter', () => {
 
             expect(mockLoadXmlFromS3OrLocal).toHaveBeenCalledWith({
                 bucket: 'primary-bucket',
-                key: 'invoices/test-invoice.xml',
+                key: 'invoices/test-invoice.xml'
             })
         })
 
         it('uses custom resolvePrimaryKey from config', async () => {
             adapter = new MCBSAdapter({
-                resolvePrimaryKey: (key) =>
-                    key.replace('/pdf/', '/xml/').replace(/\.pdf$/i, '.xml'),
+                resolvePrimaryKey: (key) => key.replace('/pdf/', '/xml/').replace(/\.pdf$/i, '.xml')
             })
             const payload = {
-                bucket: { name: 'my-bucket' },
-                object: { key: 'invoices/pdf/M26008957394.pdf' },
+                bucket: {name: 'my-bucket'},
+                object: {key: 'invoices/pdf/M26008957394.pdf'}
             }
             mockLoadXmlFromS3OrLocal.mockResolvedValue('<DOCUMENT/>')
             mockParseMcbsXml.mockReturnValue(mockRawData)
@@ -158,22 +152,20 @@ describe('MCBSAdapter', () => {
 
             expect(mockLoadXmlFromS3OrLocal).toHaveBeenCalledWith({
                 bucket: 'my-bucket',
-                key: 'invoices/xml/M26008957394.xml',
+                key: 'invoices/xml/M26008957394.xml'
             })
         })
 
         it('throws when bucket or key is missing', async () => {
-            const payload = { bucket: { name: 'my-bucket' } }
+            const payload = {bucket: {name: 'my-bucket'}}
 
-            await expect(adapter.loadInvoiceData(payload)).rejects.toThrow(
-                'Invalid S3 event payload: missing bucket or key'
-            )
+            await expect(adapter.loadInvoiceData(payload)).rejects.toThrow('Invalid S3 event payload: missing bucket or key')
         })
 
         it('throws when loadXmlFromS3OrLocal fails', async () => {
             const payload = {
-                bucket: { name: 'my-bucket' },
-                object: { key: 'missing.pdf' },
+                bucket: {name: 'my-bucket'},
+                object: {key: 'missing.pdf'}
             }
             mockLoadXmlFromS3OrLocal.mockRejectedValue(new Error('S3 error'))
 
@@ -211,15 +203,12 @@ describe('MCBSAdapter', () => {
 
             const result = await adapter.loadPDF(mockInvoice)
 
-            expect(mockLoadPdfFromS3).toHaveBeenCalledWith(
-                'my-bucket',
-                'invoices/test-invoice.pdf'
-            )
+            expect(mockLoadPdfFromS3).toHaveBeenCalledWith('my-bucket', 'invoices/test-invoice.pdf')
             expect(result).toBe(pdfBuffer)
         })
 
         it('returns null when s3Bucket is missing', async () => {
-            const invoice = { ...mockInvoice, pdf: { s3Key: 'invoices/test-invoice.xml' } }
+            const invoice = {...mockInvoice, pdf: {s3Key: 'invoices/test-invoice.xml'}}
 
             const result = await adapter.loadPDF(invoice)
 
@@ -228,7 +217,7 @@ describe('MCBSAdapter', () => {
         })
 
         it('returns null when s3Key is missing', async () => {
-            const invoice = { ...mockInvoice, pdf: { s3Bucket: 'my-bucket' } }
+            const invoice = {...mockInvoice, pdf: {s3Bucket: 'my-bucket'}}
 
             const result = await adapter.loadPDF(invoice)
 
@@ -237,7 +226,7 @@ describe('MCBSAdapter', () => {
         })
 
         it('returns null when pdf is undefined', async () => {
-            const invoice = { ...mockInvoice, pdf: undefined }
+            const invoice = {...mockInvoice, pdf: undefined}
 
             const result = await adapter.loadPDF(invoice)
 
@@ -248,16 +237,13 @@ describe('MCBSAdapter', () => {
         it('handles PDF key without .xml extension', async () => {
             const invoice = {
                 ...mockInvoice,
-                pdf: { s3Bucket: 'my-bucket', s3Key: 'invoices/test-invoice' },
+                pdf: {s3Bucket: 'my-bucket', s3Key: 'invoices/test-invoice'}
             }
             mockLoadPdfFromS3.mockResolvedValue(Buffer.from('%PDF'))
 
             await adapter.loadPDF(invoice)
 
-            expect(mockLoadPdfFromS3).toHaveBeenCalledWith(
-                'my-bucket',
-                'invoices/test-invoice'
-            )
+            expect(mockLoadPdfFromS3).toHaveBeenCalledWith('my-bucket', 'invoices/test-invoice')
         })
 
         it('throws when loadPdfFromS3 fails', async () => {

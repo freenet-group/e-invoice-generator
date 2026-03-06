@@ -49,6 +49,7 @@
 ```
 
 **Vorteile:**
+
 - ✅ Event-Driven (lose Kopplung)
 - ✅ Ein Lambda für beide Sources
 - ✅ Einfache Migration (gradual)
@@ -56,6 +57,7 @@
 - ✅ Echtzeit-Verarbeitung
 
 **Nachteile:**
+
 - ⚠️ EventBridge Kosten (~$1/Million Events)
 - ⚠️ Komplexere Debugging
 
@@ -72,6 +74,7 @@ E-Invoice (synchron zurück)
 ```
 
 **Wann nutzen?**
+
 - Wenn AWS Billing Service **synchrone** E-Rechnung braucht
 - Für manuelle Requests
 - Für Batch-Jobs
@@ -80,14 +83,14 @@ E-Invoice (synchron zurück)
 
 ## 📊 Vergleich: S3 Events vs. EventBridge
 
-| Aspekt | S3 Events → SQS | EventBridge |
-|--------|-----------------|-------------|
-| **Latenz** | +100-500ms | +50-200ms ✅ |
-| **Kosten** | SQS: $2-3/Monat | EventBridge: $1/Million Events |
-| **Routing** | Einfach | **Flexibel** (Pattern Matching) ✅ |
-| **Multi-Source** | Schwierig | **Einfach** ✅ |
-| **Retry** | SQS DLQ | EventBridge DLQ ✅ |
-| **Batching** | SQS native | Nicht native ⚠️ |
+| Aspekt           | S3 Events → SQS | EventBridge                        |
+| ---------------- | --------------- | ---------------------------------- |
+| **Latenz**       | +100-500ms      | +50-200ms ✅                       |
+| **Kosten**       | SQS: $2-3/Monat | EventBridge: $1/Million Events     |
+| **Routing**      | Einfach         | **Flexibel** (Pattern Matching) ✅ |
+| **Multi-Source** | Schwierig       | **Einfach** ✅                     |
+| **Retry**        | SQS DLQ         | EventBridge DLQ ✅                 |
+| **Batching**     | SQS native      | Nicht native ⚠️                    |
 
 **Empfehlung:** EventBridge für Multi-Source, SQS wenn Batching wichtig
 
@@ -124,7 +127,7 @@ S3 Bucket: aws-billing-pdfs-{stage}
 ├── YYYY/MM/DD/
 │   └── INV-*.pdf
 
-+ 
++
 
 S3 Bucket: e-invoices-{stage}  # ← Gleicher Output!
 └── YYYY/MM/DD/
@@ -143,32 +146,33 @@ S3 Bucket: e-invoices-{stage}  # ← Gleicher Output!
 // src/adapters/adapter-registry.ts
 
 export class AdapterRegistry {
-  private adapters = new Map<string, () => InvoiceAdapter>();
-  
+  private adapters = new Map<string, () => InvoiceAdapter>()
+
   register(source: string, factory: () => InvoiceAdapter) {
-    this.adapters.set(source, factory);
+    this.adapters.set(source, factory)
   }
-  
+
   getAdapter(source: string): InvoiceAdapter {
-    const factory = this.adapters.get(source);
+    const factory = this.adapters.get(source)
     if (!factory) {
-      throw new Error(`No adapter for source: ${source}`);
+      throw new Error(`No adapter for source: ${source}`)
     }
-    return factory();
+    return factory()
   }
 }
 
 // In Lambda Initialization
-const registry = new AdapterRegistry();
-registry.register('aws.s3', () => new MCBSAdapter());
-registry.register('aws.dynamodb', () => new AWSBillingAdapter());
-registry.register('custom.billing', () => new AWSBillingAdapter());
+const registry = new AdapterRegistry()
+registry.register('aws.s3', () => new MCBSAdapter())
+registry.register('aws.dynamodb', () => new AWSBillingAdapter())
+registry.register('custom.billing', () => new AWSBillingAdapter())
 
 // Usage
-const adapter = registry.getAdapter(event.source);
+const adapter = registry.getAdapter(event.source)
 ```
 
 **Vorteile:**
+
 - ✅ Neue Sources einfach hinzufügen
 - ✅ Testbar (Mock Adapters)
 - ✅ Config-driven
@@ -183,40 +187,38 @@ const adapter = registry.getAdapter(event.source);
 // test/adapters/mcbs-adapter.test.ts
 
 describe('MCBSAdapter', () => {
-  
   it('should map MCBS XML to Common Model', async () => {
-    const adapter = new MCBSAdapter();
-    const mcbsXml = loadFixture('mcbs-invoice.xml');
-    
+    const adapter = new MCBSAdapter()
+    const mcbsXml = loadFixture('mcbs-invoice.xml')
+
     const rawData = await adapter.loadInvoiceData({
-      detail: { bucket: { name: 'test' }, object: { key: 'test.xml' } }
-    });
-    
-    const common = await adapter.mapToCommonModel(rawData);
-    
-    expect(common.source.system).toBe('MCBS');
-    expect(common.invoiceNumber).toBe('INV-2026-000001');
-  });
-});
+      detail: {bucket: {name: 'test'}, object: {key: 'test.xml'}}
+    })
+
+    const common = await adapter.mapToCommonModel(rawData)
+
+    expect(common.source.system).toBe('MCBS')
+    expect(common.invoiceNumber).toBe('INV-2026-000001')
+  })
+})
 
 // test/adapters/aws-billing-adapter.test.ts
 
 describe('AWSBillingAdapter', () => {
-  
   it('should map AWS Billing JSON to Common Model', async () => {
-    const adapter = new AWSBillingAdapter();
-    const billingJson = loadFixture('aws-billing-invoice.json');
-    
+    const adapter = new AWSBillingAdapter()
+    const billingJson = loadFixture('aws-billing-invoice.json')
+
     const rawData = await adapter.loadInvoiceData({
-      detail: { dynamodb: { Keys: { invoiceId: { S: 'test-123' } } } }
-    });
-    
-    const common = await adapter.mapToCommonModel(rawData);
-    
-    expect(common.source.system).toBe('AWS_BILLING');
-    expect(common.invoiceNumber).toBe('INV-2026-000001');
-  });
-});
+      detail: {dynamodb: {Keys: {invoiceId: {S: 'test-123'}}}}
+    })
+
+    const common = await adapter.mapToCommonModel(rawData)
+
+    expect(common.source.system).toBe('AWS_BILLING')
+    expect(common.invoiceNumber).toBe('INV-2026-000001')
+  })
+})
 ```
 
 ### Integration Tests
@@ -225,35 +227,35 @@ describe('AWSBillingAdapter', () => {
 // test/integration/e-invoice-generation.test.ts
 
 describe('E-Invoice Generation (Multi-Source)', () => {
-  
+
   it('should generate E-Invoice from MCBS', async () => {
     const event = createS3Event('mcbs-invoices-dev', 'raw/test.xml');
     const result = await handler(event);
-    
+
     expect(result.statusCode).toBe(200);
     expect(result.body.sourceSystem).toBe('MCBS');
   });
-  
+
   it('should generate E-Invoice from AWS Billing', async () => {
     const event = createDynamoDBEvent('test-invoice-123');
     const result = await handler(event);
-    
+
     expect(result.statusCode).toBe(200);
     expect(result.body.sourceSystem).toBe('AWS_BILLING');
   });
-  
+
   it('should produce identical ZUGFeRD XML for same invoice data', async () => {
     // Same invoice data, different sources
     const mcbsEvent = createS3Event(...);
     const awsEvent = createDynamoDBEvent(...);
-    
+
     const result1 = await handler(mcbsEvent);
     const result2 = await handler(awsEvent);
-    
+
     // Extract ZUGFeRD XML from both PDFs
     const xml1 = extractXMLFromPDF(result1.outputKey);
     const xml2 = extractXMLFromPDF(result2.outputKey);
-    
+
     // Should be semantically equal
     expect(normalizeXML(xml1)).toEqual(normalizeXML(xml2));
   });
@@ -308,6 +310,7 @@ GESAMT:         ~$854/Monat (-28%)
 ## 🔄 Migration Timeline
 
 ### Jetzt (2026 Q1): Legacy MCBS
+
 ```
 ✅ Implementiere EventBridge-basierte Architektur
 ✅ MCBS Adapter funktioniert
@@ -315,6 +318,7 @@ GESAMT:         ~$854/Monat (-28%)
 ```
 
 ### Q2-Q3 2026: Parallel Betrieb
+
 ```
 ✅ AWS Billing Service entwickelt
 ✅ AWS Billing Adapter implementiert
@@ -323,6 +327,7 @@ GESAMT:         ~$854/Monat (-28%)
 ```
 
 ### Q4 2026: Migration
+
 ```
 ✅ Schrittweise Migration MCBS → AWS Billing
 ✅ 25% → 50% → 75% → 100%
@@ -330,6 +335,7 @@ GESAMT:         ~$854/Monat (-28%)
 ```
 
 ### 2027: Full AWS Billing
+
 ```
 ✅ 100% AWS Billing Service
 ✅ MCBS Adapter deaktiviert (aber noch im Code!)
@@ -343,6 +349,7 @@ GESAMT:         ~$854/Monat (-28%)
 ### 1. Architektur: EventBridge-basiert ⭐
 
 **Warum?**
+
 - Event-Driven (Microservices Best Practice)
 - Multi-Source native
 - Gradual Migration möglich
@@ -351,6 +358,7 @@ GESAMT:         ~$854/Monat (-28%)
 ### 2. Adapter Pattern ⭐
 
 **Warum?**
+
 - Austauschbare Mapper
 - Testbar
 - Erweiterbar (neue Sources einfach)
@@ -359,6 +367,7 @@ GESAMT:         ~$854/Monat (-28%)
 ### 3. Gemeinsamer Output-Bucket ⭐
 
 **Warum?**
+
 - Egal von welchem System → gleicher Output
 - Einfachere Downstream-Integration
 - Konsistente Struktur
@@ -366,6 +375,7 @@ GESAMT:         ~$854/Monat (-28%)
 ### 4. Nicht S3 vs. DynamoDB - beides! ⭐
 
 **Warum?**
+
 - MCBS nutzt S3 (Legacy)
 - AWS Billing nutzt DynamoDB (Modern)
 - E-Invoice Lambda unterstützt beides via Adapter
@@ -378,6 +388,7 @@ GESAMT:         ~$854/Monat (-28%)
 ### Du brauchst NICHT zwei separate Lösungen!
 
 **Eine Lambda mit Adapter Pattern kann:**
+
 - ✅ MCBS XML von S3 lesen
 - ✅ AWS Billing JSON von DynamoDB lesen
 - ✅ Beide zu Common Invoice Model mappen
@@ -391,6 +402,7 @@ Beide Sources → EventBridge → Eine Lambda (mit Adapters) → S3
 ```
 
 **NICHT:**
+
 ```
 S3 → Lambda 1 → S3
 DynamoDB → Lambda 2 → S3

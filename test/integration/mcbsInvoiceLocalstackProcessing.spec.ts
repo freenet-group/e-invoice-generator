@@ -1,21 +1,18 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
-import { execSync } from 'node:child_process'
-import { inflateSync } from 'node:zlib'
+import {execSync} from 'node:child_process'
+import {inflateSync} from 'node:zlib'
 import {
     S3Client,
     CreateBucketCommand,
     PutObjectCommand,
     GetObjectCommand,
     HeadObjectCommand,
-    HeadBucketCommand,
+    HeadBucketCommand
 } from '@aws-sdk/client-s3'
-import {
-    SQSClient,
-    CreateQueueCommand
-} from '@aws-sdk/client-sqs'
-import { GenericContainer, StartedTestContainer, Wait } from 'testcontainers'
-import { SQSEvent, SQSRecord } from 'aws-lambda'
+import {SQSClient, CreateQueueCommand} from '@aws-sdk/client-sqs'
+import {GenericContainer, StartedTestContainer, Wait} from 'testcontainers'
+import {SQSEvent, SQSRecord} from 'aws-lambda'
 
 // ==================== Podman Socket Konfiguration ====================
 
@@ -26,10 +23,9 @@ function resolvePodmanSocket(): string {
     }
 
     try {
-        const socketPath = execSync(
-            'podman machine inspect --format \'{{.ConnectionInfo.PodmanSocket.Path}}\'',
-            { encoding: 'utf-8' }
-        ).trim()
+        const socketPath = execSync("podman machine inspect --format '{{.ConnectionInfo.PodmanSocket.Path}}'", {
+            encoding: 'utf-8'
+        }).trim()
         return `unix://${socketPath}`
     } catch {
         // Fallback für Standard-Docker
@@ -61,9 +57,9 @@ function buildSqsEvent(bucket: string, key: string, messageId: string): SQSEvent
         source: 'custom.mcbs',
         'detail-type': 'Object Created',
         detail: {
-            bucket: { name: bucket },
-            object: { key },
-        },
+            bucket: {name: bucket},
+            object: {key}
+        }
     }
 
     const record: SQSRecord = {
@@ -74,16 +70,16 @@ function buildSqsEvent(bucket: string, key: string, messageId: string): SQSEvent
             ApproximateReceiveCount: '1',
             SentTimestamp: String(Date.now()),
             SenderId: 'localstack',
-            ApproximateFirstReceiveTimestamp: String(Date.now()),
+            ApproximateFirstReceiveTimestamp: String(Date.now())
         },
         messageAttributes: {},
         md5OfBody: '',
         eventSource: 'aws:sqs',
         eventSourceARN: `arn:aws:sqs:eu-central-1:000000000000:${QUEUE_NAME}`,
-        awsRegion: 'eu-central-1',
+        awsRegion: 'eu-central-1'
     }
 
-    return { Records: [record] }
+    return {Records: [record]}
 }
 
 async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
@@ -106,13 +102,19 @@ function extractZugferdXml(pdfBytes: Buffer): string {
     const streamKeyword = 'stream'
     const streamPos = pdfAsText.lastIndexOf(streamKeyword, endstreamPos)
     let streamStart = streamPos + streamKeyword.length
-    if (pdfBytes[streamStart] === 0x0d) { streamStart++ } // \r
-    if (pdfBytes[streamStart] === 0x0a) { streamStart++ } // \n
+    if (pdfBytes[streamStart] === 0x0d) {
+        streamStart++
+    } // \r
+    if (pdfBytes[streamStart] === 0x0a) {
+        streamStart++
+    } // \n
 
     // endstreamPos in Bytes bestimmen (binary-safe)
     let endstreamByte = streamStart
     while (endstreamByte < pdfBytes.length) {
-        if (pdfBytes.subarray(endstreamByte, endstreamByte + 9).toString('ascii') === 'endstream') { break }
+        if (pdfBytes.subarray(endstreamByte, endstreamByte + 9).toString('ascii') === 'endstream') {
+            break
+        }
         endstreamByte++
     }
     // trailing whitespace entfernen
@@ -143,7 +145,7 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
             .withEnvironment({
                 SERVICES: 's3,sqs',
                 DEBUG: '0',
-                DEFAULT_REGION: 'eu-central-1',
+                DEFAULT_REGION: 'eu-central-1'
             })
             .withWaitStrategy(Wait.forLogMessage('Ready.'))
             .start()
@@ -156,9 +158,9 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
             region: 'eu-central-1',
             credentials: {
                 accessKeyId: 'test',
-                secretAccessKey: 'test',
+                secretAccessKey: 'test'
             },
-            forcePathStyle: true,
+            forcePathStyle: true
         }
 
         s3 = new S3Client(awsConfig)
@@ -176,10 +178,10 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
         process.env['STAGE'] = 'test'
 
         // S3 Bucket erstellen
-        await s3.send(new CreateBucketCommand({ Bucket: RAW_BUCKET }))
+        await s3.send(new CreateBucketCommand({Bucket: RAW_BUCKET}))
 
         // SQS Queue erstellen
-        await sqs.send(new CreateQueueCommand({ QueueName: QUEUE_NAME }))
+        await sqs.send(new CreateQueueCommand({QueueName: QUEUE_NAME}))
 
         // ← Module-Cache leeren: s3Client wird beim nächsten import()
         //   neu instanziiert — jetzt mit korrektem AWS_ENDPOINT_URL
@@ -197,7 +199,7 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
     it('LocalStack S3 ist erreichbar', async () => {
         await s3.send(
             new HeadBucketCommand({
-                Bucket: RAW_BUCKET,
+                Bucket: RAW_BUCKET
             })
         )
         // Bucket existiert wenn kein Fehler geworfen wird
@@ -207,18 +209,22 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
     it('lädt mcbs-voucher-invoice.xml in S3 hoch', async () => {
         const xmlContent = await fs.readFile(FIXTURE_XML)
 
-        await s3.send(new PutObjectCommand({
-            Bucket: RAW_BUCKET,
-            Key: XML_KEY,
-            Body: xmlContent,
-            ContentType: 'application/xml',
-        }))
+        await s3.send(
+            new PutObjectCommand({
+                Bucket: RAW_BUCKET,
+                Key: XML_KEY,
+                Body: xmlContent,
+                ContentType: 'application/xml'
+            })
+        )
 
         // Prüfen ob Datei in S3 ist
-        const head = await s3.send(new HeadObjectCommand({
-            Bucket: RAW_BUCKET,
-            Key: XML_KEY,
-        }))
+        const head = await s3.send(
+            new HeadObjectCommand({
+                Bucket: RAW_BUCKET,
+                Key: XML_KEY
+            })
+        )
 
         expect(head.ContentLength).toBeGreaterThan(0)
     })
@@ -229,31 +235,35 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
             pdfContent = await fs.readFile(FIXTURE_PDF)
         } catch {
             // Valides Minimal-PDF mit einer leeren Seite (via pdf-lib)
-            const { PDFDocument } = await import('pdf-lib')
+            const {PDFDocument} = await import('pdf-lib')
             const pdfDoc = await PDFDocument.create()
             pdfDoc.addPage([595, 842]) // A4
             const pdfBytes = await pdfDoc.save()
             pdfContent = Buffer.from(pdfBytes)
         }
 
-        await s3.send(new PutObjectCommand({
-            Bucket: RAW_BUCKET,
-            Key: PDF_KEY,
-            Body: pdfContent,
-            ContentType: 'application/pdf',
-        }))
+        await s3.send(
+            new PutObjectCommand({
+                Bucket: RAW_BUCKET,
+                Key: PDF_KEY,
+                Body: pdfContent,
+                ContentType: 'application/pdf'
+            })
+        )
 
-        const head = await s3.send(new HeadObjectCommand({
-            Bucket: RAW_BUCKET,
-            Key: PDF_KEY,
-        }))
+        const head = await s3.send(
+            new HeadObjectCommand({
+                Bucket: RAW_BUCKET,
+                Key: PDF_KEY
+            })
+        )
 
         expect(head.ContentLength).toBeGreaterThan(0)
     })
 
     it('verarbeitet SQS-Event und speichert ZUGFeRD-PDF in S3', async () => {
         // Handler lazy importieren (nach Env-Setup)
-        const { handler } = await import('../../src/handlers/unifiedEInvoiceProcessor')
+        const {handler} = await import('../../src/handlers/unifiedEInvoiceProcessor')
 
         const sqsEvent = buildSqsEvent(RAW_BUCKET, PDF_KEY, 'test-message-id-001')
 
@@ -264,10 +274,12 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
 
         // Ergebnis-PDF aus S3 laden
         const outputKey = `e-invoices/${INVOICE_NO}.pdf`
-        const getResult = await s3.send(new GetObjectCommand({
-            Bucket: OUTPUT_BUCKET,
-            Key: outputKey,
-        }))
+        const getResult = await s3.send(
+            new GetObjectCommand({
+                Bucket: OUTPUT_BUCKET,
+                Key: outputKey
+            })
+        )
 
         const pdfBytes = await streamToBuffer(<NodeJS.ReadableStream>getResult.Body)
 
@@ -289,7 +301,7 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
     })
 
     it('meldet Fehler bei fehlender XML-Datei als batchItemFailure', async () => {
-        const { handler } = await import('../../src/handlers/unifiedEInvoiceProcessor')
+        const {handler} = await import('../../src/handlers/unifiedEInvoiceProcessor')
 
         const sqsEvent = buildSqsEvent(RAW_BUCKET, 'raw/nicht-vorhanden.pdf', 'test-message-id-002')
 
@@ -301,7 +313,7 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
     })
 
     it('überschreibt stillschweigend bei doppelter SQS-Message (Idempotenz)', async () => {
-        const { handler } = await import('../../src/handlers/unifiedEInvoiceProcessor')
+        const {handler} = await import('../../src/handlers/unifiedEInvoiceProcessor')
 
         // Dieselbe Message nochmal senden
         const sqsEvent = buildSqsEvent(RAW_BUCKET, PDF_KEY, 'test-message-id-001-duplicate')
@@ -313,10 +325,12 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
 
         // Ergebnis-PDF ist immer noch vorhanden und valide
         const outputKey = `e-invoices/${INVOICE_NO}.pdf`
-        const getResult = await s3.send(new GetObjectCommand({
-            Bucket: OUTPUT_BUCKET,
-            Key: outputKey,
-        }))
+        const getResult = await s3.send(
+            new GetObjectCommand({
+                Bucket: OUTPUT_BUCKET,
+                Key: outputKey
+            })
+        )
 
         const pdfBytes = await streamToBuffer(<NodeJS.ReadableStream>getResult.Body)
 

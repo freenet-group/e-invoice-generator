@@ -3,6 +3,7 @@
 ## 📊 Executive Summary
 
 **Empfehlung für MCBS ZUGFeRD Converter:**
+
 - **@e-invoice-eu/core** ⭐ **BESTE WAHL** für programmatische Nutzung
 - **factur-x-kit** ✅ **Gute Alternative** mit PDF-Fokus
 - **@e-invoice-eu/cli** ⚠️ **Nur für Testing/Development** nützlich
@@ -24,6 +25,7 @@
 ```
 
 **Kern-Features:**
+
 - ✅ **Read & Write** Hybrid Invoice Documents
 - ✅ **PDF-Fokus**: pdf-lib Integration
 - ✅ **EN 16931, Factur-X, ZUGFeRD, XRechnung**
@@ -31,12 +33,13 @@
 - ✅ Zod für Validation
 
 **Dependencies:**
+
 ```json
 {
-  "@pdf-lib/fontkit": "^1.1.1",      // PDF Font Support
-  "fast-xml-parser": "^4.5.0",        // XML Parsing
-  "pdf-lib": "^1.17.1",               // ← PDF Manipulation!
-  "zod": "^3.24.1"                    // Schema Validation
+  "@pdf-lib/fontkit": "^1.1.1", // PDF Font Support
+  "fast-xml-parser": "^4.5.0", // XML Parsing
+  "pdf-lib": "^1.17.1", // ← PDF Manipulation!
+  "zod": "^3.24.1" // Schema Validation
 }
 ```
 
@@ -57,6 +60,7 @@
 ```
 
 **Kern-Features:**
+
 - ✅ **Multi-Format Support:**
   - CII (Cross-Industry Invoice) → ZUGFeRD, Factur-X
   - UBL (Universal Business Language) → Peppol
@@ -68,17 +72,19 @@
 - ✅ **Mature** (25 Versionen seit März 2025)
 
 **Dependencies:**
+
 ```json
 {
-  "@cantoo/pdf-lib": "^2.5.3",       // PDF/A Support
-  "@e965/xlsx": "^0.20.3",            // ← Excel Support!
-  "ajv": "^8.17.1",                   // JSON Schema Validation
-  "jsonpath-plus": "^10.3.0",         // JSON Path Queries
-  "xmlbuilder2": "^4.0.3"             // XML Building
+  "@cantoo/pdf-lib": "^2.5.3", // PDF/A Support
+  "@e965/xlsx": "^0.20.3", // ← Excel Support!
+  "ajv": "^8.17.1", // JSON Schema Validation
+  "jsonpath-plus": "^10.3.0", // JSON Path Queries
+  "xmlbuilder2": "^4.0.3" // XML Building
 }
 ```
 
-**Besonderheit:** 
+**Besonderheit:**
+
 - Kann **Excel-Dateien** direkt verarbeiten!
 - Ausgabe in **3 Formaten** (CII, UBL, XRechnung)
 
@@ -96,15 +102,17 @@
 ```
 
 **Was ist es?**
+
 - ✅ **Command-Line Interface** für @e-invoice-eu/core
 - ✅ **Testing Tool** für Entwicklung
 - ✅ **Validation Tool** für fertige E-Rechnungen
 - ✅ Wrapper um die Core-Library
 
 **Dependencies:**
+
 ```json
 {
-  "@e-invoice-eu/core": "^2.3.1",    // ← Nutzt Core!
+  "@e-invoice-eu/core": "^2.3.1", // ← Nutzt Core!
   "chalk": "Colored Output",
   "yargs": "CLI Argument Parsing"
 }
@@ -114,25 +122,25 @@
 
 ## 🔍 Feature-Vergleich
 
-| Feature | factur-x-kit | @e-invoice-eu/core | @e-invoice-eu/cli |
-|---------|--------------|-------------------|------------------|
-| **ZUGFeRD 2.1.1** | ✅ Ja | ✅ Ja | ✅ (via Core) |
-| **ZUGFeRD 3.0 / XRechnung** | ❓ Zu prüfen | ✅ **JA** | ✅ (via Core) |
-| **EN 16931** | ✅ Ja | ✅ Ja | ✅ (via Core) |
-| **CII Format** | ✅ Ja | ✅ Ja | ✅ (via Core) |
-| **UBL Format** | ❌ Nein | ✅ **JA** | ✅ (via Core) |
-| **PDF Embedding** | ✅ pdf-lib | ✅ @cantoo/pdf-lib | ❌ Nein |
-| **PDF Reading** | ✅ Ja | ✅ Ja | ❌ Nein |
-| **XML Generation** | ✅ Ja | ✅ Ja | ✅ (via Core) |
-| **JSON Input** | ✅ Ja | ✅ Ja | ✅ (via Core) |
-| **Excel Input** | ❌ Nein | ✅ **JA** | ✅ (via Core) |
-| **Validation** | ✅ Zod | ✅ AJV | ✅ (via Core) |
-| **TypeScript** | ✅ Native | ✅ Native | ✅ Native |
-| **CLI Tool** | ❌ Nein | ❌ Nein | ✅ **JA** |
-| **Programmatic Use** | ✅ **JA** | ✅ **JA** | ⚠️ Wrapper |
-| **Package Size** | ~10 MB | ~? MB | Klein |
-| **Last Update** | Dez 2024 | **Feb 2026** ⭐ | **Feb 2026** ⭐ |
-| **Maturity** | 10 Versionen | **25 Versionen** ⭐ | 25 Versionen |
+| Feature                     | factur-x-kit | @e-invoice-eu/core  | @e-invoice-eu/cli |
+| --------------------------- | ------------ | ------------------- | ----------------- |
+| **ZUGFeRD 2.1.1**           | ✅ Ja        | ✅ Ja               | ✅ (via Core)     |
+| **ZUGFeRD 3.0 / XRechnung** | ❓ Zu prüfen | ✅ **JA**           | ✅ (via Core)     |
+| **EN 16931**                | ✅ Ja        | ✅ Ja               | ✅ (via Core)     |
+| **CII Format**              | ✅ Ja        | ✅ Ja               | ✅ (via Core)     |
+| **UBL Format**              | ❌ Nein      | ✅ **JA**           | ✅ (via Core)     |
+| **PDF Embedding**           | ✅ pdf-lib   | ✅ @cantoo/pdf-lib  | ❌ Nein           |
+| **PDF Reading**             | ✅ Ja        | ✅ Ja               | ❌ Nein           |
+| **XML Generation**          | ✅ Ja        | ✅ Ja               | ✅ (via Core)     |
+| **JSON Input**              | ✅ Ja        | ✅ Ja               | ✅ (via Core)     |
+| **Excel Input**             | ❌ Nein      | ✅ **JA**           | ✅ (via Core)     |
+| **Validation**              | ✅ Zod       | ✅ AJV              | ✅ (via Core)     |
+| **TypeScript**              | ✅ Native    | ✅ Native           | ✅ Native         |
+| **CLI Tool**                | ❌ Nein      | ❌ Nein             | ✅ **JA**         |
+| **Programmatic Use**        | ✅ **JA**    | ✅ **JA**           | ⚠️ Wrapper        |
+| **Package Size**            | ~10 MB       | ~? MB               | Klein             |
+| **Last Update**             | Dez 2024     | **Feb 2026** ⭐     | **Feb 2026** ⭐   |
+| **Maturity**                | 10 Versionen | **25 Versionen** ⭐ | 25 Versionen      |
 
 ---
 
@@ -141,7 +149,7 @@
 ### factur-x-kit - Verwendung
 
 ```typescript
-import { FacturX, InvoiceData, Profile } from 'factur-x-kit';
+import {FacturX, InvoiceData, Profile} from 'factur-x-kit'
 
 // Rechnung erstellen
 const invoice: InvoiceData = {
@@ -158,45 +166,47 @@ const invoice: InvoiceData = {
     vatId: 'DE123456789'
   },
   buyer: {
-    name: 'Max Mustermann',
+    name: 'Max Mustermann'
     // ...
   },
   lineItems: [
     {
       description: 'Telekommunikationsdienstleistungen',
       quantity: 1,
-      unitPrice: 100.00,
-      netAmount: 100.00,
+      unitPrice: 100.0,
+      netAmount: 100.0,
       vatRate: 19
     }
   ],
   totals: {
-    netAmount: 100.00,
-    vatAmount: 19.00,
-    grossAmount: 119.00
+    netAmount: 100.0,
+    vatAmount: 19.0,
+    grossAmount: 119.0
   }
-};
+}
 
 // XML generieren
 const zugferdXml = FacturX.generateXML(invoice, {
   profile: Profile.COMFORT,
   version: '2.1.1'
-});
+})
 
 // In PDF einbetten
-const pdfWithZugferd = await FacturX.embedInPDF(pdfBuffer, zugferdXml);
+const pdfWithZugferd = await FacturX.embedInPDF(pdfBuffer, zugferdXml)
 
 // Aus PDF extrahieren
-const extracted = await FacturX.extractFromPDF(pdfBuffer);
-console.log(extracted.invoice);
+const extracted = await FacturX.extractFromPDF(pdfBuffer)
+console.log(extracted.invoice)
 ```
 
 **Stärken:**
+
 - ✅ Einfache API
 - ✅ PDF Read/Write
 - ✅ Zod Validation
 
 **Schwächen:**
+
 - ⚠️ Weniger mature (10 Versionen)
 - ⚠️ Kein UBL Support
 - ⚠️ Kein Excel Input
@@ -206,13 +216,7 @@ console.log(extracted.invoice);
 ### @e-invoice-eu/core - Verwendung
 
 ```typescript
-import { 
-  Invoice, 
-  CIIGenerator, 
-  UBLGenerator, 
-  XRechnungGenerator,
-  PDFEmbed
-} from '@e-invoice-eu/core';
+import {Invoice, CIIGenerator, UBLGenerator, XRechnungGenerator, PDFEmbed} from '@e-invoice-eu/core'
 
 // 1. Rechnung aus JSON erstellen
 const invoiceData = {
@@ -229,11 +233,11 @@ const invoiceData = {
     },
     taxRegistration: {
       id: 'DE123456789',
-      schemeId: 'VA'  // VAT
+      schemeId: 'VA' // VAT
     }
   },
   buyer: {
-    name: 'Max Mustermann',
+    name: 'Max Mustermann'
     // ...
   },
   lineItems: [
@@ -241,8 +245,8 @@ const invoiceData = {
       id: 1,
       name: 'Telekommunikationsdienstleistungen',
       quantity: 1,
-      unitPrice: 100.00,
-      netAmount: 100.00,
+      unitPrice: 100.0,
+      netAmount: 100.0,
       tax: {
         typeCode: 'VAT',
         categoryCode: 'S',
@@ -251,52 +255,53 @@ const invoiceData = {
     }
   ],
   totals: {
-    lineTotal: 100.00,
-    taxBasisTotal: 100.00,
-    taxTotal: 19.00,
-    grandTotal: 119.00,
-    duePayable: 119.00
+    lineTotal: 100.0,
+    taxBasisTotal: 100.0,
+    taxTotal: 19.0,
+    grandTotal: 119.0,
+    duePayable: 119.0
   },
   currency: 'EUR'
-};
+}
 
-const invoice = new Invoice(invoiceData);
+const invoice = new Invoice(invoiceData)
 
 // 2a. ZUGFeRD 2.1.1 (CII Format)
-const ciiGenerator = new CIIGenerator();
+const ciiGenerator = new CIIGenerator()
 const zugferdXml = ciiGenerator.generate(invoice, {
   profile: 'COMFORT',
   version: '2.1.1'
-});
+})
 
 // 2b. XRechnung 3.0 (Deutschland)
-const xrechnungGenerator = new XRechnungGenerator();
-const xrechnungXml = xrechnungGenerator.generate(invoice);
+const xrechnungGenerator = new XRechnungGenerator()
+const xrechnungXml = xrechnungGenerator.generate(invoice)
 
 // 2c. UBL (Peppol)
-const ublGenerator = new UBLGenerator();
-const ublXml = ublGenerator.generate(invoice);
+const ublGenerator = new UBLGenerator()
+const ublXml = ublGenerator.generate(invoice)
 
 // 3. In PDF einbetten
-const pdfEmbed = new PDFEmbed();
+const pdfEmbed = new PDFEmbed()
 const eInvoice = await pdfEmbed.embed(pdfBuffer, zugferdXml, {
   pdfAVersion: '3b',
   filename: 'factur-x.xml'
-});
+})
 
 // 4. Von Excel erstellen (!)
-import { ExcelReader } from '@e-invoice-eu/core';
+import {ExcelReader} from '@e-invoice-eu/core'
 
-const excelReader = new ExcelReader();
-const invoicesFromExcel = excelReader.read('invoices.xlsx');
+const excelReader = new ExcelReader()
+const invoicesFromExcel = excelReader.read('invoices.xlsx')
 
 for (const inv of invoicesFromExcel) {
-  const xml = ciiGenerator.generate(inv);
+  const xml = ciiGenerator.generate(inv)
   // ...
 }
 ```
 
 **Stärken:**
+
 - ✅ **Multi-Format** (CII, UBL, XRechnung)
 - ✅ **Excel Support** (unique!)
 - ✅ **XRechnung 3.0** Support
@@ -304,6 +309,7 @@ for (const inv of invoicesFromExcel) {
 - ✅ **Mature** (25 Versionen)
 
 **Schwächen:**
+
 - ⚠️ Komplexere API (mehr Optionen)
 - ⚠️ WTFPL Lizenz (ungewöhnlich, aber frei)
 
@@ -338,12 +344,14 @@ e-invoice-eu --input-dir ./invoices --output-dir ./zugferd --format cii
 ```
 
 **Wann nützlich?**
+
 - ✅ **Testing** während Entwicklung
 - ✅ **Validation** von generierten XMLs
 - ✅ **Batch-Konvertierung** von Excel-Dateien
 - ✅ **Quick Prototyping**
 
 **NICHT für Production:**
+
 - ❌ CLI Tool in Lambda ineffizient
 - ❌ Overhead durch Subprocess
 - ❌ Besser: Direkt Core-Library nutzen
@@ -366,6 +374,7 @@ e-invoice-eu --input-dir ./invoices --output-dir ./zugferd --format cii
 8. ✅ **TypeScript Native**
 
 **Warum NICHT factur-x-kit?**
+
 - ⚠️ Weniger mature (10 vs 25 Releases)
 - ⚠️ Letztes Update Dezember 2024 (2 Monate alt)
 - ⚠️ Kein UBL Support
@@ -386,11 +395,11 @@ e-invoice-eu --input-dir ./invoices --output-dir ./zugferd --format cii
   "version": "1.0.0",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
-    "@e-invoice-eu/core": "^2.3.1",   // ← Production
+    "@e-invoice-eu/core": "^2.3.1", // ← Production
     "fast-xml-parser": "^4.3.0"
   },
   "devDependencies": {
-    "@e-invoice-eu/cli": "^2.3.1",    // ← Nur für Development!
+    "@e-invoice-eu/cli": "^2.3.1", // ← Nur für Development!
     "@types/aws-lambda": "^8.10.0",
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0",
@@ -405,66 +414,59 @@ e-invoice-eu --input-dir ./invoices --output-dir ./zugferd --format cii
 
 ```typescript
 // src/services/zugferd-generator.service.ts
-import { 
-  Invoice, 
-  CIIGenerator, 
-  XRechnungGenerator 
-} from '@e-invoice-eu/core';
-import { MCBSInvoice } from '../types/mcbs-invoice';
+import {Invoice, CIIGenerator, XRechnungGenerator} from '@e-invoice-eu/core'
+import {MCBSInvoice} from '../types/mcbs-invoice'
 
 export class ZugferdGeneratorService {
-  
-  private ciiGenerator = new CIIGenerator();
-  private xrechnungGenerator = new XRechnungGenerator();
-  
+  private ciiGenerator = new CIIGenerator()
+  private xrechnungGenerator = new XRechnungGenerator()
+
   /**
    * Generiert ZUGFeRD 2.1.1 XML aus MCBS Invoice
    */
   async generateZugferd21(mcbsInvoice: MCBSInvoice): Promise<string> {
-    
     // 1. Map MCBS zu e-invoice-eu Format
-    const invoiceData = this.mapMCBSToEInvoiceEU(mcbsInvoice);
-    
+    const invoiceData = this.mapMCBSToEInvoiceEU(mcbsInvoice)
+
     // 2. Invoice Object erstellen
-    const invoice = new Invoice(invoiceData);
-    
+    const invoice = new Invoice(invoiceData)
+
     // 3. CII XML generieren (ZUGFeRD 2.1.1)
     const zugferdXml = this.ciiGenerator.generate(invoice, {
       profile: 'COMFORT',
       version: '2.1.1'
-    });
-    
-    return zugferdXml;
+    })
+
+    return zugferdXml
   }
-  
+
   /**
    * Generiert XRechnung 3.0 XML aus MCBS Invoice
    * (für ZUGFeRD 3.0 / Deutschland)
    */
   async generateXRechnung30(mcbsInvoice: MCBSInvoice): Promise<string> {
-    
-    const invoiceData = this.mapMCBSToEInvoiceEU(mcbsInvoice);
-    const invoice = new Invoice(invoiceData);
-    
+    const invoiceData = this.mapMCBSToEInvoiceEU(mcbsInvoice)
+    const invoice = new Invoice(invoiceData)
+
     // XRechnung 3.0 (ZUGFeRD 3.0 equivalent)
-    const xrechnungXml = this.xrechnungGenerator.generate(invoice);
-    
-    return xrechnungXml;
+    const xrechnungXml = this.xrechnungGenerator.generate(invoice)
+
+    return xrechnungXml
   }
-  
+
   /**
    * Mapping MCBS → e-invoice-eu Format
    */
   private mapMCBSToEInvoiceEU(mcbs: MCBSInvoice): any {
-    const invoice = mcbs.DOCUMENT.INVOICE_DATA;
-    const header = mcbs.DOCUMENT.HEADER;
-    
+    const invoice = mcbs.DOCUMENT.INVOICE_DATA
+    const header = mcbs.DOCUMENT.HEADER
+
     return {
       // Header
       number: invoice.BILLNO,
-      typeCode: '380',  // Invoice
+      typeCode: '380', // Invoice
       issueDate: this.parseDate(invoice.INVOICE_DATE),
-      
+
       // Seller
       seller: {
         name: header.BRAND?.DESC || 'freenet DLS GmbH',
@@ -482,18 +484,20 @@ export class ZugferdGeneratorService {
           cityName: 'Flensburg',
           countryCode: 'DE'
         },
-        taxRegistration: [{
-          id: {
-            value: 'DE123456789',
-            schemeId: 'VA'  // VAT
+        taxRegistration: [
+          {
+            id: {
+              value: 'DE123456789',
+              schemeId: 'VA' // VAT
+            }
           }
-        }],
+        ],
         electronicAddress: {
           value: 'rechnung@freenet.de',
-          schemeId: 'EM'  // Email
+          schemeId: 'EM' // Email
         }
       },
-      
+
       // Buyer
       buyer: {
         name: this.formatBuyerName(invoice.ADDRESS),
@@ -505,34 +509,34 @@ export class ZugferdGeneratorService {
           countryCode: invoice.ADDRESS.COUNTRY || 'DE'
         }
       },
-      
+
       // Line Items
       lineItems: this.extractLineItems(invoice),
-      
+
       // Payment
-      paymentMeans: [{
-        typeCode: this.getPaymentTypeCode(invoice.PAYMENT_MODE.PAYMENT_TYPE),
-        information: this.getPaymentInfo(invoice.PAYMENT_MODE),
-        payeeAccount: {
-          iban: invoice.PAYMENT_MODE.IBAN || header.CLIENTBANK_ACNT,
-          accountName: this.formatBuyerName(invoice.ADDRESS)
-        },
-        payeeInstitution: {
-          bic: invoice.PAYMENT_MODE.BIC || header.CLIENTBANK_CODE
+      paymentMeans: [
+        {
+          typeCode: this.getPaymentTypeCode(invoice.PAYMENT_MODE.PAYMENT_TYPE),
+          information: this.getPaymentInfo(invoice.PAYMENT_MODE),
+          payeeAccount: {
+            iban: invoice.PAYMENT_MODE.IBAN || header.CLIENTBANK_ACNT,
+            accountName: this.formatBuyerName(invoice.ADDRESS)
+          },
+          payeeInstitution: {
+            bic: invoice.PAYMENT_MODE.BIC || header.CLIENTBANK_CODE
+          }
         }
-      }],
-      
+      ],
+
       // Payment Terms
       paymentTerms: {
         description: this.getPaymentTermsDescription(invoice),
-        dueDate: invoice.PAYMENT_MODE.DUE_DATE 
-          ? this.parseDate(invoice.PAYMENT_MODE.DUE_DATE)
-          : undefined
+        dueDate: invoice.PAYMENT_MODE.DUE_DATE ? this.parseDate(invoice.PAYMENT_MODE.DUE_DATE) : undefined
       },
-      
+
       // Taxes
       taxes: this.extractTaxes(invoice),
-      
+
       // Totals
       totals: {
         lineTotal: parseFloat(invoice.AMOUNTS.NET_AMOUNT),
@@ -541,15 +545,15 @@ export class ZugferdGeneratorService {
         grandTotal: parseFloat(invoice.AMOUNTS.GROSS_AMOUNT),
         duePayable: parseFloat(invoice.AMOUNTS.OPEN_AMOUNT || invoice.AMOUNTS.TOTAL_AMOUNT)
       },
-      
+
       // Currency
       currency: 'EUR'
-    };
+    }
   }
-  
+
   private extractLineItems(invoice: any): any[] {
-    const items: any[] = [];
-    
+    const items: any[] = []
+
     if (invoice.SECTIONS?.SECTION) {
       for (const section of invoice.SECTIONS.SECTION) {
         if (section.LINES?.LINE) {
@@ -559,7 +563,7 @@ export class ZugferdGeneratorService {
                 id: items.length + 1,
                 name: this.cleanText(line.DESCRIPTION),
                 quantity: parseFloat(line.QUANTITY || '1'),
-                unitCode: 'C62',  // Stück
+                unitCode: 'C62', // Stück
                 unitPrice: parseFloat(line.UNIT_PRICE || line.NET_AMOUNT),
                 netAmount: parseFloat(line.NET_AMOUNT),
                 tax: {
@@ -567,13 +571,13 @@ export class ZugferdGeneratorService {
                   categoryCode: parseFloat(line.VAT_RATE || '19') > 0 ? 'S' : 'Z',
                   rate: parseFloat(line.VAT_RATE || '19')
                 }
-              });
+              })
             }
           }
         }
       }
     }
-    
+
     // Fallback
     if (items.length === 0) {
       items.push({
@@ -588,15 +592,15 @@ export class ZugferdGeneratorService {
           categoryCode: 'S',
           rate: 19
         }
-      });
+      })
     }
-    
-    return items;
+
+    return items
   }
-  
+
   private extractTaxes(invoice: any): any[] {
-    const taxes: any[] = [];
-    
+    const taxes: any[] = []
+
     if (invoice.VAT_DETAILS?.VAT_DETAIL) {
       for (const vat of invoice.VAT_DETAILS.VAT_DETAIL) {
         taxes.push({
@@ -605,7 +609,7 @@ export class ZugferdGeneratorService {
           rate: parseFloat(vat.VAT_RATE),
           basisAmount: parseFloat(vat.NET_AMOUNT),
           calculatedAmount: parseFloat(vat.VAT_AMOUNT)
-        });
+        })
       }
     } else {
       taxes.push({
@@ -614,55 +618,58 @@ export class ZugferdGeneratorService {
         rate: 19,
         basisAmount: parseFloat(invoice.AMOUNTS.NET_AMOUNT),
         calculatedAmount: parseFloat(invoice.AMOUNTS.VAT_AMOUNT)
-      });
+      })
     }
-    
-    return taxes;
+
+    return taxes
   }
-  
+
   private getPaymentTypeCode(type: string): string {
     switch (type) {
-      case 'SEPADEBIT': return '59';
-      case 'TRANSFER': return '58';
-      default: return '58';
+      case 'SEPADEBIT':
+        return '59'
+      case 'TRANSFER':
+        return '58'
+      default:
+        return '58'
     }
   }
-  
+
   private getPaymentInfo(payment: any): string {
     if (payment.PAYMENT_TYPE === 'SEPADEBIT') {
-      return `SEPA-Lastschrift - Mandatsreferenz: ${payment.MANDATE_REF || ''}`;
+      return `SEPA-Lastschrift - Mandatsreferenz: ${payment.MANDATE_REF || ''}`
     }
-    return 'Überweisung';
+    return 'Überweisung'
   }
-  
+
   private getPaymentTermsDescription(invoice: any): string {
-    const payment = invoice.PAYMENT_MODE;
+    const payment = invoice.PAYMENT_MODE
     if (payment.PAYMENT_TYPE === 'SEPADEBIT') {
-      return 'Zahlung per SEPA-Lastschrift';
+      return 'Zahlung per SEPA-Lastschrift'
     }
     if (payment.DUE_DATE) {
-      return `Zahlung bis ${payment.DUE_DATE}`;
+      return `Zahlung bis ${payment.DUE_DATE}`
     }
-    return 'Zahlung sofort fällig';
+    return 'Zahlung sofort fällig'
   }
-  
+
   private formatBuyerName(address: any): string {
-    if (address.COMPANY) return address.COMPANY;
-    return [address.FIRST_NAME, address.LAST_NAME].filter(Boolean).join(' ');
+    if (address.COMPANY) return address.COMPANY
+    return [address.FIRST_NAME, address.LAST_NAME].filter(Boolean).join(' ')
   }
-  
+
   private cleanText(text: string | undefined): string {
-    if (!text) return '';
-    return text.replace(/<[^>]*>/g, '').trim();
+    if (!text) return ''
+    return text.replace(/<[^>]*>/g, '').trim()
   }
-  
+
   private parseDate(dateStr: string): string {
     // DD.MM.YYYY → YYYY-MM-DD
     if (dateStr.includes('.')) {
-      const [day, month, year] = dateStr.split('.');
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      const [day, month, year] = dateStr.split('.')
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
     }
-    return dateStr;
+    return dateStr
   }
 }
 ```
@@ -673,41 +680,40 @@ export class ZugferdGeneratorService {
 
 ```typescript
 // scripts/test-zugferd.ts
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import {exec} from 'child_process'
+import {promisify} from 'util'
 
-const execAsync = promisify(exec);
+const execAsync = promisify(exec)
 
 /**
  * Nutze @e-invoice-eu/cli für Testing
  */
 async function testZugferdGeneration() {
-  
   // 1. Generiere Test-JSON
   const testInvoice = {
     number: 'INV-TEST-001',
-    date: '2026-02-21',
+    date: '2026-02-21'
     // ... complete invoice data
-  };
-  
-  await fs.writeFile('test-invoice.json', JSON.stringify(testInvoice, null, 2));
-  
+  }
+
+  await fs.writeFile('test-invoice.json', JSON.stringify(testInvoice, null, 2))
+
   // 2. CLI: JSON → ZUGFeRD XML
-  await execAsync('npx @e-invoice-eu/cli --input test-invoice.json --output test-invoice.xml --format cii');
-  
+  await execAsync('npx @e-invoice-eu/cli --input test-invoice.json --output test-invoice.xml --format cii')
+
   // 3. CLI: Validate
-  const { stdout } = await execAsync('npx @e-invoice-eu/cli --validate test-invoice.xml');
-  console.log('Validation Result:', stdout);
-  
+  const {stdout} = await execAsync('npx @e-invoice-eu/cli --validate test-invoice.xml')
+  console.log('Validation Result:', stdout)
+
   // 4. CLI: Embed in PDF
-  await execAsync('npx @e-invoice-eu/cli --input test-invoice.xml --pdf template.pdf --output e-invoice.pdf');
-  
-  console.log('✅ E-Invoice generated: e-invoice.pdf');
+  await execAsync('npx @e-invoice-eu/cli --input test-invoice.xml --pdf template.pdf --output e-invoice.pdf')
+
+  console.log('✅ E-Invoice generated: e-invoice.pdf')
 }
 
 // Nur für Development!
 if (process.env.NODE_ENV !== 'production') {
-  testZugferdGeneration();
+  testZugferdGeneration()
 }
 ```
 
@@ -720,12 +726,13 @@ if (process.env.NODE_ENV !== 'production') {
 ```json
 {
   "dependencies": {
-    "@e-invoice-eu/core": "^2.3.1"  // ← Production Use
+    "@e-invoice-eu/core": "^2.3.1" // ← Production Use
   }
 }
 ```
 
 **Nutze:**
+
 - ✅ CIIGenerator für ZUGFeRD 2.1.1
 - ✅ XRechnungGenerator für ZUGFeRD 3.0 / XRechnung
 - ✅ PDFEmbed für PDF/A-3 Embedding
@@ -737,12 +744,13 @@ if (process.env.NODE_ENV !== 'production') {
 ```json
 {
   "devDependencies": {
-    "@e-invoice-eu/cli": "^2.3.1"  // ← Testing Tool
+    "@e-invoice-eu/cli": "^2.3.1" // ← Testing Tool
   }
 }
 ```
 
 **Nutze CLI für:**
+
 - ✅ Quick Testing während Entwicklung
 - ✅ Validation von generierten XMLs
 - ✅ Vergleich mit Referenz-Implementierung
@@ -752,11 +760,11 @@ if (process.env.NODE_ENV !== 'production') {
 
 ## 🎯 Zusammenfassung
 
-| Zweck | Library | Warum |
-|-------|---------|-------|
-| **Production** | @e-invoice-eu/core | Aktuellste, XRechnung 3.0, Multi-Format |
-| **Development** | @e-invoice-eu/cli | Testing & Validation |
-| **Alternative** | factur-x-kit | Falls PDF-Fokus wichtiger |
+| Zweck           | Library            | Warum                                   |
+| --------------- | ------------------ | --------------------------------------- |
+| **Production**  | @e-invoice-eu/core | Aktuellste, XRechnung 3.0, Multi-Format |
+| **Development** | @e-invoice-eu/cli  | Testing & Validation                    |
+| **Alternative** | factur-x-kit       | Falls PDF-Fokus wichtiger               |
 
 **@e-invoice-eu/core ist die beste Wahl für Deinen MCBS ZUGFeRD Converter!** ✅
 

@@ -42,64 +42,64 @@ npm install @e-invoice-eu/core fast-xml-parser
 
 export interface MCBSDocument {
   DOCUMENT: {
-    HEADER: MCBSHeader;
-    INVOICE_DATA: MCBSInvoiceData;
-  };
+    HEADER: MCBSHeader
+    INVOICE_DATA: MCBSInvoiceData
+  }
 }
 
 export interface MCBSHeader {
   BRAND: {
-    DESC: string;
-  };
+    DESC: string
+  }
   BILLING_ENTITY: {
-    NAME: string;
-    ZIPCODE: string;
-    CITY: string;
-  };
-  CLIENTBANK_ACNT?: string;
-  CLIENTBANK_CODE?: string;
+    NAME: string
+    ZIPCODE: string
+    CITY: string
+  }
+  CLIENTBANK_ACNT?: string
+  CLIENTBANK_CODE?: string
 }
 
 export interface MCBSInvoiceData {
-  BILLNO: string;
-  INVOICE_DATE: string;
-  
+  BILLNO: string
+  INVOICE_DATE: string
+
   ADDRESS: {
-    COMPANY?: string;
-    FIRST_NAME?: string;
-    LAST_NAME?: string;
-    STREET: string;
-    STREET_NO: string;
-    ZIPCODE: string;
-    CITY: string;
-  };
-  
+    COMPANY?: string
+    FIRST_NAME?: string
+    LAST_NAME?: string
+    STREET: string
+    STREET_NO: string
+    ZIPCODE: string
+    CITY: string
+  }
+
   AMOUNTS: {
-    NET_AMOUNT: string;
-    VAT_AMOUNT: string;
-    GROSS_AMOUNT: string;
-    TOTAL_AMOUNT: string;
-  };
-  
+    NET_AMOUNT: string
+    VAT_AMOUNT: string
+    GROSS_AMOUNT: string
+    TOTAL_AMOUNT: string
+  }
+
   PAYMENT_MODE: {
-    PAYMENT_TYPE: string;
-    IBAN?: string;
-    BIC?: string;
-    MANDATE_REF?: string;
-  };
-  
+    PAYMENT_TYPE: string
+    IBAN?: string
+    BIC?: string
+    MANDATE_REF?: string
+  }
+
   SECTIONS?: {
     SECTION: Array<{
       LINES?: {
         LINE: Array<{
-          DESCRIPTION: string;
-          QUANTITY?: string;
-          NET_AMOUNT: string;
-          VAT_RATE?: string;
-        }>;
-      };
-    }>;
-  };
+          DESCRIPTION: string
+          QUANTITY?: string
+          NET_AMOUNT: string
+          VAT_RATE?: string
+        }>
+      }
+    }>
+  }
 }
 ```
 
@@ -109,35 +109,34 @@ export interface MCBSInvoiceData {
 
 ```typescript
 // src/services/mcbs-parser.service.ts
-import { XMLParser } from 'fast-xml-parser';
-import { MCBSDocument } from '../types/mcbs-invoice';
+import {XMLParser} from 'fast-xml-parser'
+import {MCBSDocument} from '../types/mcbs-invoice'
 
 export class MCBSParserService {
-  private parser: XMLParser;
-  
+  private parser: XMLParser
+
   constructor() {
     this.parser = new XMLParser({
       ignoreAttributes: false,
       parseTagValue: true,
       trimValues: true
-    });
+    })
   }
-  
+
   parse(xmlString: string): MCBSDocument {
-    const parsed = this.parser.parse(xmlString);
-    
+    const parsed = this.parser.parse(xmlString)
+
     // Normalisiere Arrays
-    this.normalizeArrays(parsed);
-    
-    return parsed as MCBSDocument;
+    this.normalizeArrays(parsed)
+
+    return parsed as MCBSDocument
   }
-  
+
   private normalizeArrays(parsed: any): void {
     // XMLParser macht einzelne Elemente zu Objects statt Arrays
     if (parsed.DOCUMENT?.INVOICE_DATA?.SECTIONS?.SECTION) {
       if (!Array.isArray(parsed.DOCUMENT.INVOICE_DATA.SECTIONS.SECTION)) {
-        parsed.DOCUMENT.INVOICE_DATA.SECTIONS.SECTION = 
-          [parsed.DOCUMENT.INVOICE_DATA.SECTIONS.SECTION];
+        parsed.DOCUMENT.INVOICE_DATA.SECTIONS.SECTION = [parsed.DOCUMENT.INVOICE_DATA.SECTIONS.SECTION]
       }
     }
   }

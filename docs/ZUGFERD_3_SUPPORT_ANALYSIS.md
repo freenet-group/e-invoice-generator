@@ -9,16 +9,19 @@
 ## 📊 ZUGFeRD Versionen im Überblick
 
 ### ZUGFeRD 1.0 (2014)
+
 - Erste Version
 - Basiert auf UN/CEFACT CII
 
 ### ZUGFeRD 2.x / Factur-X 1.0 (2019-2020)
+
 - ✅ **Aktuell weit verbreitet**
 - Basiert auf **EN 16931** (Europäische Norm)
 - Cross-Industry Invoice (CII) Format
 - Profile: MINIMUM, BASIC, COMFORT, EXTENDED
 
 ### **ZUGFeRD 3.0 (März 2024)** ⭐ NEU!
+
 - Basiert auf **EN 16931** + **XRechnung 3.0**
 - **E-Rechnungsverordnung Deutschland** (ab 01.01.2025)
 - Neue Profile: **XRECHNUNG**, **XRECHNUNG_EXTENDED**
@@ -69,6 +72,7 @@ npm install zugferd-node
 ```
 
 **Status:**
+
 - ❌ Letzte Version: 2019
 - ❌ Nur ZUGFeRD 1.0 / 2.0
 - ❌ KEIN ZUGFeRD 3.0 Support
@@ -83,6 +87,7 @@ npm install node-facturx
 ```
 
 **Status:**
+
 - ❌ Sehr limitiert
 - ❌ Nur grundlegende Factur-X 1.0
 - ❌ KEIN ZUGFeRD 3.0 Support
@@ -97,6 +102,7 @@ npm install @peppol/invoice
 ```
 
 **Status:**
+
 - ✅ Peppol BIS Billing 3.0 Support
 - ⚠️ Kein direktes ZUGFeRD 3.0
 - ⚠️ Fokus auf Peppol, nicht ZUGFeRD
@@ -108,6 +114,7 @@ npm install @peppol/invoice
 ### Es gibt KEINE gute TypeScript/npm Library für ZUGFeRD 3.0!
 
 **Grund:**
+
 - ZUGFeRD 3.0 ist sehr neu (März 2024)
 - TypeScript/JavaScript-Ökosystem hinkt hinterher
 - Haupt-Support in **Java** (Mustang) und **Python**
@@ -130,6 +137,7 @@ npm install @peppol/invoice
 ```
 
 **Java Code:**
+
 ```java
 import org.mustangproject.ZUGFeRD.ZUGFeRDExporter;
 import org.mustangproject.ZUGFeRD.ZUGFeRDConformanceLevel;
@@ -146,6 +154,7 @@ exporter.export(outputStream);
 ```
 
 **Vorteile:**
+
 - ✅ **Offiziell supported** von ZUGFeRD Organisation
 - ✅ **ZUGFeRD 3.0** seit Version 2.11.0 (Nov 2024)
 - ✅ **Aktiv maintained** (letztes Release: Jan 2025)
@@ -153,6 +162,7 @@ exporter.export(outputStream);
 - ✅ **Production-ready**
 
 **Nachteil:**
+
 - ⚠️ Java, nicht TypeScript
 
 ---
@@ -183,6 +193,7 @@ exporter.export(outputStream);
 ```
 
 **Vorteile:**
+
 - ✅ ZUGFeRD 3.0 Support via Mustang
 - ✅ TypeScript für Business Logic
 - ✅ Java nur für PDF-Generierung
@@ -192,11 +203,13 @@ exporter.export(outputStream);
 ### Option 3: **Warten auf TypeScript Library** ⏳ NICHT EMPFOHLEN
 
 **Timeline:**
+
 - Q1 2025: Vermutlich noch nicht
 - Q2-Q3 2025: Möglicherweise erste TypeScript Libraries
 - 2026: Wahrscheinlich mature Libraries
 
 **Risiko:**
+
 - ❌ Ungewiss wann
 - ❌ E-Rechnungspflicht ab 01.01.2025!
 - ❌ Nicht warten!
@@ -213,11 +226,13 @@ exporter.export(outputStream);
 ```
 
 **Vorteile:**
+
 - ✅ Sofort nutzbar
 - ✅ TypeScript
 - ✅ Erfüllt E-Rechnungsverordnung (vorerst)
 
 **Nachteile:**
+
 - ⚠️ Nicht neuester Standard
 - ⚠️ Migration zu 3.0 später nötig
 
@@ -227,19 +242,19 @@ exporter.export(outputStream);
 
 ### Deutschland E-Rechnungspflicht
 
-| Datum | Anforderung |
-|-------|-------------|
-| **01.01.2025** | E-Rechnungen EMPFANGEN Pflicht |
+| Datum          | Anforderung                          |
+| -------------- | ------------------------------------ |
+| **01.01.2025** | E-Rechnungen EMPFANGEN Pflicht       |
 | **01.01.2027** | E-Rechnungen SENDEN Pflicht (>800k€) |
-| **01.01.2028** | E-Rechnungen SENDEN Pflicht (alle) |
+| **01.01.2028** | E-Rechnungen SENDEN Pflicht (alle)   |
 
 ### ZUGFeRD Version Support
 
-| Version | Gültig bis | Empfohlen |
-|---------|-----------|-----------|
-| ZUGFeRD 1.0 | 2024 (veraltet) | ❌ Nein |
-| **ZUGFeRD 2.1.1** | **2027** | ✅ Ja (aktuell) |
-| **ZUGFeRD 3.0** | Unbegrenzt | ✅ **Ja (Zukunft)** |
+| Version           | Gültig bis      | Empfohlen           |
+| ----------------- | --------------- | ------------------- |
+| ZUGFeRD 1.0       | 2024 (veraltet) | ❌ Nein             |
+| **ZUGFeRD 2.1.1** | **2027**        | ✅ Ja (aktuell)     |
+| **ZUGFeRD 3.0**   | Unbegrenzt      | ✅ **Ja (Zukunft)** |
 
 **Sie haben also Zeit bis 2027 für ZUGFeRD 2.1.1!**
 
@@ -251,18 +266,19 @@ exporter.export(outputStream);
 
 ```typescript
 // Custom Implementation (wie dokumentiert)
-import { XMLBuilder } from 'fast-xml-parser';
+import {XMLBuilder} from 'fast-xml-parser'
 
 export class ZUGFeRD21Generator {
   generateXML(invoice: Invoice): string {
     // EN 16931 / ZUGFeRD 2.1.1 Format
-    const xml = this.buildCII(invoice);
-    return xml;
+    const xml = this.buildCII(invoice)
+    return xml
   }
 }
 ```
 
 **Vorteile:**
+
 - ✅ TypeScript
 - ✅ Sofort verfügbar
 - ✅ Erfüllt Pflicht bis 2027
@@ -273,21 +289,20 @@ export class ZUGFeRD21Generator {
 ### **Langfristig (2027+): ZUGFeRD 3.0 Migration**
 
 **Option A: TypeScript Library (wenn verfügbar)**
+
 ```typescript
 // Hypothetisch
-import { ZUGFeRD3Generator } from 'zugferd-3-ts';  // Noch nicht existent!
+import {ZUGFeRD3Generator} from 'zugferd-3-ts' // Noch nicht existent!
 
-const generator = new ZUGFeRD3Generator();
-const xml = generator.generate(invoice, 'XRECHNUNG');
+const generator = new ZUGFeRD3Generator()
+const xml = generator.generate(invoice, 'XRECHNUNG')
 ```
 
 **Option B: Mustang Java Service**
+
 ```typescript
 // Lambda ruft Mustang Service auf
-const response = await axios.post(
-  'https://mustang-service.internal/generate',
-  invoiceData
-);
+const response = await axios.post('https://mustang-service.internal/generate', invoiceData)
 ```
 
 ---
@@ -299,19 +314,18 @@ const response = await axios.post(
 ```typescript
 // src/services/zugferd-2-generator.ts
 export class ZUGFeRD21Generator {
-  
   generateXML(invoice: MCBSInvoice): string {
-    const ciiXml = this.buildCrossIndustryInvoice(invoice);
-    
+    const ciiXml = this.buildCrossIndustryInvoice(invoice)
+
     const xmlBuilder = new XMLBuilder({
       ignoreAttributes: false,
       format: true
-    });
-    
+    })
+
     return `<?xml version="1.0" encoding="UTF-8"?>
-${xmlBuilder.build(ciiXml)}`;
+${xmlBuilder.build(ciiXml)}`
   }
-  
+
   private buildCrossIndustryInvoice(invoice: MCBSInvoice) {
     return {
       'rsm:CrossIndustryInvoice': {
@@ -319,16 +333,16 @@ ${xmlBuilder.build(ciiXml)}`;
         '@_xmlns:qdt': 'urn:un:unece:uncefact:data:standard:QualifiedDataType:100',
         '@_xmlns:ram': 'urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100',
         '@_xmlns:udt': 'urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100',
-        
+
         'rsm:ExchangedDocumentContext': {
           'ram:GuidelineSpecifiedDocumentContextParameter': {
             'ram:ID': 'urn:cen.eu:en16931:2017#compliant#urn:factur-x.eu:1p0:comfort'
           }
-        },
-        
+        }
+
         // ... Rest wie in vorheriger Doku
       }
-    };
+    }
   }
 }
 ```
@@ -340,19 +354,16 @@ ${xmlBuilder.build(ciiXml)}`;
 ### Phase 2: **Migration zu ZUGFeRD 3.0** (2026-2027)
 
 **Monitoring:**
+
 ```typescript
 // Jährlich prüfen
 async function checkZugferd3Support() {
-  const libraries = [
-    'zugferd-3-ts',
-    'factur-x-3',
-    'zugferd-node-3'
-  ];
-  
+  const libraries = ['zugferd-3-ts', 'factur-x-3', 'zugferd-node-3']
+
   for (const lib of libraries) {
-    const exists = await npmPackageExists(lib);
+    const exists = await npmPackageExists(lib)
     if (exists) {
-      console.log(`✅ ${lib} is now available!`);
+      console.log(`✅ ${lib} is now available!`)
       // Migration planen
     }
   }
@@ -376,19 +387,19 @@ CMD ["java", "-jar", "/app/mustang-service.jar"]
 
 ```typescript
 // Lambda ruft Mustang auf
-const zugferd3Xml = await callMustangService(invoiceData);
+const zugferd3Xml = await callMustangService(invoiceData)
 ```
 
 ---
 
 ## 📊 Vergleich der Optionen
 
-| Option | ZUGFeRD 3.0 | TypeScript | Aufwand | Verfügbar |
-|--------|-------------|------------|---------|-----------|
-| **Custom 2.1.1** | ❌ Nein | ✅ Ja | 2 Wochen | ✅ Sofort |
-| **Mustang (Java)** | ✅ Ja | ❌ Nein | 1 Woche | ✅ Sofort |
-| **TypeScript Lib** | ✅ Ja | ✅ Ja | 0 | ❌ Nicht verfügbar |
-| **Warten** | ✅ Ja | ✅ Ja | 0 | ⏳ 2025/2026? |
+| Option             | ZUGFeRD 3.0 | TypeScript | Aufwand  | Verfügbar          |
+| ------------------ | ----------- | ---------- | -------- | ------------------ |
+| **Custom 2.1.1**   | ❌ Nein     | ✅ Ja      | 2 Wochen | ✅ Sofort          |
+| **Mustang (Java)** | ✅ Ja       | ❌ Nein    | 1 Woche  | ✅ Sofort          |
+| **TypeScript Lib** | ✅ Ja       | ✅ Ja      | 0        | ❌ Nicht verfügbar |
+| **Warten**         | ✅ Ja       | ✅ Ja      | 0        | ⏳ 2025/2026?      |
 
 ---
 
@@ -422,14 +433,17 @@ const zugferd3Xml = await callMustangService(invoiceData);
 ### **Wann wird ZUGFeRD 3.0 in TypeScript verfügbar sein?**
 
 **Optimistisch:** Q3 2025
+
 - Community-Projekt startet
 - Erste Beta-Versionen
 
 **Realistisch:** Q1 2026
+
 - Mature Library verfügbar
 - Production-ready
 
 **Pessimistisch:** Q3 2026
+
 - Java bleibt dominant
 - TypeScript nur Wrapper
 
@@ -464,12 +478,14 @@ const zugferd3Xml = await callMustangService(invoiceData);
 ### Empfehlung:
 
 **Custom ZUGFeRD 2.1.1 Implementation (TypeScript)**
+
 - Erfüllt E-Rechnungspflicht
 - TypeScript Stack
 - Gültig bis 2027
 - Migration zu 3.0 später (wenn TypeScript Libraries verfügbar)
 
 **Oder: Mustang Java Service (für ZUGFeRD 3.0 JETZT)**
+
 - Hybrid: TypeScript + Java
 - ZUGFeRD 3.0 Support sofort
 - Production-ready

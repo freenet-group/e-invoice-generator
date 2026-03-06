@@ -1,9 +1,9 @@
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
-import { PDFDocument, StandardFonts } from 'pdf-lib'
-import { parseMcbsXml, mapMcbsToCommonInvoice } from '../../src/adapters/mcbs/mcbsInvoiceMapper'
-import { generateEInvoice } from '../../src/services/eInvoiceGeneratorService'
-import type { CommonInvoice } from '../../src/models/commonInvoice'
+import {PDFDocument, StandardFonts} from 'pdf-lib'
+import {parseMcbsXml, mapMcbsToCommonInvoice} from '../../src/adapters/mcbs/mcbsInvoiceMapper'
+import {generateEInvoice} from '../../src/services/eInvoiceGeneratorService'
+import type {CommonInvoice} from '../../src/models/commonInvoice'
 
 const FIXTURE_PATH = path.resolve(__dirname, '../resources/mcbs/mcbs-real-invoice.xml')
 const OUTPUT_DIR = path.resolve(__dirname, '../output')
@@ -15,10 +15,10 @@ async function createPdfWithInvoiceData(invoiceNo: string, recipientName: string
     const font = await doc.embedFont(StandardFonts.Helvetica)
     const boldFont = await doc.embedFont(StandardFonts.HelveticaBold)
 
-    page.drawText('Rechnung / Invoice', { x: 40, y: 780, size: 18, font: boldFont })
-    page.drawText(`Rechnungsnummer: ${invoiceNo}`, { x: 40, y: 740, size: 12, font })
-    page.drawText(`Empfänger: ${recipientName}`, { x: 40, y: 720, size: 12, font })
-    page.drawText('(Testdokument für ZUGFeRD E-Rechnung)', { x: 40, y: 680, size: 10, font })
+    page.drawText('Rechnung / Invoice', {x: 40, y: 780, size: 18, font: boldFont})
+    page.drawText(`Rechnungsnummer: ${invoiceNo}`, {x: 40, y: 740, size: 12, font})
+    page.drawText(`Empfänger: ${recipientName}`, {x: 40, y: 720, size: 12, font})
+    page.drawText('(Testdokument für ZUGFeRD E-Rechnung)', {x: 40, y: 680, size: 10, font})
 
     return doc.save()
 }
@@ -43,20 +43,17 @@ describe('MCBS Real Invoice → ZUGFeRD E-Rechnung Integration', () => {
         beforeAll(async () => {
             const metadata = {
                 id: 'mcbs-real-invoice.xml',
-                timestamp: new Date().toISOString(),
+                timestamp: new Date().toISOString()
             }
             rawData = parseMcbsXml(xmlContent, 'mcbs-real-invoice.xml', metadata)
             commonInvoice = mapMcbsToCommonInvoice(rawData)
 
-            sourcePdfBytes = await createPdfWithInvoiceData(
-                commonInvoice.invoiceNumber,
-                commonInvoice.buyer.name
-            )
+            sourcePdfBytes = await createPdfWithInvoiceData(commonInvoice.invoiceNumber, commonInvoice.buyer.name)
 
             const result = await generateEInvoice(commonInvoice, {
                 profile: 'factur-x-en16931',
                 pdf: sourcePdfBytes,
-                pdfFilename: 'mcbs-real-invoice.pdf',
+                pdfFilename: 'mcbs-real-invoice.pdf'
             })
 
             resultBytes = <Uint8Array>result
@@ -96,8 +93,6 @@ describe('MCBS Real Invoice → ZUGFeRD E-Rechnung Integration', () => {
             expect(pdfAsText).toContain('factur-x.xml')
         })
 
-        
-
         it('enthält Factur-X Metadaten im erzeugten Dokument', () => {
             const pdfAsText = Buffer.from(resultBytes).toString('latin1')
             expect(pdfAsText).toContain('factur-x.xml')
@@ -107,7 +102,7 @@ describe('MCBS Real Invoice → ZUGFeRD E-Rechnung Integration', () => {
         })
 
         it('speichert das erzeugte E-Rechnungs-PDF auf der Festplatte', async () => {
-            await fs.mkdir(OUTPUT_DIR, { recursive: true })
+            await fs.mkdir(OUTPUT_DIR, {recursive: true})
             await fs.writeFile(OUTPUT_PDF, resultBytes)
 
             const stat = await fs.stat(OUTPUT_PDF)

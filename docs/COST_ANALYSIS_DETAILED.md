@@ -54,6 +54,7 @@ TOTAL Lambda: $1.30 + $1.243.33 = $1.244.63/Monat
 ```
 
 **⚠️ KORREKTUR meiner vorherigen Schätzung:**
+
 - Ich hatte ~$250/Monat gesagt
 - **Tatsächlich: ~$1.245/Monat** (mit 5s Durchschnitt)
 
@@ -283,7 +284,7 @@ S3 Glacier:       $0.004/GB
 ────────────────────────────────────────────────────────
 Nach 1 Jahr:
 Standard Kosten:  1.785 GB × 12 × $0.023 = $493/Jahr
-Mit Lifecycle:    1.785 GB × 1 × $0.023 + 
+Mit Lifecycle:    1.785 GB × 1 × $0.023 +
                   1.785 GB × 11 × $0.004 = $120/Jahr
 ────────────────────────────────────────────────────────
 Einsparung: $373/Jahr ($31/Monat)

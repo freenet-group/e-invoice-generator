@@ -5,12 +5,14 @@
 ### Phase 1: Lokale Entwicklung (JETZT) ✅
 
 **Vorteile:**
+
 - ✅ Schnelles Feedback (keine AWS nötig)
 - ✅ Einfaches Debugging
 - ✅ Kein AWS-Kosten während Entwicklung
 - ✅ Offline-fähig
 
 **Setup:**
+
 - Test-XMLs in `test/resources/`
 - Unit Tests mit Jest
 - Lokales File-Loading
@@ -19,10 +21,12 @@
 ### Phase 2: Integration Tests (SPÄTER)
 
 **Wenn:**
+
 - Lokale Tests grün
 - Basis-Implementierung fertig
 
 **Setup:**
+
 - Serverless Offline
 - LocalStack (S3/DynamoDB Mock)
 - Integration Tests
@@ -30,10 +34,12 @@
 ### Phase 3: AWS Deployment (ZULETZT)
 
 **Wenn:**
+
 - Integration Tests grün
 - Code-Review done
 
 **Setup:**
+
 - Deploy to Dev Stage
 - Echte S3 Buckets
 - End-to-End Tests
@@ -50,6 +56,7 @@ npm run test:watch
 ```
 
 **Workflow:**
+
 1. Test schreiben (red)
 2. Implementierung (green)
 3. Refactoring
@@ -87,25 +94,26 @@ mcbs-zugferd-converter/
 ```typescript
 // src/services/mcbs-parser.service.ts
 
-import { XMLParser } from 'fast-xml-parser';
+import {XMLParser} from 'fast-xml-parser'
 
 export class MCBSParserService {
-  private parser: XMLParser;
-  
+  private parser: XMLParser
+
   constructor() {
     this.parser = new XMLParser({
       ignoreAttributes: false,
       parseAttributeValue: true
-    });
+    })
   }
-  
+
   parse(xmlContent: string): any {
-    return this.parser.parse(xmlContent);
+    return this.parser.parse(xmlContent)
   }
 }
 ```
 
 **Test:**
+
 ```bash
 npm test -- mcbs-parser.test.ts
 ```
@@ -115,10 +123,9 @@ npm test -- mcbs-parser.test.ts
 ```typescript
 // src/services/zugferd-generator.service.ts
 
-import { CommonInvoice } from '../models/commonInvoice';
+import {CommonInvoice} from '../models/commonInvoice'
 
 export class ZugferdGeneratorService {
-  
   async generateZugferd21(invoice: CommonInvoice): Promise<string> {
     // TODO: @e-invoice-eu/core verwenden
     // const ciiGenerator = new CIIGenerator();
@@ -128,6 +135,7 @@ export class ZugferdGeneratorService {
 ```
 
 **Test:**
+
 ```bash
 npm test -- zugferd-basic.test.ts
 ```
@@ -138,11 +146,10 @@ npm test -- zugferd-basic.test.ts
 // src/adapters/mcbs-adapter.ts
 
 export class MCBSAdapter implements InvoiceAdapter {
-  
   async loadInvoiceData(eventPayload: any): Promise<RawInvoiceData> {
     // Lokales Loading für Tests
     if (eventPayload.xmlContent) {
-      const parsed = this.parser.parse(eventPayload.xmlContent);
+      const parsed = this.parser.parse(eventPayload.xmlContent)
       return {
         source: 'MCBS',
         data: parsed,
@@ -150,21 +157,21 @@ export class MCBSAdapter implements InvoiceAdapter {
           id: parsed.DOCUMENT.ID,
           timestamp: new Date().toISOString()
         }
-      };
+      }
     }
-    
+
     // S3 Loading für Production (später)
-    throw new Error('S3 loading not yet implemented');
+    throw new Error('S3 loading not yet implemented')
   }
-  
+
   async mapToCommonModel(rawData: RawInvoiceData): Promise<CommonInvoice> {
-    const mcbs = rawData.data;
-    
+    const mcbs = rawData.data
+
     return {
       invoiceNumber: mcbs.DOCUMENT.ID,
-      invoiceDate: this.formatDate(mcbs.DOCUMENT.INVOICE_DATA.PAYMENT_MODE.DUE_DATE),
+      invoiceDate: this.formatDate(mcbs.DOCUMENT.INVOICE_DATA.PAYMENT_MODE.DUE_DATE)
       // ... weitere Felder
-    };
+    }
   }
 }
 ```
@@ -176,12 +183,14 @@ export class MCBSAdapter implements InvoiceAdapter {
 ### Unit Tests (Lokal)
 
 **Was testen:**
+
 - ✅ MCBS Parser (XML → Object)
 - ✅ MCBS Adapter (Object → CommonInvoice)
 - ✅ ZUGFeRD Generator (CommonInvoice → XML)
 - ✅ Helper-Funktionen
 
 **Wie:**
+
 ```bash
 # Alle Unit Tests
 npm test
@@ -197,17 +206,20 @@ npm run test:coverage
 ```
 
 **Test-Dateien:**
+
 - `test/resources/mcbs/mcbs-*.xml` - Verschiedene Test-Szenarien
 - `test/resources/mcbs/expected-*.xml` - Erwartete ZUGFeRD Outputs
 
 ### Integration Tests (Später)
 
 **Was testen:**
+
 - Lambda Handler End-to-End
 - S3 Mock Integration
 - SQS Mock Integration
 
 **Setup:**
+
 ```bash
 npm install --save-dev @aws-sdk/client-s3-node
 npm install --save-dev serverless-offline
@@ -308,21 +320,24 @@ npm run logs                 # CloudWatch Logs
 ## 🚀 Nächste Schritte (JETZT)
 
 1. **Warte auf npm install**
+
    ```bash
    # Prüfe wenn fertig
    npm test
    ```
 
 2. **Implementiere MCBS Parser**
+
    ```bash
    # Erstelle Service
    touch src/services/mcbs-parser.service.ts
-   
+
    # Erstelle Test
    touch test/unit/mcbs-parser.test.ts
    ```
 
 3. **Teste @e-invoice-eu/core API**
+
    ```bash
    # Schaue in node_modules/@e-invoice-eu/core
    # Finde Beispiele in README

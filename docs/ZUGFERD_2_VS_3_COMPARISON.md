@@ -8,14 +8,14 @@
 
 ## 📊 Versionsübersicht
 
-| Aspekt | ZUGFeRD 2.1.1 (2020) | ZUGFeRD 3.0 (März 2024) |
-|--------|---------------------|------------------------|
-| **Basis-Standard** | EN 16931:2017 | EN 16931:2017 ✅ (gleich!) |
-| **XML-Format** | CII (Cross Industry Invoice) | CII ✅ (gleich!) |
-| **Namespaces** | UN/CEFACT 100 | UN/CEFACT 100 ✅ (gleich!) |
-| **Profile** | MINIMUM, BASIC, COMFORT, EXTENDED | + XRECHNUNG, XRECHNUNG_EXTENDED ⭐ |
-| **PDF/A Version** | PDF/A-3b | PDF/A-3b ✅ (gleich!) |
-| **Dateiname** | factur-x.xml | factur-x.xml ✅ (gleich!) |
+| Aspekt             | ZUGFeRD 2.1.1 (2020)              | ZUGFeRD 3.0 (März 2024)            |
+| ------------------ | --------------------------------- | ---------------------------------- |
+| **Basis-Standard** | EN 16931:2017                     | EN 16931:2017 ✅ (gleich!)         |
+| **XML-Format**     | CII (Cross Industry Invoice)      | CII ✅ (gleich!)                   |
+| **Namespaces**     | UN/CEFACT 100                     | UN/CEFACT 100 ✅ (gleich!)         |
+| **Profile**        | MINIMUM, BASIC, COMFORT, EXTENDED | + XRECHNUNG, XRECHNUNG_EXTENDED ⭐ |
+| **PDF/A Version**  | PDF/A-3b                          | PDF/A-3b ✅ (gleich!)              |
+| **Dateiname**      | factur-x.xml                      | factur-x.xml ✅ (gleich!)          |
 
 ---
 
@@ -61,7 +61,7 @@
 <ram:SpecifiedTradeSettlementPaymentMeans>
   <ram:TypeCode>59</ram:TypeCode>  <!-- SEPA Lastschrift -->
   <ram:Information>SEPA-Lastschrift</ram:Information>
-  
+
   <!-- NEU in 3.0: -->
   <ram:PayerPartyDebtorFinancialAccount>
     <ram:ProprietaryID>DE98ZZZ09999999999</ram:ProprietaryID>  ⭐ Gläubiger-ID
@@ -136,14 +136,14 @@
 
 ### **Für Ihr MCBS-Projekt:**
 
-| Änderung | Aufwand | Priorität |
-|----------|---------|-----------|
-| **Profil-ID ändern** | 5 Minuten | Hoch |
-| **Leitweg-ID** (B2G) | 1 Tag | Niedrig (nur B2G) |
-| **Gläubiger-ID** (SEPA) | 1 Tag | Mittel (optional) |
-| **Neue Felder** (Vertrag, etc.) | 2-3 Tage | Niedrig (optional) |
-| **Testing** | 3 Tage | Hoch |
-| **GESAMT** | **1 Woche** | - |
+| Änderung                        | Aufwand     | Priorität          |
+| ------------------------------- | ----------- | ------------------ |
+| **Profil-ID ändern**            | 5 Minuten   | Hoch               |
+| **Leitweg-ID** (B2G)            | 1 Tag       | Niedrig (nur B2G)  |
+| **Gläubiger-ID** (SEPA)         | 1 Tag       | Mittel (optional)  |
+| **Neue Felder** (Vertrag, etc.) | 2-3 Tage    | Niedrig (optional) |
+| **Testing**                     | 3 Tage      | Hoch               |
+| **GESAMT**                      | **1 Woche** | -                  |
 
 **Fazit: Migration ist EINFACH!** ✅
 
@@ -182,7 +182,7 @@
       <ram:ID>urn:cen.eu:en16931:2017#compliant#urn:factur-x.eu:1p0:comfort</ram:ID>
     </ram:GuidelineSpecifiedDocumentContextParameter>
   </rsm:ExchangedDocumentContext>
-  
+
   <rsm:ExchangedDocument>
     <ram:ID>INV-2026-000001</ram:ID>
     <ram:TypeCode>380</ram:TypeCode>
@@ -190,7 +190,7 @@
       <udt:DateTimeString format="102">20260221</udt:DateTimeString>
     </ram:IssueDateTime>
   </rsm:ExchangedDocument>
-  
+
   <rsm:SupplyChainTradeTransaction>
     <ram:ApplicableHeaderTradeSettlement>
       <ram:SpecifiedTradeSettlementPaymentMeans>
@@ -200,7 +200,7 @@
           <ram:IBANID>DE02300606010002474689</ram:IBANID>
         </ram:PayeePartyCreditorFinancialAccount>
       </ram:SpecifiedTradeSettlementPaymentMeans>
-      
+
       <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
         <ram:LineTotalAmount>100.00</ram:LineTotalAmount>
         <ram:TaxBasisTotalAmount>100.00</ram:TaxBasisTotalAmount>
@@ -225,7 +225,7 @@
       <ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</ram:ID>
     </ram:GuidelineSpecifiedDocumentContextParameter>
   </rsm:ExchangedDocumentContext>
-  
+
   <rsm:ExchangedDocument>
     <!-- ✅ Bleibt gleich! -->
     <ram:ID>INV-2026-000001</ram:ID>
@@ -234,7 +234,7 @@
       <udt:DateTimeString format="102">20260221</udt:DateTimeString>
     </ram:IssueDateTime>
   </rsm:ExchangedDocument>
-  
+
   <rsm:SupplyChainTradeTransaction>
     <ram:ApplicableHeaderTradeSettlement>
       <ram:SpecifiedTradeSettlementPaymentMeans>
@@ -244,13 +244,13 @@
         <ram:PayeePartyCreditorFinancialAccount>
           <ram:IBANID>DE02300606010002474689</ram:IBANID>
         </ram:PayeePartyCreditorFinancialAccount>
-        
+
         <!-- ⭐ NEU (optional): Gläubiger-ID -->
         <ram:PayerPartyDebtorFinancialAccount>
           <ram:ProprietaryID>DE98ZZZ09999999999</ram:ProprietaryID>
         </ram:PayerPartyDebtorFinancialAccount>
       </ram:SpecifiedTradeSettlementPaymentMeans>
-      
+
       <!-- ✅ Summen bleiben KOMPLETT gleich! -->
       <ram:SpecifiedTradeSettlementHeaderMonetarySummation>
         <ram:LineTotalAmount>100.00</ram:LineTotalAmount>
@@ -317,40 +317,39 @@ export enum ZugferdVersion {
 export enum ZugferdProfile {
   // ZUGFeRD 2.1.1
   COMFORT_2 = 'urn:cen.eu:en16931:2017#compliant#urn:factur-x.eu:1p0:comfort',
-  
+
   // ZUGFeRD 3.0
   XRECHNUNG_3 = 'urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0'
 }
 
 export class ZugferdGenerator {
-  
   constructor(
-    private version: ZugferdVersion = ZugferdVersion.V2_1_1  // Default
+    private version: ZugferdVersion = ZugferdVersion.V2_1_1 // Default
   ) {}
-  
+
   generateXML(invoice: Invoice): string {
-    const profile = this.getProfile();
-    
+    const profile = this.getProfile()
+
     return this.buildCII({
       ...invoice,
       profile: profile,
       version: this.version
-    });
+    })
   }
-  
+
   private getProfile(): string {
     switch (this.version) {
       case ZugferdVersion.V2_1_1:
-        return ZugferdProfile.COMFORT_2;
-      
+        return ZugferdProfile.COMFORT_2
+
       case ZugferdVersion.V3_0:
-        return ZugferdProfile.XRECHNUNG_3;
-      
+        return ZugferdProfile.XRECHNUNG_3
+
       default:
-        return ZugferdProfile.COMFORT_2;
+        return ZugferdProfile.COMFORT_2
     }
   }
-  
+
   private buildCII(invoice: any): string {
     const cii = {
       'rsm:CrossIndustryInvoice': {
@@ -358,35 +357,34 @@ export class ZugferdGenerator {
         '@_xmlns:rsm': 'urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100',
         '@_xmlns:ram': 'urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100',
         '@_xmlns:udt': 'urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100',
-        
+
         'rsm:ExchangedDocumentContext': {
           'ram:GuidelineSpecifiedDocumentContextParameter': {
-            'ram:ID': invoice.profile  // ← Hier ist der Unterschied!
+            'ram:ID': invoice.profile // ← Hier ist der Unterschied!
           }
         },
-        
+
         // Rest bleibt gleich...
         'rsm:ExchangedDocument': this.buildExchangedDocument(invoice),
         'rsm:SupplyChainTradeTransaction': this.buildSupplyChain(invoice)
       }
-    };
-    
-    const builder = new XMLBuilder({ format: true });
-    return builder.build(cii);
+    }
+
+    const builder = new XMLBuilder({format: true})
+    return builder.build(cii)
   }
-  
+
   private buildSupplyChain(invoice: any): any {
     const settlement: any = {
-      'ram:SpecifiedTradeSettlementPaymentMeans': 
-        this.buildPaymentMeans(invoice),
+      'ram:SpecifiedTradeSettlementPaymentMeans': this.buildPaymentMeans(invoice)
       // ... Rest
-    };
-    
+    }
+
     return {
       'ram:ApplicableHeaderTradeSettlement': settlement
-    };
+    }
   }
-  
+
   private buildPaymentMeans(invoice: any): any {
     const paymentMeans: any = {
       'ram:TypeCode': invoice.payment.type,
@@ -394,16 +392,16 @@ export class ZugferdGenerator {
       'ram:PayeePartyCreditorFinancialAccount': {
         'ram:IBANID': invoice.payment.iban
       }
-    };
-    
+    }
+
     // ⭐ Neu in ZUGFeRD 3.0: Gläubiger-ID (optional)
     if (this.version === ZugferdVersion.V3_0 && invoice.payment.creditorId) {
       paymentMeans['ram:PayerPartyDebtorFinancialAccount'] = {
         'ram:ProprietaryID': invoice.payment.creditorId
-      };
+      }
     }
-    
-    return paymentMeans;
+
+    return paymentMeans
   }
 }
 ```
@@ -412,12 +410,12 @@ export class ZugferdGenerator {
 
 ```typescript
 // ZUGFeRD 2.1.1 (bis 2027)
-const generator2 = new ZugferdGenerator(ZugferdVersion.V2_1_1);
-const xml2 = generator2.generateXML(invoice);
+const generator2 = new ZugferdGenerator(ZugferdVersion.V2_1_1)
+const xml2 = generator2.generateXML(invoice)
 
 // ZUGFeRD 3.0 (ab 2027)
-const generator3 = new ZugferdGenerator(ZugferdVersion.V3_0);
-const xml3 = generator3.generateXML(invoice);
+const generator3 = new ZugferdGenerator(ZugferdVersion.V3_0)
+const xml3 = generator3.generateXML(invoice)
 ```
 
 **Änderung: ~20 Zeilen Code!**
@@ -428,16 +426,16 @@ const xml3 = generator3.generateXML(invoice);
 
 ### Pflichtfelder (beide Versionen GLEICH):
 
-| Feld | ZUGFeRD 2.1.1 | ZUGFeRD 3.0 |
-|------|---------------|-------------|
-| Rechnungsnummer | ✅ Pflicht | ✅ Pflicht |
-| Rechnungsdatum | ✅ Pflicht | ✅ Pflicht |
-| Verkäufer Name | ✅ Pflicht | ✅ Pflicht |
-| Käufer Name | ✅ Pflicht | ✅ Pflicht |
-| Nettobetrag | ✅ Pflicht | ✅ Pflicht |
-| MwSt-Betrag | ✅ Pflicht | ✅ Pflicht |
-| Bruttobetrag | ✅ Pflicht | ✅ Pflicht |
-| Zahlungsmittel | ✅ Pflicht | ✅ Pflicht |
+| Feld            | ZUGFeRD 2.1.1 | ZUGFeRD 3.0 |
+| --------------- | ------------- | ----------- |
+| Rechnungsnummer | ✅ Pflicht    | ✅ Pflicht  |
+| Rechnungsdatum  | ✅ Pflicht    | ✅ Pflicht  |
+| Verkäufer Name  | ✅ Pflicht    | ✅ Pflicht  |
+| Käufer Name     | ✅ Pflicht    | ✅ Pflicht  |
+| Nettobetrag     | ✅ Pflicht    | ✅ Pflicht  |
+| MwSt-Betrag     | ✅ Pflicht    | ✅ Pflicht  |
+| Bruttobetrag    | ✅ Pflicht    | ✅ Pflicht  |
+| Zahlungsmittel  | ✅ Pflicht    | ✅ Pflicht  |
 
 **Alle Kernfelder IDENTISCH!** ✅
 
@@ -445,12 +443,12 @@ const xml3 = generator3.generateXML(invoice);
 
 ### Neue optionale Felder (ZUGFeRD 3.0):
 
-| Feld | Pflicht | Relevanz für MCBS |
-|------|---------|-------------------|
-| Leitweg-ID | Nur B2G | ❌ Nicht relevant |
-| Gläubiger-ID | Optional | ⚠️ Nice-to-have |
-| Bestellnummer Zeile | Optional | ❌ Nicht relevant |
-| Vertragsreferenz | Optional | ❌ Nicht relevant |
+| Feld                  | Pflicht  | Relevanz für MCBS      |
+| --------------------- | -------- | ---------------------- |
+| Leitweg-ID            | Nur B2G  | ❌ Nicht relevant      |
+| Gläubiger-ID          | Optional | ⚠️ Nice-to-have        |
+| Bestellnummer Zeile   | Optional | ❌ Nicht relevant      |
+| Vertragsreferenz      | Optional | ❌ Nicht relevant      |
 | Steuerbefreiungsgrund | Optional | ⚠️ Für int. Rechnungen |
 
 **Für B2C Telecom: Fast alles optional!** ✅
@@ -512,6 +510,7 @@ SPÄTER (2027):
 ### **Für Ihr MCBS-Projekt:**
 
 **B2C Telecom-Rechnungen:**
+
 - Unterschied: **MINIMAL** (2% Code-Änderung)
 - Migration: **1 Woche**
 - Dringlichkeit: **Niedrig** (bis 2027 Zeit)
@@ -523,11 +522,13 @@ SPÄTER (2027):
 ## 📚 Ressourcen
 
 ### Offizielle Specs
+
 - **ZUGFeRD 2.1.1:** https://www.ferd-net.de/standards/zugferd-2.1.1/index.html
 - **ZUGFeRD 3.0:** https://www.ferd-net.de/standards/zugferd-3.0/index.html
 - **Vergleichsdokument:** https://www.ferd-net.de/upload/documents/Vergleich_ZF_2_ZF_3.pdf
 
 ### XRechnung
+
 - **XRechnung 3.0:** https://www.xrechnung.de/
 - **Validator:** https://www.xrechnung-validator.de/
 

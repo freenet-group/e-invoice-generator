@@ -15,6 +15,7 @@ npm install factur-x-kit
 ```
 
 **Details:**
+
 - ✅ Version: 0.3.1
 - ✅ Letztes Update: **Dezember 2024**
 - ✅ Keywords: en16931, factur-x, zugferd, erechnung, xrechnung
@@ -24,6 +25,7 @@ npm install factur-x-kit
 - ✅ Lizenz: MIT
 
 **Support:**
+
 - ✅ EN 16931
 - ✅ Factur-X
 - ✅ ZUGFeRD
@@ -32,13 +34,14 @@ npm install factur-x-kit
 
 ---
 
-### 2. **factur-x** 
+### 2. **factur-x**
 
 ```bash
 npm install factur-x
 ```
 
 **Details:**
+
 - Version: 0.0.2
 - Letztes Update: August 2024
 - Beschreibung: "Reading and writing hydrid invoice documents (EN 16931, ZUGFeRD, Factur-X) with Typescript"
@@ -54,13 +57,15 @@ npm install @e-invoice-eu/core
 ```
 
 **Details:**
+
 - ✅ Version: 2.3.1
-- ✅ Letztes Update: **15. Februar 2026** (vor 6 Tagen!) 
+- ✅ Letztes Update: **15. Februar 2026** (vor 6 Tagen!)
 - ✅ Beschreibung: "Generate e-invoices (E-Rechnung in German) conforming to EN16931 (Factur-X/ZUGFeRD, UBL, CII, XRechnung)"
 - ✅ GitHub: https://github.com/gflohr/e-invoice-eu
 - ✅ Lizenz: WTFPL
 
 **Support:**
+
 - ✅ Factur-X
 - ✅ ZUGFeRD
 - ✅ UBL
@@ -78,6 +83,7 @@ npm install @stafyniaksacha/facturx
 ```
 
 **Details:**
+
 - Version: 0.4.0
 - Letztes Update: Juli 2025
 - Beschreibung: "Factur-X and Order-X generation library for European e-invoicing standard"
@@ -94,6 +100,7 @@ npm install node-zugferd
 ```
 
 **Details:**
+
 - Version: 0.1.1-beta.1
 - Letztes Update: August 2025
 - Beschreibung: "A Node.js library for creating ZUGFeRD/Factur-X compliant documents"
@@ -111,6 +118,7 @@ npm install @audoora-ext/einvoice
 ```
 
 **Details:**
+
 - Version: 1.2.2
 - Letztes Update: August 2025
 - Beschreibung: "ZUGFeRD / XRechnung / Factur-X / EN-16931 parser/extractor"
@@ -124,41 +132,42 @@ npm install @audoora-ext/einvoice
 ### **Option 1: factur-x-kit** ⭐ BESTE WAHL
 
 ```typescript
-import { FacturX } from 'factur-x-kit';
+import {FacturX} from 'factur-x-kit'
 
 // ZUGFeRD XML generieren
 const invoice = {
   invoiceNumber: 'INV-2026-000001',
   invoiceDate: '2026-02-21',
   seller: {
-    name: 'freenet DLS GmbH',
+    name: 'freenet DLS GmbH'
     // ...
   },
   buyer: {
-    name: 'Max Mustermann',
+    name: 'Max Mustermann'
     // ...
   },
   lineItems: [
     {
       description: 'Telekommunikationsdienstleistungen',
       quantity: 1,
-      unitPrice: 100.00,
+      unitPrice: 100.0,
       vatRate: 19
     }
   ]
-};
+}
 
 // Generiere ZUGFeRD XML
 const zugferdXml = FacturX.generateXML(invoice, {
   profile: 'COMFORT',
   version: '2.1.1'
-});
+})
 
 // Bette in PDF ein
-const pdfWithZugferd = await FacturX.embedInPDF(pdfBuffer, zugferdXml);
+const pdfWithZugferd = await FacturX.embedInPDF(pdfBuffer, zugferdXml)
 ```
 
 **Warum?**
+
 - ✅ Aktiv maintained (Dezember 2024)
 - ✅ TypeScript Support
 - ✅ EN 16931, ZUGFeRD, XRechnung
@@ -170,21 +179,22 @@ const pdfWithZugferd = await FacturX.embedInPDF(pdfBuffer, zugferdXml);
 ### **Option 2: @e-invoice-eu/core** ⭐ SEHR AKTUELL
 
 ```typescript
-import { Invoice, CIIGenerator } from '@e-invoice-eu/core';
+import {Invoice, CIIGenerator} from '@e-invoice-eu/core'
 
 // Rechnung erstellen
 const invoice = new Invoice({
   number: 'INV-2026-000001',
-  date: '2026-02-21',
+  date: '2026-02-21'
   // ...
-});
+})
 
 // CII Format (ZUGFeRD 2.x)
-const generator = new CIIGenerator();
-const zugferdXml = generator.generate(invoice);
+const generator = new CIIGenerator()
+const zugferdXml = generator.generate(invoice)
 ```
 
 **Warum?**
+
 - ✅ **SEHR frisch** (Update vor 6 Tagen!)
 - ✅ Unterstützt ALLE Formate (UBL, CII, XRechnung)
 - ✅ Deutsche E-Rechnung im Fokus
@@ -231,17 +241,15 @@ Entwicklungszeit gespart: ~2 Wochen! 🎉
 
 ```typescript
 // src/services/zugferd-generator.service.ts
-import { FacturX, InvoiceData, Profile } from 'factur-x-kit';
+import {FacturX, InvoiceData, Profile} from 'factur-x-kit'
 
 export class ZugferdGeneratorService {
-  
   async generateFromMCBS(mcbsInvoice: MCBSInvoice): Promise<string> {
-    
     // 1. Map MCBS zu factur-x-kit Format
     const invoiceData: InvoiceData = {
       invoiceNumber: mcbsInvoice.DOCUMENT.INVOICE_DATA.BILLNO,
       invoiceDate: this.parseDate(mcbsInvoice.DOCUMENT.INVOICE_DATA.INVOICE_DATE),
-      
+
       seller: {
         name: mcbsInvoice.DOCUMENT.HEADER.BRAND.DESC,
         address: {
@@ -252,7 +260,7 @@ export class ZugferdGeneratorService {
         },
         vatId: 'DE123456789'
       },
-      
+
       buyer: {
         name: this.formatBuyerName(mcbsInvoice.DOCUMENT.INVOICE_DATA.ADDRESS),
         address: {
@@ -262,30 +270,30 @@ export class ZugferdGeneratorService {
           country: mcbsInvoice.DOCUMENT.INVOICE_DATA.ADDRESS.COUNTRY || 'DE'
         }
       },
-      
+
       lineItems: this.extractLineItems(mcbsInvoice),
-      
+
       totals: {
         netAmount: parseFloat(mcbsInvoice.DOCUMENT.INVOICE_DATA.AMOUNTS.NET_AMOUNT),
         vatAmount: parseFloat(mcbsInvoice.DOCUMENT.INVOICE_DATA.AMOUNTS.VAT_AMOUNT),
         grossAmount: parseFloat(mcbsInvoice.DOCUMENT.INVOICE_DATA.AMOUNTS.GROSS_AMOUNT)
       },
-      
+
       currency: 'EUR'
-    };
-    
+    }
+
     // 2. Generiere ZUGFeRD XML mit Library
     const zugferdXml = FacturX.generateXML(invoiceData, {
       profile: Profile.COMFORT,
       version: '2.1.1'
-    });
-    
-    return zugferdXml;
+    })
+
+    return zugferdXml
   }
-  
+
   private extractLineItems(mcbsInvoice: MCBSInvoice): LineItem[] {
-    const items: LineItem[] = [];
-    
+    const items: LineItem[] = []
+
     if (mcbsInvoice.DOCUMENT.INVOICE_DATA.SECTIONS?.SECTION) {
       for (const section of mcbsInvoice.DOCUMENT.INVOICE_DATA.SECTIONS.SECTION) {
         if (section.LINES?.LINE) {
@@ -296,24 +304,24 @@ export class ZugferdGeneratorService {
               unitPrice: parseFloat(line.UNIT_PRICE || line.NET_AMOUNT),
               netAmount: parseFloat(line.NET_AMOUNT),
               vatRate: parseFloat(line.VAT_RATE || '19')
-            });
+            })
           }
         }
       }
     }
-    
-    return items;
+
+    return items
   }
-  
+
   private formatBuyerName(address: any): string {
-    if (address.COMPANY) return address.COMPANY;
-    return `${address.FIRST_NAME} ${address.LAST_NAME}`;
+    if (address.COMPANY) return address.COMPANY
+    return `${address.FIRST_NAME} ${address.LAST_NAME}`
   }
-  
+
   private parseDate(dateStr: string): Date {
     // DD.MM.YYYY → Date
-    const [day, month, year] = dateStr.split('.');
-    return new Date(+year, +month - 1, +day);
+    const [day, month, year] = dateStr.split('.')
+    return new Date(+year, +month - 1, +day)
   }
 }
 ```
@@ -328,7 +336,7 @@ export class ZugferdGeneratorService {
   "version": "1.0.0",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.0.0",
-    "factur-x-kit": "^0.3.1",  // ← EXISTIERT!
+    "factur-x-kit": "^0.3.1", // ← EXISTIERT!
     "fast-xml-parser": "^4.3.0"
   },
   "devDependencies": {
@@ -347,10 +355,12 @@ export class ZugferdGeneratorService {
 **Prüfung der Libraries:**
 
 ### factur-x-kit
+
 - Fokus: EN 16931, ZUGFeRD, XRechnung
 - **ZUGFeRD 3.0:** Wahrscheinlich noch nicht (zu prüfen in Doku)
 
 ### @e-invoice-eu/core
+
 - Sehr aktuell (Februar 2026!)
 - **XRechnung Support:** JA
 - **ZUGFeRD 3.0:** Möglich (zu prüfen)
@@ -387,12 +397,14 @@ Wartung:
 Ich habe in meinen vorherigen Antworten behauptet, es gäbe keine factur-x npm Library. **Das war falsch!**
 
 **Tatsache:**
+
 - ✅ Es gibt **MEHRERE** aktive Libraries
 - ✅ Einige sehr aktuell (Februar 2026!)
 - ✅ TypeScript Support vorhanden
 - ✅ Production-ready
 
 **Deine Challenge wird dadurch:**
+
 - ✅ **Einfacher** (Library statt Custom)
 - ✅ **Schneller** (2 Wochen gespart)
 - ✅ **Sicherer** (Community-tested)

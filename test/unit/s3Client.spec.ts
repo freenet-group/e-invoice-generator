@@ -1,7 +1,7 @@
-import { S3Client } from '@aws-sdk/client-s3'
+import {S3Client} from '@aws-sdk/client-s3'
 
 jest.mock('@aws-sdk/client-s3', () => ({
-    S3Client: jest.fn(),
+    S3Client: jest.fn()
 }))
 
 const MockS3Client = jest.mocked(S3Client)
@@ -9,7 +9,7 @@ const MockS3Client = jest.mocked(S3Client)
 function loadS3Client(): jest.MockedClass<typeof S3Client> {
     jest.resetModules()
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { S3Client: FreshS3Client } = <{ S3Client: jest.MockedClass<typeof S3Client> }>require('@aws-sdk/client-s3')
+    const {S3Client: FreshS3Client} = <{S3Client: jest.MockedClass<typeof S3Client>}>require('@aws-sdk/client-s3')
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     require('../../src/core/s3/s3Client')
     return FreshS3Client
@@ -19,7 +19,7 @@ describe('s3Client', () => {
     const originalEnv = process.env
 
     beforeEach(() => {
-        process.env = { ...originalEnv }
+        process.env = {...originalEnv}
         MockS3Client.mockClear()
     })
 
@@ -34,9 +34,7 @@ describe('s3Client', () => {
 
         const Client = loadS3Client()
 
-        expect(Client).toHaveBeenCalledWith(
-            expect.objectContaining({ region: 'us-east-1' })
-        )
+        expect(Client).toHaveBeenCalledWith(expect.objectContaining({region: 'us-east-1'}))
     })
 
     it('falls back to AWS_DEFAULT_REGION when AWS_REGION is unset', () => {
@@ -46,9 +44,7 @@ describe('s3Client', () => {
 
         const Client = loadS3Client()
 
-        expect(Client).toHaveBeenCalledWith(
-            expect.objectContaining({ region: 'eu-west-1' })
-        )
+        expect(Client).toHaveBeenCalledWith(expect.objectContaining({region: 'eu-west-1'}))
     })
 
     it('defaults to eu-central-1 when no region env vars are set', () => {
@@ -58,9 +54,7 @@ describe('s3Client', () => {
 
         const Client = loadS3Client()
 
-        expect(Client).toHaveBeenCalledWith(
-            expect.objectContaining({ region: 'eu-central-1' })
-        )
+        expect(Client).toHaveBeenCalledWith(expect.objectContaining({region: 'eu-central-1'}))
     })
 
     it('sets endpoint and forcePathStyle when AWS_ENDPOINT_URL is set', () => {
@@ -73,7 +67,7 @@ describe('s3Client', () => {
         expect(Client).toHaveBeenCalledWith(
             expect.objectContaining({
                 endpoint: 'http://localhost:4566',
-                forcePathStyle: true,
+                forcePathStyle: true
             })
         )
     })

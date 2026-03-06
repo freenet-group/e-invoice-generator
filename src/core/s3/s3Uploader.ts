@@ -1,5 +1,5 @@
-import { PutObjectCommand } from '@aws-sdk/client-s3'
-import { s3Client } from './s3Client'
+import {PutObjectCommand} from '@aws-sdk/client-s3'
+import {s3Client} from './s3Client'
 
 export interface S3UploadOptions {
     bucketName: string
@@ -16,7 +16,7 @@ export async function uploadToS3(options: S3UploadOptions): Promise<void> {
             Key: options.key,
             Body: options.body,
             ContentType: options.contentType,
-            ...(options.metadata === undefined ? {} : { Metadata: options.metadata }),
+            ...(options.metadata === undefined ? {} : {Metadata: options.metadata})
         })
     )
 }

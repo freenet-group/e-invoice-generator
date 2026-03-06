@@ -5,28 +5,32 @@
 ### AWS EventBridge
 
 **Was ist es?**
+
 - **Event Bus** - Zentrale Event-Routing-Plattform
 - **Event-Driven Architecture** Backbone
 - Pattern-basiertes Routing von Events
 
 **Konzept:**
+
 ```
 Event Producer → EventBridge Bus → (Pattern Matching) → Multiple Targets
 ```
 
 **Beispiel:**
+
 ```json
 {
   "source": "aws.s3",
   "detail-type": "Object Created",
   "detail": {
-    "bucket": { "name": "mcbs-invoices" },
-    "object": { "key": "raw/invoice.xml" }
+    "bucket": {"name": "mcbs-invoices"},
+    "object": {"key": "raw/invoice.xml"}
   }
 }
 ```
 
 EventBridge routet basierend auf **Patterns**:
+
 ```json
 {
   "source": ["aws.s3"],
@@ -44,16 +48,19 @@ EventBridge routet basierend auf **Patterns**:
 ### AWS SQS (Simple Queue Service)
 
 **Was ist es?**
+
 - **Message Queue** - FIFO oder Standard Queue
 - **Point-to-Point** Messaging
 - Messages werden gequeued und von Consumer abgeholt
 
 **Konzept:**
+
 ```
 Producer → SQS Queue → Consumer (Batch von Messages)
 ```
 
 **Beispiel:**
+
 ```
 Queue: invoice-processing
 Messages: [
@@ -70,18 +77,18 @@ Lambda holt: 10 Messages auf einmal (Batch)
 
 ## 📊 Vergleich: EventBridge vs. SQS
 
-| Feature | EventBridge | SQS |
-|---------|-------------|-----|
-| **Typ** | Event Bus (Pub/Sub) | Message Queue (Point-to-Point) |
-| **Routing** | Pattern Matching ✅ | Keine (direct) |
-| **Multiple Targets** | JA ✅ (Fan-Out) | NEIN (1 Consumer) |
-| **Batching** | NEIN ❌ | **JA ✅ (native)** |
-| **Retry** | 24h, 185x | Configurable (MaxReceiveCount) |
-| **DLQ** | JA | JA ✅ |
-| **Latenz** | ~50-200ms | ~100-500ms |
-| **Kosten** | $1/Million Events | $0.40/Million (nach Free Tier) |
-| **Ordering** | Nicht garantiert | FIFO: Garantiert ✅ |
-| **Message Size** | 256 KB | 256 KB (Standard), 2 GB (Extended) |
+| Feature              | EventBridge         | SQS                                |
+| -------------------- | ------------------- | ---------------------------------- |
+| **Typ**              | Event Bus (Pub/Sub) | Message Queue (Point-to-Point)     |
+| **Routing**          | Pattern Matching ✅ | Keine (direct)                     |
+| **Multiple Targets** | JA ✅ (Fan-Out)     | NEIN (1 Consumer)                  |
+| **Batching**         | NEIN ❌             | **JA ✅ (native)**                 |
+| **Retry**            | 24h, 185x           | Configurable (MaxReceiveCount)     |
+| **DLQ**              | JA                  | JA ✅                              |
+| **Latenz**           | ~50-200ms           | ~100-500ms                         |
+| **Kosten**           | $1/Million Events   | $0.40/Million (nach Free Tier)     |
+| **Ordering**         | Nicht garantiert    | FIFO: Garantiert ✅                |
+| **Message Size**     | 256 KB              | 256 KB (Standard), 2 GB (Extended) |
 
 ---
 
@@ -90,6 +97,7 @@ Lambda holt: 10 Messages auf einmal (Batch)
 ### Was ist Batching?
 
 **Problem ohne Batching:**
+
 ```
 1 S3 Event → 1 Lambda Invocation
 10.000 Events → 10.000 Lambda Invocations
@@ -100,6 +108,7 @@ Kosten:
 ```
 
 **Lösung mit Batching:**
+
 ```
 10 S3 Events → 1 SQS Batch → 1 Lambda Invocation
 10.000 Events → 1.000 Lambda Invocations (Batch Size 10)
@@ -131,6 +140,7 @@ S3EventNotification:
 ```
 
 **Was passiert:**
+
 ```
 S3 Upload: invoice-001.xml → SQS Message 1
 S3 Upload: invoice-002.xml → SQS Message 2
@@ -151,11 +161,12 @@ functions:
     events:
       - sqs:
           arn: !GetAtt InvoiceProcessingQueue.Arn
-          batchSize: 10                        # ← Batch Size!
-          maximumBatchingWindowInSeconds: 5    # ← Wait Time
+          batchSize: 10 # ← Batch Size!
+          maximumBatchingWindowInSeconds: 5 # ← Wait Time
 ```
 
 **Was passiert:**
+
 ```
 Lambda Service:
   1. Pollt SQS Queue
@@ -169,54 +180,51 @@ Lambda erhält: SQSEvent mit 10 Records
 ### 3. Lambda Handler verarbeitet Batch
 
 ```typescript
-import { SQSEvent, SQSRecord } from 'aws-lambda';
+import {SQSEvent, SQSRecord} from 'aws-lambda'
 
 export const handler = async (event: SQSEvent) => {
-  
-  console.log(`Processing batch of ${event.Records.length} messages`);
-  
+  console.log(`Processing batch of ${event.Records.length} messages`)
+
   // event.Records = Array of 10 Messages
-  const results = [];
-  
+  const results = []
+
   for (const record of event.Records) {
     try {
       // Parse S3 Event from SQS Message
-      const s3Event = JSON.parse(record.body);
-      const s3Record = s3Event.Records[0];
-      
-      const bucket = s3Record.s3.bucket.name;
-      const key = decodeURIComponent(s3Record.s3.object.key);
-      
-      console.log(`Processing: s3://${bucket}/${key}`);
-      
+      const s3Event = JSON.parse(record.body)
+      const s3Record = s3Event.Records[0]
+
+      const bucket = s3Record.s3.bucket.name
+      const key = decodeURIComponent(s3Record.s3.object.key)
+
+      console.log(`Processing: s3://${bucket}/${key}`)
+
       // Process invoice
-      await processInvoice(bucket, key);
-      
-      results.push({ status: 'success', key });
-      
+      await processInvoice(bucket, key)
+
+      results.push({status: 'success', key})
     } catch (error) {
-      console.error(`Failed to process ${record.messageId}:`, error);
-      
+      console.error(`Failed to process ${record.messageId}:`, error)
+
       // Partial Batch Failure!
-      results.push({ 
-        status: 'failed', 
-        messageId: record.messageId 
-      });
+      results.push({
+        status: 'failed',
+        messageId: record.messageId
+      })
     }
   }
-  
+
   // Report failed items back to SQS
-  const failures = results
-    .filter(r => r.status === 'failed')
-    .map(r => ({ itemIdentifier: r.messageId }));
-  
+  const failures = results.filter((r) => r.status === 'failed').map((r) => ({itemIdentifier: r.messageId}))
+
   return {
-    batchItemFailures: failures  // ← SQS retries only these!
-  };
-};
+    batchItemFailures: failures // ← SQS retries only these!
+  }
+}
 ```
 
 **Lambda erhält:**
+
 ```json
 {
   "Records": [
@@ -244,10 +252,11 @@ export const handler = async (event: SQSEvent) => {
 ### Batch Size
 
 ```yaml
-batchSize: 10  # Anzahl Messages pro Lambda Invocation
+batchSize: 10 # Anzahl Messages pro Lambda Invocation
 ```
 
 **Optionen:**
+
 - **Min:** 1 (kein Batching)
 - **Max:** 10.000 (Standard Queue)
 - **Max:** 10 (FIFO Queue)
@@ -256,22 +265,23 @@ batchSize: 10  # Anzahl Messages pro Lambda Invocation
 
 **Trade-offs:**
 
-| Batch Size | Vorteile | Nachteile |
-|------------|----------|-----------|
-| **1** | Niedrige Latenz | Hohe Lambda Costs ❌ |
-| **10** | ✅ **Balance** | - |
-| **100** | Niedrigste Costs | Höhere Latenz, Timeout-Risiko |
-| **1000** | Minimale Costs | Sehr hohes Timeout-Risiko ❌ |
+| Batch Size | Vorteile         | Nachteile                     |
+| ---------- | ---------------- | ----------------------------- |
+| **1**      | Niedrige Latenz  | Hohe Lambda Costs ❌          |
+| **10**     | ✅ **Balance**   | -                             |
+| **100**    | Niedrigste Costs | Höhere Latenz, Timeout-Risiko |
+| **1000**   | Minimale Costs   | Sehr hohes Timeout-Risiko ❌  |
 
 ---
 
 ### Maximum Batching Window
 
 ```yaml
-maximumBatchingWindowInSeconds: 5  # Wait Time
+maximumBatchingWindowInSeconds: 5 # Wait Time
 ```
 
 **Was passiert:**
+
 ```
 Zeit 0s:  SQS hat 3 Messages → Warte
 Zeit 1s:  SQS hat 5 Messages → Warte
@@ -280,12 +290,14 @@ Zeit 5s:  ⏰ Timeout! → Lambda aufrufen mit 8 Messages
 ```
 
 **Oder:**
+
 ```
 Zeit 0s:  SQS hat 3 Messages → Warte
 Zeit 0.5s: SQS hat 10 Messages → ✅ Batch voll! → Lambda sofort aufrufen
 ```
 
 **Empfehlung:**
+
 - **Low Latency:** 0-1 Sekunden
 - **Cost Optimized:** 5-10 Sekunden
 - **Balance:** 2-5 Sekunden ✅
@@ -346,7 +358,7 @@ Lambda (NO Batching):
   Invocations: 7.5M
   Duration: 7.5M × 2s × 2 GB = 30M GB-Sekunden
   Kosten: 30M × $0.0000166667 = $500/Monat
-  
+
 Total: $507.50/Monat
 ```
 
@@ -366,7 +378,7 @@ Lambda (WITH Batching):
   Invocations: 7.5M / 10 = 750.000
   Duration: 750k × 2s × 2 GB = 3M GB-Sekunden
   Kosten: 3M × $0.0000166667 = $50/Monat
-  
+
 Total: $53/Monat
 
 Einsparung: $454.50/Monat (90%!) 🎉
@@ -383,7 +395,7 @@ Lambda (WITH Batching 100):
   Invocations: 7.5M / 100 = 75.000
   Duration: 75k × 2s × 2 GB = 300k GB-Sekunden
   Kosten: 300k × $0.0000166667 = $5/Monat
-  
+
 Total: $8/Monat
 
 Einsparung: $499.50/Monat (98%!) 🚀
@@ -398,6 +410,7 @@ Einsparung: $499.50/Monat (98%!) 🚀
 ### ✅ Nutze EventBridge wenn:
 
 1. **Multi-Target Routing** nötig
+
    ```
    S3 Event → EventBridge
      ├─→ Lambda (E-Invoice)
@@ -406,6 +419,7 @@ Einsparung: $499.50/Monat (98%!) 🚀
    ```
 
 2. **Pattern Matching** nötig
+
    ```json
    {
      "source": ["aws.s3", "aws.dynamodb", "custom.billing"],
@@ -422,6 +436,7 @@ Einsparung: $499.50/Monat (98%!) 🚀
 ### ✅ Nutze SQS wenn:
 
 1. **Batching wichtig** (Kosten optimieren!) ⭐
+
    ```
    10-100 Messages pro Lambda = 90-99% Kosten-Ersparnis
    ```
@@ -441,6 +456,7 @@ Einsparung: $499.50/Monat (98%!) 🚀
 **S3 → SQS → Lambda** ⭐ EMPFOHLEN
 
 **Warum?**
+
 ```
 ✅ 90% Lambda Kosten gespart ($500 → $50)
 ✅ Batching reduziert Invocations
@@ -450,6 +466,7 @@ Einsparung: $499.50/Monat (98%!) 🚀
 ```
 
 **Config:**
+
 ```yaml
 batchSize: 10
 maximumBatchingWindowInSeconds: 5
@@ -462,6 +479,7 @@ maximumBatchingWindowInSeconds: 5
 **EventBridge → Lambda** ⭐ EMPFOHLEN
 
 **Warum?**
+
 ```
 ✅ Pattern-basiertes Routing (MCBS vs AWS Billing)
 ✅ Einfache Multi-Source Integration
@@ -470,6 +488,7 @@ maximumBatchingWindowInSeconds: 5
 ```
 
 **Alternative:**
+
 ```
 EventBridge → SQS → Lambda  (Best of Both!)
   ├─ EventBridge: Routing
@@ -517,7 +536,6 @@ EventBridge → SQS → Lambda  (Best of Both!)
 ```yaml
 resources:
   Resources:
-    
     # EventBridge Rule → SQS
     EventBridgeToSQSRule:
       Type: AWS::Events::Rule
@@ -533,7 +551,7 @@ resources:
         Targets:
           - Arn: !GetAtt InvoiceProcessingQueue.Arn
             Id: SQSTarget
-    
+
     # SQS Queue
     InvoiceProcessingQueue:
       Type: AWS::SQS::Queue
@@ -552,12 +570,14 @@ functions:
 ```
 
 **Vorteile:**
+
 - ✅ EventBridge: Multi-Source Routing
 - ✅ SQS: Batching (90% Kosten gespart)
 - ✅ DLQ für Fehler
 - ✅ Best of Both!
 
 **Kosten:**
+
 ```
 EventBridge: $7.50/Monat
 SQS: $3/Monat
@@ -604,18 +624,21 @@ Einsparung: $447/Monat (88%!) ✅
 **Hybrid: EventBridge → SQS → Lambda** ⭐
 
 **Warum?**
+
 1. ✅ EventBridge: Multi-Source Support (MCBS + AWS Billing)
 2. ✅ SQS: Batching (90% Lambda Kosten gespart!)
 3. ✅ DLQ: Error Handling
 4. ✅ Flexibel & Kosteneffizient
 
 **Config:**
+
 ```yaml
-batchSize: 10                        # 90% savings
-maximumBatchingWindowInSeconds: 5    # Max 5s latency
+batchSize: 10 # 90% savings
+maximumBatchingWindowInSeconds: 5 # Max 5s latency
 ```
 
 **Kosten:**
+
 ```
 EventBridge + SQS + Lambda (Batched): ~$60/Monat
 vs. EventBridge direkt: ~$507/Monat

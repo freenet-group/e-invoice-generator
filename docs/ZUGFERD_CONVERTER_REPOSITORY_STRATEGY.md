@@ -47,14 +47,14 @@ Ihr System hat klare Grenzen:
 
 ### 2. **Unterschiedliche Technologie-Stacks**
 
-| Aspekt | MCBS (mcbs-master) | ZUGFeRD Converter |
-|--------|-------------------|-------------------|
-| **Sprache** | Java 21 | **TypeScript** ⚠️ |
-| **Build Tool** | Gradle | **npm/pnpm** ⚠️ |
-| **Runtime** | JVM | **Node.js** ⚠️ |
-| **Deployment** | Traditional/ECS | **Lambda/Serverless** ⚠️ |
-| **Dependencies** | Spring Boot | **AWS SDK** ⚠️ |
-| **Team** | Java Backend | **TypeScript/Cloud** ⚠️ |
+| Aspekt           | MCBS (mcbs-master) | ZUGFeRD Converter        |
+| ---------------- | ------------------ | ------------------------ |
+| **Sprache**      | Java 21            | **TypeScript** ⚠️        |
+| **Build Tool**   | Gradle             | **npm/pnpm** ⚠️          |
+| **Runtime**      | JVM                | **Node.js** ⚠️           |
+| **Deployment**   | Traditional/ECS    | **Lambda/Serverless** ⚠️ |
+| **Dependencies** | Spring Boot        | **AWS SDK** ⚠️           |
+| **Team**         | Java Backend       | **TypeScript/Cloud** ⚠️  |
 
 **Unterschiedliche Stacks = Separates Repo empfohlen!** ✅
 
@@ -171,7 +171,7 @@ stages:
 build:
   script:
     - ./gradlew build
-  
+
 deploy:
   script:
     - deploy to VM/ECS
@@ -257,6 +257,7 @@ mcbs-zugferd-converter könnte später:
 ### Argument 1: "Aber es ist Teil des MCBS-Systems!"
 
 **Gegenargument:**
+
 - Ja, aber als **Consumer**, nicht als **Core-Component**
 - Klare Schnittstelle: MCBS XML (Contract)
 - Kann auch von HOMER oder anderen Systemen genutzt werden
@@ -266,6 +267,7 @@ mcbs-zugferd-converter könnte später:
 ### Argument 2: "Overhead durch mehrere Repos!"
 
 **Gegenargument:**
+
 - Git Submodules / Package Registry
 - Moderne CI/CD macht das einfach
 - Vorteile überwiegen!
@@ -275,6 +277,7 @@ mcbs-zugferd-converter könnte später:
 ### Argument 3: "Schwieriger zu koordinieren!"
 
 **Gegenargument:**
+
 - MCBS XML Schema ist der Contract
 - Versionierung des Schemas
 - Breaking Changes via Semantic Versioning
@@ -400,7 +403,7 @@ npm install @freenet/mcbs-types
 
 ```typescript
 // Usage
-import { MCBSInvoice } from '@freenet/mcbs-types';
+import {MCBSInvoice} from '@freenet/mcbs-types'
 ```
 
 ---
@@ -456,10 +459,11 @@ Konvertiert MCBS Billing XML zu ZUGFeRD/Factur-X E-Rechnungen.
 - ✅ Serverless Architecture
 
 ## Architecture
+```
 
-```
 MCBS XML → Lambda → ZUGFeRD XML → Lambda → E-Invoice PDF
-```
+
+````
 
 ## Quick Start
 
@@ -467,7 +471,7 @@ MCBS XML → Lambda → ZUGFeRD XML → Lambda → E-Invoice PDF
 npm install
 npm test
 npm run deploy:dev
-```
+````
 
 ## Documentation
 
@@ -490,6 +494,7 @@ npm run deploy:dev
 ## License
 
 Proprietary - freenet Group
+
 ```
 
 ---
@@ -497,16 +502,20 @@ Proprietary - freenet Group
 ## 🔐 CODEOWNERS
 
 ```
+
 # .github/CODEOWNERS
 
 # Default owners
-* @cloud-team @platform-team
+
+- @cloud-team @platform-team
 
 # Specific ownership
+
 /src/services/zugferd-generator.ts @e-invoicing-team
 /docs/ZUGFERD_COMPLIANCE.md @compliance-team
 /infrastructure/ @devops-team
-```
+
+````
 
 ---
 
@@ -528,7 +537,7 @@ npm install typescript @types/node --save-dev
 git add .
 git commit -m "Initial commit: MCBS ZUGFeRD Converter"
 git push
-```
+````
 
 ---
 
@@ -560,7 +569,7 @@ jobs:
 
 ```typescript
 // Schema-Import aus mcbs-master
-import { MCBSInvoice } from './schemas/mcbs-types';
+import {MCBSInvoice} from './schemas/mcbs-types'
 
 // S3 Event Trigger von mcbs-master
 // Lambda reagiert auf MCBS XML Upload
@@ -582,18 +591,18 @@ npm run deploy:prod
 
 ## ✅ Vorteile Zusammenfassung
 
-| Vorteil | Beschreibung |
-|---------|--------------|
-| **Separation of Concerns** | Klare Grenzen zwischen Services |
-| **Technologie-Freiheit** | TypeScript unabhängig von Java |
-| **Unabhängige Releases** | Lambda kann jederzeit deployed werden |
-| **Klare Ownership** | Cloud Team verantwortlich |
-| **Besseres CI/CD** | GitHub Actions statt Jenkins |
-| **Wiederverwendbarkeit** | Kann von mehreren Systemen genutzt werden |
-| **Open Source Potenzial** | Könnte später öffentlich werden |
-| **Einfacheres Testing** | Nur TypeScript/Node.js Umgebung |
-| **Compliance Isolation** | E-Invoicing separat auditierbar |
-| **Schnellere Entwicklung** | Kein Gradle/Java Overhead |
+| Vorteil                    | Beschreibung                              |
+| -------------------------- | ----------------------------------------- |
+| **Separation of Concerns** | Klare Grenzen zwischen Services           |
+| **Technologie-Freiheit**   | TypeScript unabhängig von Java            |
+| **Unabhängige Releases**   | Lambda kann jederzeit deployed werden     |
+| **Klare Ownership**        | Cloud Team verantwortlich                 |
+| **Besseres CI/CD**         | GitHub Actions statt Jenkins              |
+| **Wiederverwendbarkeit**   | Kann von mehreren Systemen genutzt werden |
+| **Open Source Potenzial**  | Könnte später öffentlich werden           |
+| **Einfacheres Testing**    | Nur TypeScript/Node.js Umgebung           |
+| **Compliance Isolation**   | E-Invoicing separat auditierbar           |
+| **Schnellere Entwicklung** | Kein Gradle/Java Overhead                 |
 
 ---
 
@@ -614,6 +623,7 @@ npm run deploy:prod
 **Repository-Name:** `mcbs-zugferd-converter`
 
 **Struktur:**
+
 ```
 mcbs-zugferd-converter/
 ├── src/
@@ -625,6 +635,7 @@ mcbs-zugferd-converter/
 ```
 
 **Integration mit mcbs-master:**
+
 - MCBS XML Schema als Dependency
 - S3 als Event-Bridge
 - Versionierter Contract

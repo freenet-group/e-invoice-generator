@@ -1,16 +1,11 @@
-import { GetObjectCommand } from '@aws-sdk/client-s3'
-import { s3Client } from './s3Client'
+import {GetObjectCommand} from '@aws-sdk/client-s3'
+import {s3Client} from './s3Client'
 
 const PDF_MAGIC = Buffer.from('%PDF')
 
-export async function loadPdfFromS3(
-    bucket: string,
-    key: string
-): Promise<Buffer | null> {
+export async function loadPdfFromS3(bucket: string, key: string): Promise<Buffer | null> {
     try {
-        const response = await s3Client.send(
-            new GetObjectCommand({ Bucket: bucket, Key: key })
-        )
+        const response = await s3Client.send(new GetObjectCommand({Bucket: bucket, Key: key}))
         const bytes = await response.Body?.transformToByteArray()
         if (bytes === undefined) {
             return null

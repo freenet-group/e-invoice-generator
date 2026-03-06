@@ -1,13 +1,7 @@
-import { XMLParser } from 'fast-xml-parser'
-import {
-    CommonInvoice,
-    InvoiceType,
-    PaymentMeansCode,
-    TaxCategoryCode,
-    UnitCode,
-} from '../../models/commonInvoice'
-import { RawInvoiceData } from '../invoiceAdapter'
-import { parseMcbsDocument, McbsDocument, McbsBillItem } from './zod/mcbsXmlInvoiceSchema'
+import {XMLParser} from 'fast-xml-parser'
+import {CommonInvoice, InvoiceType, PaymentMeansCode, TaxCategoryCode, UnitCode} from '../../models/commonInvoice'
+import {RawInvoiceData} from '../invoiceAdapter'
+import {parseMcbsDocument, McbsDocument, McbsBillItem} from './zod/mcbsXmlInvoiceSchema'
 
 const xmlParser = new XMLParser({
     ignoreAttributes: false,
@@ -17,23 +11,19 @@ const xmlParser = new XMLParser({
     numberParseOptions: {
         leadingZeros: false,
         hex: false,
-        skipLike: /.*/,    // ← alle Werte als string belassen, kein auto-parsing
-    },
+        skipLike: /.*/ // ← alle Werte als string belassen, kein auto-parsing
+    }
 })
 
 // ==================== XML Parsing ====================
 
-export function parseMcbsXml(
-    xmlString: string,
-    source: string,
-    metadata: RawInvoiceData['metadata']
-): RawInvoiceData {
+export function parseMcbsXml(xmlString: string, source: string, metadata: RawInvoiceData['metadata']): RawInvoiceData {
     const parsed = <Record<string, unknown>>xmlParser.parse(xmlString)
     const document = <Record<string, unknown> | undefined>parsed['DOCUMENT']
     if (document === undefined) {
         throw new Error(`Invalid MCBS XML: missing <DOCUMENT> root element in ${source}`)
     }
-    return { source: 'MCBS', data: document, metadata }
+    return {source: 'MCBS', data: document, metadata}
 }
 
 // ==================== Mapping ====================
@@ -57,16 +47,16 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
             streetName: '',
             cityName: '',
             postalCode: '',
-            countryCode: 'DE',
+            countryCode: 'DE'
         },
         taxRegistration: [
             {
                 id: {
                     value: 'DE123456789',
-                    schemeId: 'VAT',
-                },
-            },
-        ],
+                    schemeId: 'VAT'
+                }
+            }
+        ]
     }
 
     const buyer: CommonInvoice['buyer'] = {
@@ -75,30 +65,29 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
             streetName: toStringOrUndefined(address['STREET']) ?? '',
             cityName: toStringOrUndefined(address['CITY']) ?? '',
             postalCode: toStringOrUndefined(address['POSTCODE']) ?? '',
-            countryCode: toStringOrUndefined(address['COUNTRY']) ?? 'DE',
-        },
+            countryCode: toStringOrUndefined(address['COUNTRY']) ?? 'DE'
+        }
     }
 
     const paymentMeans: CommonInvoice['paymentMeans'] = [
         {
-            typeCode: paymentMode['PAYMENT_TYPE'] === 'SEPADEBIT'
-                ? PaymentMeansCode.SEPA_DIRECT_DEBIT
-                : PaymentMeansCode.CREDIT_TRANSFER,
+            typeCode:
+                paymentMode['PAYMENT_TYPE'] === 'SEPADEBIT'
+                    ? PaymentMeansCode.SEPA_DIRECT_DEBIT
+                    : PaymentMeansCode.CREDIT_TRANSFER,
             payeeAccount: {
-                iban: String(paymentMode['BANK_ACCOUNT'] ?? header['CLIENTBANK_ACNT'] ?? ''),
+                iban: String(paymentMode['BANK_ACCOUNT'] ?? header['CLIENTBANK_ACNT'] ?? '')
             },
             payeeInstitution: {
-                bic: String(paymentMode['BANK_CODE'] ?? header['CLIENTBANK_CODE'] ?? ''),
-            },
-        },
+                bic: String(paymentMode['BANK_CODE'] ?? header['CLIENTBANK_CODE'] ?? '')
+            }
+        }
     ]
 
     const taxes = mapTaxes(diffVats, amounts)
 
     const unpaid = amounts.UNPAID
-    const totalPrepaidAmount = unpaid !== undefined && unpaid !== 0
-        ? -unpaid
-        : undefined
+    const totalPrepaidAmount = unpaid !== undefined && unpaid !== 0 ? -unpaid : undefined
 
     const totals: CommonInvoice['totals'] = {
         lineTotal: amounts.NET_AMOUNT + amounts.INSEP_GROSS,
@@ -106,7 +95,7 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
         taxTotal: amounts.VAT_AMOUNT,
         grandTotal: amounts.GROSS_AMOUNT,
         totalPrepaidAmount,
-        duePayable: amounts.TO_PAY ?? amounts.GROSS_AMOUNT,
+        duePayable: amounts.TO_PAY ?? amounts.GROSS_AMOUNT
     }
 
     const lineItems = extractLineItems(frame)
@@ -119,22 +108,22 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
         source: {
             system: 'MCBS',
             id: rawData.metadata.id,
-            timestamp: rawData.metadata.timestamp,
+            timestamp: rawData.metadata.timestamp
         },
         seller,
         buyer,
         paymentMeans,
         paymentTerms: {
-            dueDate: toStringOrUndefined(paymentMode['DUE_DATE']),
+            dueDate: toStringOrUndefined(paymentMode['DUE_DATE'])
         },
         totals,
         taxes,
         lineItems,
         pdf: {
             s3Bucket: rawData.metadata.s3Bucket,
-            s3Key: rawData.metadata.pdfKey ?? rawData.metadata.s3Key,
+            s3Key: rawData.metadata.pdfKey ?? rawData.metadata.s3Key
         },
-        buyerReference: resolveBuyerReference(doc),
+        buyerReference: resolveBuyerReference(doc)
     }
 }
 
@@ -190,69 +179,59 @@ function extractUnitContext(unit: McbsUnitItem): UnitContext {
 
     const connects = contractData?.['CONNECTS']
     const connectArray = getConnectArray(connects?.['CONNECT'])
-    const mainConnect = connectArray.find(c => c['TYPE'] === 'MAIN')
-    const phoneNumber = toStringOrUndefined(mainConnect?.['CONNECT_NO'])  // ← toStringOrUndefined löst unknown → string | undefined
+    const mainConnect = connectArray.find((c) => c['TYPE'] === 'MAIN')
+    const phoneNumber = toStringOrUndefined(mainConnect?.['CONNECT_NO']) // ← toStringOrUndefined löst unknown → string | undefined
 
     const tariff = isTelco ? contractData?.['TARIFF'] : undefined
 
     return {
-        ...(contractNo === undefined ? {} : { contractReference: contractNo }),
-        ...(tariff === undefined ? {} : { tariff }),
-        ...(phoneNumber === undefined ? {} : { phoneNumber }),
-        ...(subscriberName === undefined ? {} : { subscriberName }),
-        ...(network === undefined ? {} : { network }),
+        ...(contractNo === undefined ? {} : {contractReference: contractNo}),
+        ...(tariff === undefined ? {} : {tariff}),
+        ...(phoneNumber === undefined ? {} : {phoneNumber}),
+        ...(subscriberName === undefined ? {} : {subscriberName}),
+        ...(network === undefined ? {} : {network})
     }
 }
 
 function extractLineItems(frame: McbsFrameArray): CommonInvoice['lineItems'] {
     const frameArray = Array.isArray(frame) ? frame : []
-    return frameArray
-        .filter((f: McbsFrameItem) => f['ID'] !== 'VOUCHERS')
-        .flatMap((f: McbsFrameItem) => extractFromFrame(f))
+    return frameArray.filter((f: McbsFrameItem) => f['ID'] !== 'VOUCHERS').flatMap((f: McbsFrameItem) => extractFromFrame(f))
 }
 
 function extractFromFrame(f: McbsFrameItem): CommonInvoice['lineItems'] {
-    const area = f['AREA']                                               // McbsFrameItem bereits typisiert
+    const area = f['AREA'] // McbsFrameItem bereits typisiert
     const unitArray: McbsUnitItem[] = Array.isArray(area?.['UNIT'])
-        ? area['UNIT']                                                   // Typ bereits McbsUnitItem[]
+        ? area['UNIT'] // Typ bereits McbsUnitItem[]
         : []
     return unitArray.flatMap((unit: McbsUnitItem) => extractFromUnit(unit))
 }
 
 function extractFromUnit(unit: McbsUnitItem): CommonInvoice['lineItems'] {
     const unitContext = extractUnitContext(unit)
-    const sections = unit['SECTIONS']                                    // McbsUnitItem bereits typisiert
+    const sections = unit['SECTIONS'] // McbsUnitItem bereits typisiert
     const sectionArray: McbsSectionItem[] = Array.isArray(sections?.['SECTION'])
-        ? sections['SECTION']                                            // Typ bereits McbsSectionItem[]
+        ? sections['SECTION'] // Typ bereits McbsSectionItem[]
         : []
-    return sectionArray.flatMap((section: McbsSectionItem) =>
-        extractFromSection(section, unitContext)
-    )
+    return sectionArray.flatMap((section: McbsSectionItem) => extractFromSection(section, unitContext))
 }
 
 function extractFromSection(section: McbsSectionItem, unitContext: UnitContext): CommonInvoice['lineItems'] {
-    const billitemGrps = section['BILLITEM_GRPS']                        // McbsSectionItem bereits typisiert
+    const billitemGrps = section['BILLITEM_GRPS'] // McbsSectionItem bereits typisiert
     const grpArray: McbsBillitemGrpItem[] = Array.isArray(billitemGrps?.['BILLITEM_GRP'])
-        ? billitemGrps['BILLITEM_GRP']                                   // Typ bereits McbsBillitemGrpItem[]
+        ? billitemGrps['BILLITEM_GRP'] // Typ bereits McbsBillitemGrpItem[]
         : []
-    return grpArray.flatMap((grp: McbsBillitemGrpItem) =>
-        extractFromGroup(grp, unitContext)
-    )
+    return grpArray.flatMap((grp: McbsBillitemGrpItem) => extractFromGroup(grp, unitContext))
 }
 
 function extractFromGroup(grp: McbsBillitemGrpItem, unitContext: UnitContext): CommonInvoice['lineItems'] {
-    const billitems = grp['BILLITEMS']                                   // McbsBillitemGrpItem bereits typisiert
+    const billitems = grp['BILLITEMS'] // McbsBillitemGrpItem bereits typisiert
     const billitemArray: McbsBillItem[] = Array.isArray(billitems?.['BILLITEM'])
-        ? billitems['BILLITEM']                                          // Typ bereits McbsBillItem[]
+        ? billitems['BILLITEM'] // Typ bereits McbsBillItem[]
         : []
-    return billitemArray.map((item: McbsBillItem, index: number) =>
-        mapBillItem(item, index + 1, unitContext)
-    )
+    return billitemArray.map((item: McbsBillItem, index: number) => mapBillItem(item, index + 1, unitContext))
 }
 
-function resolveSubscriberInfo(
-    unitContext: UnitContext
-): CommonInvoice['lineItems'][number]['subscriberInfo'] {
+function resolveSubscriberInfo(unitContext: UnitContext): CommonInvoice['lineItems'][number]['subscriberInfo'] {
     const phoneNumber = unitContext.phoneNumber
     const name = unitContext.subscriberName
     const network = unitContext.network
@@ -263,18 +242,14 @@ function resolveSubscriberInfo(
     }
 
     return {
-        ...(phoneNumber === undefined ? {} : { phoneNumber }),
-        ...(name === undefined ? {} : { name }),
-        ...(network === undefined ? {} : { network }),
-        ...(tariff === undefined ? {} : { tariff }),
+        ...(phoneNumber === undefined ? {} : {phoneNumber}),
+        ...(name === undefined ? {} : {name}),
+        ...(network === undefined ? {} : {network}),
+        ...(tariff === undefined ? {} : {tariff})
     }
 }
 
-function mapBillItem(
-    item: McbsBillItem,
-    fallbackId: number,
-    unitContext: UnitContext
-): CommonInvoice['lineItems'][number] {
+function mapBillItem(item: McbsBillItem, fallbackId: number, unitContext: UnitContext): CommonInvoice['lineItems'][number] {
     const sequenceNo: number = item['SEQUENCE_NO'] ?? fallbackId
     const period = parsePeriod(item['PERIOD'])
 
@@ -296,29 +271,27 @@ function mapBillItem(
         netAmount: item['CHARGE'],
         tax: {
             typeCode: 'VAT',
-            categoryCode: item['VAT_RATE'] === 'INCLUDED'
-                ? TaxCategoryCode.EXEMPT
-                : TaxCategoryCode.STANDARD,
-            rate: item['VAT_RATE'] === 'INCLUDED' ? 0 : item['VAT_RATE'],
+            categoryCode: item['VAT_RATE'] === 'INCLUDED' ? TaxCategoryCode.EXEMPT : TaxCategoryCode.STANDARD,
+            rate: item['VAT_RATE'] === 'INCLUDED' ? 0 : item['VAT_RATE']
         },
         contractReference: unitContext.contractReference,
-        ...(subscriberInfo === undefined ? {} : { subscriberInfo }),
+        ...(subscriberInfo === undefined ? {} : {subscriberInfo}),
         ...(contentProviderContact !== undefined || contentProviderServices !== undefined
             ? {
-                contentProvider: {
-                    ...(contentProviderContact === undefined ? {} : { contact: contentProviderContact }),
-                    ...(contentProviderServices === undefined ? {} : { services: contentProviderServices }),
-                }
-            }
+                  contentProvider: {
+                      ...(contentProviderContact === undefined ? {} : {contact: contentProviderContact}),
+                      ...(contentProviderServices === undefined ? {} : {services: contentProviderServices})
+                  }
+              }
             : {}),
         ...(periodStart !== undefined || periodEnd !== undefined
             ? {
-                period: {
-                    ...(periodStart === undefined ? {} : { start: periodStart }),
-                    ...(periodEnd === undefined ? {} : { end: periodEnd }),
-                }
-            }
-            : {}),
+                  period: {
+                      ...(periodStart === undefined ? {} : {start: periodStart}),
+                      ...(periodEnd === undefined ? {} : {end: periodEnd})
+                  }
+              }
+            : {})
     }
 }
 
@@ -335,12 +308,7 @@ function getConnectArray(connectValue: unknown): Record<string, unknown>[] {
 }
 
 function toStringOrUndefined(value: unknown): string | undefined {
-    if (
-        typeof value === 'string' ||
-        typeof value === 'number' ||
-        typeof value === 'bigint' ||
-        typeof value === 'boolean'
-    ) {
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') {
         return String(value)
     }
     return undefined
@@ -361,7 +329,7 @@ function mapTaxes(
                 categoryCode: TaxCategoryCode.STANDARD,
                 rate: vat.VAT_RATE,
                 basisAmount: vat.NET,
-                calculatedAmount: vat.VAT,
+                calculatedAmount: vat.VAT
             })
         }
     }
@@ -370,10 +338,10 @@ function mapTaxes(
     if (amounts.INSEP_GROSS > 0) {
         taxes.push({
             typeCode: 'VAT',
-            categoryCode: TaxCategoryCode.EXEMPT,  // war: OUTSIDE_SCOPE
+            categoryCode: TaxCategoryCode.EXEMPT, // war: OUTSIDE_SCOPE
             rate: 0,
             basisAmount: amounts.INSEP_GROSS,
-            calculatedAmount: 0,
+            calculatedAmount: 0
         })
     }
 
@@ -382,7 +350,7 @@ function mapTaxes(
 
 // getAmountByType und parseGermanNumber können komplett entfernt werden ✅
 
-function parsePeriod(periodString: string | undefined): { start?: string; end?: string } | undefined {
+function parsePeriod(periodString: string | undefined): {start?: string; end?: string} | undefined {
     if (periodString === undefined) {
         return undefined
     }
@@ -410,7 +378,7 @@ function parsePeriod(periodString: string | undefined): { start?: string; end?: 
     }
 
     return {
-        ...(start === undefined ? {} : { start }),
-        ...(end === undefined ? {} : { end }),
+        ...(start === undefined ? {} : {start}),
+        ...(end === undefined ? {} : {end})
     }
 }
