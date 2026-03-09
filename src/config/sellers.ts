@@ -13,7 +13,7 @@
  * Bei Änderungen: Datei editieren + Redeployment.
  */
 
-import type { Party } from '../models/commonInvoice'
+import type {Party} from '../models/commonInvoice'
 
 // ─── Seller-Konfiguration inkl. SEPA-Gläubiger-ID ──────────────────────────
 
@@ -56,7 +56,7 @@ const freenetAG: SellerConfig = {
 }
 
 /**
- * 
+ *
  * GROUP_SHORTCUT "KM" mappt auf einen abweichenden Rechnungssteller.
  */
 const kmSeller: SellerConfig = {
@@ -116,10 +116,7 @@ const sellerByGroupShortcut: Readonly<Record<string, SellerConfig>> = {
  * Gibt den Seller anhand des MCBS GROUP_SHORTCUT zurück.
  * Unbekannte Kürzel → freenetAG als sicherer Fallback (mit Warnung im Log).
  */
-export function getSellerByGroupShortcut(
-    groupShortcut: string | undefined,
-    warn?: (msg: string) => void
-): SellerConfig {
+export function getSellerByGroupShortcut(groupShortcut: string | undefined, warn?: (msg: string) => void): SellerConfig {
     if (groupShortcut === undefined || groupShortcut === '') {
         warn?.(`BRAND/GROUP_SHORTCUT fehlt – verwende Default-Seller (freenetAG)`)
         return freenetAG

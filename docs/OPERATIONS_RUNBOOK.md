@@ -28,11 +28,11 @@ Nach **3 fehlgeschlagenen Versuchen** landet eine Message in der DLQ. Die DLQ-Na
 
 ## SNS Alert Topics
 
-| Stage       | Topic ARN |
-| ----------- | --------- |
-| dev         | `arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-alerts-dev` |
-| staging     | `arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-alerts-staging` |
-| production  | `arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-alerts-production` |
+| Stage      | Topic ARN                                                                    |
+| ---------- | ---------------------------------------------------------------------------- |
+| dev        | `arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-alerts-dev`        |
+| staging    | `arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-alerts-staging`    |
+| production | `arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-alerts-production` |
 
 Der exakte ARN steht nach jedem Deployment im Stack Output `AlertTopicARN` und im CloudFormation Stack in der AWS Console.
 
@@ -92,13 +92,13 @@ Die SNS-Nachricht enthält JSON mit folgendem Schema:
 
 ### 2. Fehlertyp bestimmen
 
-| `errorType` | Ursache | Sofortmaßnahme |
-| ----------- | ------- | -------------- |
-| `NoSuchKey` | XML- oder PDF-Datei fehlt im S3 Bucket | Datei manuell prüfen/nachliefern, dann DLQ-Message replayed |
-| `ZodError` | MCBS-XML hat unbekanntes Format (Schema-Änderung) | Development informieren, Schema-Update nötig |
-| `ValidationError` | Erzeugte E-Rechnung besteht KOSIT-Validierung nicht | Development informieren, Mapping-Fehler |
-| `TimeoutError` | Lambda-Timeout (>60s) | Einzelne große Datei? Memory/Timeout in `serverless.yml` erhöhen |
-| `AccessDenied` | IAM-Berechtigungsfehler | IAM-Rolle `e-invoice-generator-lambda-role` prüfen |
+| `errorType`       | Ursache                                             | Sofortmaßnahme                                                   |
+| ----------------- | --------------------------------------------------- | ---------------------------------------------------------------- |
+| `NoSuchKey`       | XML- oder PDF-Datei fehlt im S3 Bucket              | Datei manuell prüfen/nachliefern, dann DLQ-Message replayed      |
+| `ZodError`        | MCBS-XML hat unbekanntes Format (Schema-Änderung)   | Development informieren, Schema-Update nötig                     |
+| `ValidationError` | Erzeugte E-Rechnung besteht KOSIT-Validierung nicht | Development informieren, Mapping-Fehler                          |
+| `TimeoutError`    | Lambda-Timeout (>60s)                               | Einzelne große Datei? Memory/Timeout in `serverless.yml` erhöhen |
+| `AccessDenied`    | IAM-Berechtigungsfehler                             | IAM-Rolle `e-invoice-generator-lambda-role` prüfen               |
 
 ### 3. Fehlgeschlagene Messages reprocessen
 
@@ -130,6 +130,7 @@ aws logs filter-log-events \
 ```
 
 Oder im CloudWatch Dashboard:
+
 ```
 https://console.aws.amazon.com/cloudwatch/home?region=eu-central-1#dashboards:name=e-invoice-generator-production
 ```
