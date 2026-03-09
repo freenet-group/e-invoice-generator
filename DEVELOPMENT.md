@@ -361,4 +361,91 @@ npm run logs                 # CloudWatch Logs
 
 ---
 
+## 🚀 Deployment
+
+### Dev-Stage (lokal, direkt)
+
+Persönliche Dev-Stages werden direkt vom lokalen Rechner aus deployed — kein CI/CD nötig:
+
+```bash
+npx serverless deploy --stage {dein-name} --aws-profile sso-session
+```
+
+Für diese Stages legt der Stack Bucket, SSM-Parameter und alle Ressourcen selbst an (`createBucket: true`).
+
+### Staging & Production (via GitHub Actions + OIDC)
+
+Staging- und Production-Deployments laufen ausschließlich über den GitHub Actions Workflow `.github/workflows/deploy.yml` (manueller Trigger via `workflow_dispatch`).
+
+#### Wie die AWS-Authentifizierung funktioniert
+
+Das Projekt verwendet **GitHub OIDC** — es werden keine langlebigen AWS Access Keys gespeichert. Stattdessen:
+
+1. GitHub Actions fordert beim OIDC-Provider ein **kurzlebiges JWT-Token** an, das die Repository-Identität (`repo:freenet-group/e-invoice-generator`) enthält
+2. Der Workflow übergibt dieses Token an `aws-actions/configure-aws-credentials`
+3. AWS STS prüft das Token gegen die **Trust Policy** der Deployment-Rolle in `billing-aws-account-iac`
+4. Bei Übereinstimmung stellt AWS temporäre Credentials aus (`AssumeRoleWithWebIdentity`) — gültig für die Dauer des Workflows
+
+```yaml
+# .github/workflows/deploy.yml (vereinfacht)
+- name: Connect to AWS
+  uses: aws-actions/configure-aws-credentials@v4
+  with:
+    role-to-assume: ${{ vars.E_INVOICE_NONPROD_DEPLOY_ROLE_ARN }} # staging
+    #              ${{ vars.E_INVOICE_PROD_DEPLOY_ROLE_ARN }}       # production
+    aws-region: eu-central-1
+```
+
+#### Voraussetzungen in `billing-aws-account-iac`
+
+Die IAM-Rollen müssen dort mit folgender Trust Policy angelegt sein:
+
+```json
+{
+  "Effect": "Allow",
+  "Principal": {
+    "Federated": "arn:aws:iam::{accountId}:oidc-provider/token.actions.githubusercontent.com"
+  },
+  "Action": "sts:AssumeRoleWithWebIdentity",
+  "Condition": {
+    "StringEquals": {
+      "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+    },
+    "StringLike": {
+      "token.actions.githubusercontent.com:sub": "repo:freenet-group/e-invoice-generator:*"
+    }
+  }
+}
+```
+
+#### GitHub Repository Variables
+
+Die Rollen-ARNs werden als **Repository Variables** (nicht Secrets) hinterlegt:
+
+| Variable                            | Beschreibung                             |
+| ----------------------------------- | ---------------------------------------- |
+| `E_INVOICE_NONPROD_DEPLOY_ROLE_ARN` | Deployment-Rolle für `dev` und `staging` |
+| `E_INVOICE_PROD_DEPLOY_ROLE_ARN`    | Deployment-Rolle für `production`        |
+
+Setzen unter: `github.com/freenet-group/e-invoice-generator → Settings → Secrets and variables → Actions → Variables`
+
+#### Deployment anstoßen
+
+```
+github.com/freenet-group/e-invoice-generator
+  → Actions → "e-invoice-generator - deploy"
+  → Run workflow → Stage auswählen → Run
+```
+
+#### Was staging/production von dev unterscheidet
+
+|                                 | dev / persönliche Stage | staging / production                             |
+| ------------------------------- | ----------------------- | ------------------------------------------------ |
+| Bucket wird erstellt            | ✅ durch diesen Stack   | ❌ extern via IaC                                |
+| SSM Parameter werden erstellt   | ✅ durch diesen Stack   | ❌ extern via IaC                                |
+| Deployment-Weg                  | lokal (`sso-session`)   | GitHub Actions (OIDC)                            |
+| Voraussetzung vor erstem Deploy | keine                   | Bucket + SSM Parameter müssen bereits existieren |
+
+---
+
 **Du entwickelst jetzt LOKAL ohne AWS - schnelles Iterieren!** ✅
