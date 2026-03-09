@@ -102,14 +102,15 @@ export class EInvoiceProcessingService {
 }
 
 async function defaultUploadResult(zugferdResult: string | Uint8Array, invoiceNumber: string): Promise<void> {
-    const bucket = process.env['OUTPUT_BUCKET_NAME']
+    const bucket = process.env['BUCKET_NAME']
     if (bucket === undefined || bucket === '') {
-        throw new Error('OUTPUT_BUCKET_NAME environment variable is not set')
+        throw new Error('BUCKET_NAME environment variable is not set')
     }
+    const outputPrefix = process.env['OUTPUT_PREFIX'] ?? 'e-invoices/'
     const isXml = typeof zugferdResult === 'string'
     await uploadToS3({
         bucketName: bucket,
-        key: `e-invoices/${invoiceNumber}.${isXml ? 'xml' : 'pdf'}`,
+        key: `${outputPrefix}${invoiceNumber}.${isXml ? 'xml' : 'pdf'}`,
         body: isXml ? Buffer.from(zugferdResult, 'utf-8') : Buffer.from(zugferdResult),
         contentType: isXml ? 'application/xml' : 'application/pdf',
         metadata: {invoiceNumber}

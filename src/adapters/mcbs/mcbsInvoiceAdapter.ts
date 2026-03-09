@@ -4,7 +4,7 @@ import {loadXmlFromS3OrLocal} from '../../core/s3/s3XmlLoader'
 import {loadPdfFromS3} from '../../core/s3/s3PdfLoader'
 import {parseMcbsXml, mapMcbsToCommonInvoice} from './mcbsInvoiceMapper'
 
-const defaultResolvePrimaryKey = (triggerKey: string): string => triggerKey.replace(/\.pdf$/i, '.xml') // raw/pdf/invoice-123.pdf → raw/pdf/invoice-123.xml
+const defaultResolvePrimaryKey = (triggerKey: string): string => triggerKey.replace(/\.pdf$/i, '.xml') // raw/pdf/invoice-123.pdf → raw/pdf/invoice-123.xml (Fallback; Handler nutzt PDF_PREFIX/XML_PREFIX)
 
 export class MCBSAdapter implements InvoiceAdapter {
     private readonly resolvePrimaryKey: (triggerKey: string) => string

@@ -18,8 +18,10 @@ provider:
   environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
     DLQ_QUEUE_URL: !Ref InvoiceProcessingDLQ
-    PDF_BUCKET_NAME: ${self:custom.pdfBucketName}
-    OUTPUT_BUCKET_NAME: ${self:custom.outputBucketName}
+    BUCKET_NAME: ${self:custom.bucketName}
+    XML_PREFIX: ${self:custom.prefixes.xml}
+    PDF_PREFIX: ${self:custom.prefixes.pdf}
+    OUTPUT_PREFIX: ${self:custom.prefixes.output}
     STAGE: ${self:provider.stage}
     ACTIVE_ADAPTER: ${self:custom.stages.${self:provider.stage}.activeAdapter, self:custom.stages.dev.activeAdapter}
     E_INVOICE_PROFILE: ${self:custom.stages.${self:provider.stage}.eInvoiceProfile, self:custom.stages.dev.eInvoiceProfile}
@@ -46,10 +48,6 @@ functions:
           batchSize: 10 # ← Process 10 messages at once (90% cost savings!)
           functionResponseType: ReportBatchItemFailures # Partial batch failures
 
-    # Function-specific environment
-    environment:
-      BUCKET_NAME: ${self:custom.outputBucketName}
-
   # DLQ Processor (Alerting bei fehlgeschlagenen Nachrichten)
   processDLQ:
     handler: src/handlers/dlqProcessor.handler
@@ -68,16 +66,24 @@ functions:
 
 # AWS Resources
 resources:
+  Conditions:
+    # Bucket nur in Stages anlegen, die ihn selbst verwalten (dev / persönliche Stages).
+    # staging + production: Bucket wird außerhalb über IaC (Terraform/CDK) bereitgestellt.
+    CreateBucket: !Equals
+      - '${self:custom.stages.${self:provider.stage}.createBucket, self:custom.stages.dev.createBucket}'
+      - 'true'
+
   Resources:
     # ==================== S3 Buckets ====================
 
-    # MCBS Invoices Bucket (Legacy)
+    # MCBS Invoices Bucket (nur in Stages mit createBucket: true)
     McbsInvoicesBucket:
       Type: AWS::S3::Bucket
+      Condition: CreateBucket
       DependsOn:
         - InvoiceProcessingQueuePolicy
       Properties:
-        BucketName: ${self:custom.pdfBucketName}
+        BucketName: ${self:custom.bucketName}
         VersioningConfiguration:
           Status: Enabled
 
@@ -143,10 +149,10 @@ resources:
           detail:
             bucket:
               name:
-                - ${self:custom.pdfBucketName}
+                - ${self:custom.bucketName}
             object:
               key:
-                - wildcard: 'raw/*.pdf'
+                - wildcard: '${self:custom.prefixes.pdf}*.pdf'
 
         # Target: SQS Queue (for batching)
         Targets:
@@ -287,6 +293,46 @@ resources:
             ]
           }
 
+    # ==================== SSM Parameter ====================
+
+    # SSM Parameter nur in Stages anlegen, die den Bucket selbst verwalten (dev / persönliche Stages).
+    # staging + production: Parameter werden außerhalb zusammen mit dem S3 Bucket über IaC bereitgestellt.
+    BucketNameParameter:
+      Type: AWS::SSM::Parameter
+      Condition: CreateBucket
+      Properties:
+        Name: /mcbs-invoices/${self:provider.stage}/bucket
+        Value: ${self:custom.bucketName}
+        Type: String
+        Description: S3 Bucket Name für MCBS-Rechnungen (Stage ${self:provider.stage})
+
+    XmlPrefixParameter:
+      Type: AWS::SSM::Parameter
+      Condition: CreateBucket
+      Properties:
+        Name: /mcbs-invoices/${self:provider.stage}/mcbs-invoice-xml-prefix
+        Value: ${self:custom.prefixes.xml}
+        Type: String
+        Description: S3-Prefix für eingehende MCBS-XML-Rechnungen
+
+    PdfPrefixParameter:
+      Type: AWS::SSM::Parameter
+      Condition: CreateBucket
+      Properties:
+        Name: /mcbs-invoices/${self:provider.stage}/mcbs-invoice-pdf-prefix
+        Value: ${self:custom.prefixes.pdf}
+        Type: String
+        Description: S3-Prefix für eingehende Kunden-PDFs
+
+    OutputPrefixParameter:
+      Type: AWS::SSM::Parameter
+      Condition: CreateBucket
+      Properties:
+        Name: /mcbs-invoices/${self:provider.stage}/mcbs-invoice-output-prefix
+        Value: ${self:custom.prefixes.output}
+        Type: String
+        Description: S3-Prefix für generierte ZUGFeRD-E-Rechnungen
+
     # ==================== SNS ====================
 
     # Alert Topic für DLQ-Fehler und Lambda-Errors
@@ -324,7 +370,8 @@ resources:
 
   Outputs:
     S3BucketName:
-      Description: S3 Bucket for MCBS Invoices
+      Condition: CreateBucket
+      Description: S3 Bucket for MCBS Invoices (nur wenn vom Stack erstellt)
       Value: !Ref McbsInvoicesBucket
       Export:
         Name: ${self:service}-${self:provider.stage}-mcbs-invoices-bucket
@@ -382,9 +429,14 @@ build:
 
 # Custom Configuration
 custom:
-  # Stage-specific settings
-  pdfBucketName: mcbs-invoices-${self:provider.stage}
-  outputBucketName: mcbs-invoices-${self:provider.stage}
+  # Ein Bucket – Artefakte werden über Präfixe getrennt
+  bucketName: mcbs-invoices-${self:provider.stage}
+
+  # S3-Präfixe je Artefakttyp
+  prefixes:
+    xml: 'raw/xml/'           # Eingehende MCBS-XML
+    pdf: 'raw/pdf/'           # Eingehende Kunden-PDFs
+    output: 'e-invoices/'     # Generierte ZUGFeRD-E-Rechnungen
 
   # Stage-specific overrides
   stages:
@@ -396,10 +448,11 @@ custom:
       lambdaTimeout: 60
       batchSize: 10
       maxBatchingWindow: 5
-      s3RuleState: ENABLED # S3 Events → MCBS Adapter
-      activeRuleState: DISABLED # Kein zweiter Adapter aktiv
+      s3RuleState: ENABLED       # S3 Events → MCBS Adapter
+      activeRuleState: DISABLED  # Kein zweiter Adapter aktiv
       eventSource: custom.mcbs
       eventDetailType: Object Created
+      createBucket: 'true'       # Bucket wird vom Stack erstellt (dev + persönliche Stages)
 
     staging:
       logLevel: info
@@ -413,6 +466,7 @@ custom:
       activeRuleState: DISABLED
       eventSource: custom.mcbs
       eventDetailType: Object Created
+      createBucket: 'false'      # Bucket extern verwaltet (IaC)
 
     production:
       logLevel: warn
@@ -423,10 +477,11 @@ custom:
       batchSize: 10
       maxBatchingWindow: 5
       reservedConcurrency: 200
-      s3RuleState: DISABLED # MCBS nicht aktiv in production
-      activeRuleState: ENABLED # Billing Adapter aktiv
+      s3RuleState: DISABLED      # MCBS nicht aktiv in production
+      activeRuleState: ENABLED   # Billing Adapter aktiv
       eventSource: custom.billing
       eventDetailType: Invoice Created
+      createBucket: 'false'      # Bucket extern verwaltet (IaC)
 
 # Package Configuration
 package:

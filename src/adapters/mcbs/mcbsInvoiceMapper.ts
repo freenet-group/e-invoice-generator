@@ -2,6 +2,7 @@ import {XMLParser} from 'fast-xml-parser'
 import {CommonInvoice, InvoiceType, PaymentMeansCode, TaxCategoryCode, UnitCode} from '../../models/commonInvoice'
 import {RawInvoiceData} from '../invoiceAdapter'
 import {parseMcbsDocument, McbsDocument, McbsBillItem} from './zod/mcbsXmlInvoiceSchema'
+import {getSellerByGroupShortcut} from '../../config/sellers'
 
 const xmlParser = new XMLParser({
     ignoreAttributes: false,
@@ -41,23 +42,8 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
     const address = recipient['ADDRESS']
 
     const brand = <Record<string, unknown> | undefined>header['BRAND']
-    const seller: CommonInvoice['seller'] = {
-        name: toStringOrUndefined(brand?.['DESC']) ?? toStringOrUndefined(brand?.['CODE_DESC']) ?? '',
-        postalAddress: {
-            streetName: '',
-            cityName: '',
-            postalCode: '',
-            countryCode: 'DE'
-        },
-        taxRegistration: [
-            {
-                id: {
-                    value: 'DE123456789',
-                    schemeId: 'VAT'
-                }
-            }
-        ]
-    }
+    const groupShortcut = toStringOrUndefined(brand?.['GROUP_SHORTCUT'])
+    const seller: CommonInvoice['seller'] = getSellerByGroupShortcut(groupShortcut)
 
     const buyer: CommonInvoice['buyer'] = {
         name: [toStringOrUndefined(address['FIRSTNAME']), toStringOrUndefined(address['NAME'])].filter(Boolean).join(' '),

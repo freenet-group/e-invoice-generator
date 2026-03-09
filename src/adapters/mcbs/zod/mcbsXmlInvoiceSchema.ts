@@ -241,7 +241,8 @@ const McbsHeaderSchema = z.object({
     BRAND: z
         .object({
             DESC: z.string().optional(),
-            CODE_DESC: z.string().optional()
+            CODE_DESC: z.string().optional(),
+            GROUP_SHORTCUT: z.string().optional()
         })
         .optional(),
     DELIVERY_MODE: DeliveryModeSchema

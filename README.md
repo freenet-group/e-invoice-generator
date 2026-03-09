@@ -114,8 +114,8 @@ interface InvoiceAdapter {
 ### MCBS Adapter (implementiert)
 
 - **Trigger**: S3 Object Created → EventBridge (`source: custom.mcbs`)
-- **Input**: XML-Dateien in S3 (`raw/*.xml`)
-- **PDF**: Separate PDF-Datei im selben Bucket (`raw/*.pdf`)
+- **Input**: XML-Dateien in S3 unter dem Präfix `XML_PREFIX` (Standard: `raw/xml/`)
+- **PDF**: Separate PDF-Datei im selben Bucket unter `PDF_PREFIX` (Standard: `raw/pdf/`)
 - **Mapping**: MCBS XML → `CommonInvoice` via Zod-Schema-Validierung
 
 ### Weiterer Adapter (geplant)
@@ -166,14 +166,15 @@ export async function generateEInvoice(
 
 ## S3 Bucket Struktur
 
-In der Standardkonfiguration liegt alles in einem Bucket, getrennt durch Präfixe:
+Alle Artefakte liegen in einem gemeinsamen Bucket, getrennt durch Präfixe:
 
 ```
 mcbs-invoices-{stage}/
-├── raw/                          ← Eingehende MCBS-Dateien
-│   ├── invoice.xml               ← Trigger für EventBridge
-│   └── invoice.pdf               ← Original-PDF
-└── e-invoices/                   ← Generierte E-Rechnungen
+├── raw/xml/                      ← Eingehende MCBS-XML-Dateien   (XML_PREFIX)
+│   └── {invoiceNumber}.xml
+├── raw/pdf/                      ← Eingehende Kunden-PDFs         (PDF_PREFIX)
+│   └── {invoiceNumber}.pdf
+└── e-invoices/                   ← Generierte E-Rechnungen        (OUTPUT_PREFIX)
     ├── {invoiceNumber}.pdf       ← ZUGFeRD PDF/A-3b
     └── {invoiceNumber}.xml       ← Reines XML (XRechnung)
 ```
@@ -185,13 +186,41 @@ mcbs-invoices-{stage}/
 
 ### Umgebungsvariablen
 
-| Variable             | Beschreibung                            | Beispiel                |
-| -------------------- | --------------------------------------- | ----------------------- |
-| `PDF_BUCKET_NAME`    | Bucket mit eingehenden PDFs             | `mcbs-invoices-dev`     |
-| `OUTPUT_BUCKET_NAME` | Bucket für generierte E-Rechnungen      | `mcbs-invoices-dev`     |
-| `E_INVOICE_PROFILE`  | Factur-X / XRechnung Profil             | `factur-x-en16931`      |
-| `ACTIVE_ADAPTER`     | EventBridge source des aktiven Adapters | `custom.mcbs`           |
-| `AWS_ENDPOINT_URL`   | Nur lokal/LocalStack                    | `http://localhost:4566` |
+Die Werte werden beim Deployment aus `serverless.yml` (`custom.prefixes`) als Umgebungsvariablen injiziert:
+
+| Variable           | Beschreibung                               | Standard        |
+| ------------------ | ------------------------------------------ | --------------- |
+| `BUCKET_NAME`      | S3 Bucket für alle Artefakte               | `mcbs-invoices-{stage}` |
+| `XML_PREFIX`       | Präfix für eingehende MCBS-XML-Dateien     | `raw/xml/`      |
+| `PDF_PREFIX`       | Präfix für eingehende Kunden-PDFs          | `raw/pdf/`      |
+| `OUTPUT_PREFIX`    | Präfix für generierte E-Rechnungen         | `e-invoices/`   |
+| `E_INVOICE_PROFILE`| Factur-X / XRechnung Profil                | `factur-x-en16931` |
+| `ACTIVE_ADAPTER`   | EventBridge source des aktiven Adapters    | `custom.mcbs`   |
+| `AWS_ENDPOINT_URL` | Nur lokal/LocalStack                       | `http://localhost:4566` |
+
+> **Wichtig:** Die Präfixe werden beim Deployment eingefroren. Werden sie extern (durch das schreibende System oder per IaC) geändert, muss dieser Service **neu deployed** werden, damit EventBridge-Rule, Umgebungsvariablen und S3-Zugriffe konsistent bleiben.
+
+---
+
+## SSM Parameter
+
+Bucket-Name und Präfixe werden in den AWS Systems Manager Parameter Store geschrieben, damit andere Services sie zur Laufzeit nachschlagen können, ohne direkte Abhängigkeiten auf diesen Stack.
+
+| SSM-Pfad | Inhalt | Beispielwert |
+| -------- | ------ | ------------ |
+| `/mcbs-invoices/{stage}/bucket` | S3 Bucket-Name | `mcbs-invoices-staging` |
+| `/mcbs-invoices/{stage}/mcbs-invoice-xml-prefix` | Präfix eingehender MCBS-XML | `raw/xml/` |
+| `/mcbs-invoices/{stage}/mcbs-invoice-pdf-prefix` | Präfix eingehender Kunden-PDFs | `raw/pdf/` |
+| `/mcbs-invoices/{stage}/mcbs-invoice-output-prefix` | Präfix generierter E-Rechnungen | `e-invoices/` |
+
+### Wer legt die Parameter an?
+
+| Stage | Bucket & SSM Parameter | Verantwortung |
+| ----- | ---------------------- | ------------- |
+| `dev`, persönliche Stages | Werden **von diesem Stack** erstellt (`Condition: CreateBucket`) | Serverless Deploy |
+| `staging`, `production` | Werden **extern** bereitgestellt, zusammen mit dem S3 Bucket | IaC (Terraform / CDK) |
+
+In `staging` und `production` setzt dieser Stack voraus, dass alle vier SSM Parameter unter den obigen Pfaden bereits vorhanden sind, bevor das erste Deployment erfolgt. Fehlen sie, schlägt die Lambda-Konfiguration nicht fehl (Werte kommen aus Env-Vars), aber andere Services finden die Parameter nicht.
 
 ---
 

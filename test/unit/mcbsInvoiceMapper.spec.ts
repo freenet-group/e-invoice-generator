@@ -323,7 +323,7 @@ describe('mcbsInvoiceMapper', () => {
             baseMetadata
         )
         const result = mapMcbsToCommonInvoice(raw)
-        expect(result.seller.name).toBe('Freenet Mobile')
+        expect(result.seller.name).toBe('freenet DLS GmbH')
     })
 
     // ── pdfKey in metadata ──

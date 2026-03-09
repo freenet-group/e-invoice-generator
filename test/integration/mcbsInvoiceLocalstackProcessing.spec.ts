@@ -172,8 +172,8 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
         process.env['AWS_SECRET_ACCESS_KEY'] = 'test'
         process.env['AWS_REGION'] = 'eu-central-1'
         process.env['AWS_DEFAULT_REGION'] = 'eu-central-1'
-        process.env['OUTPUT_BUCKET_NAME'] = OUTPUT_BUCKET
-        process.env['PDF_BUCKET_NAME'] = RAW_BUCKET
+        process.env['BUCKET_NAME'] = RAW_BUCKET
+        process.env['OUTPUT_PREFIX'] = 'e-invoices/'
         process.env['ACTIVE_ADAPTER'] = 'custom.mcbs'
         process.env['STAGE'] = 'test'
 
@@ -192,8 +192,8 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
         await container.stop()
         // Umgebungsvariablen aufräumen
         delete process.env['AWS_ENDPOINT_URL']
-        delete process.env['OUTPUT_BUCKET_NAME']
-        delete process.env['PDF_BUCKET_NAME']
+        delete process.env['BUCKET_NAME']
+        delete process.env['OUTPUT_PREFIX']
     })
 
     it('LocalStack S3 ist erreichbar', async () => {

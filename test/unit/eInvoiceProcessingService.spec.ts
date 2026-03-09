@@ -226,7 +226,7 @@ describe('EInvoiceProcessingService', () => {
     })
 
     it('uses default uploadResult when not provided', async () => {
-        process.env['OUTPUT_BUCKET_NAME'] = 'test-bucket'
+        process.env['BUCKET_NAME'] = 'test-bucket'
         const invoice = createInvoice()
         const rawData = createRawData()
         const adapter: InvoiceAdapter = {
@@ -248,7 +248,7 @@ describe('EInvoiceProcessingService', () => {
 
         await expect(svc.processRecord(record)).resolves.toBeUndefined()
         expect(generateXml).toHaveBeenCalledTimes(1)
-        delete process.env['OUTPUT_BUCKET_NAME']
+        delete process.env['BUCKET_NAME']
     })
 
     it('returns no batch failures when all records succeed', async () => {

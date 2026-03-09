@@ -18,11 +18,14 @@ const activeAdapter = process.env['ACTIVE_ADAPTER'] ?? 'custom.mcbs'
 const adapterRegistry = new AdapterRegistry()
 
 if (activeAdapter === 'custom.mcbs') {
+    const pdfPrefix = process.env['PDF_PREFIX'] ?? 'raw/pdf/'
+    const xmlPrefix = process.env['XML_PREFIX'] ?? 'raw/xml/'
     adapterRegistry.register(
         'custom.mcbs',
         () =>
             new MCBSAdapter({
-                resolvePrimaryKey: (pdfKey: string): string => pdfKey.replace(/\.pdf$/i, '.xml')
+                resolvePrimaryKey: (pdfKey: string): string =>
+                    pdfKey.replace(new RegExp(`^${pdfPrefix}`), xmlPrefix).replace(/\.pdf$/i, '.xml')
             })
     )
 } else {
