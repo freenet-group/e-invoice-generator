@@ -305,8 +305,43 @@ npm run test:e2e          # E2E (gegen deployed Stack)
 **CloudWatch Dashboard** nach Deployment:
 
 ```
-https://console.aws.amazon.com/cloudwatch/home#dashboards:name=e-invoice-processing-{stage}
+https://console.aws.amazon.com/cloudwatch/home?region=eu-central-1#dashboards:name=e-invoice-generator-{stage}
 ```
+
+### Fehlerbehandlung: DLQ → SNS → Operations
+
+```
+Lambda-Fehler
+    └── 3× Retry (SQS VisibilityTimeout)
+            └── Dead Letter Queue (DLQ)
+                    └── DLQ Processor Lambda
+                            └── SNS Alert Topic
+                                    └── Operations (Email / PagerDuty / Slack)
+```
+
+Nach 3 fehlgeschlagenen Verarbeitungsversuchen landet eine Message in der DLQ. Der DLQ-Prozessor liest sie aus, loggt alle Details und publiziert eine Nachricht auf dem SNS Alert Topic.
+
+### SNS Alert Topic abonnieren
+
+Der Topic-ARN ist ein Stack Output (`AlertTopicARN`) und hat folgendes deterministisches Schema:
+
+```
+arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-alerts-{stage}
+```
+
+**Email-Subscription einrichten** (einmalig pro Stage):
+
+```bash
+aws sns subscribe \
+  --topic-arn arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-alerts-{stage} \
+  --protocol email \
+  --notification-endpoint operations@freenet.ag \
+  --region eu-central-1
+```
+
+AWS schickt eine Bestätigungs-E-Mail — der Link darin muss geklickt werden, bevor Alerts zugestellt werden.
+
+Für weitergehende Automatisierung (PagerDuty, Jira-Tickets, Auto-Remediation) siehe [docs/OPERATIONS_RUNBOOK.md](docs/OPERATIONS_RUNBOOK.md).
 
 **Alarms** bei:
 
@@ -320,6 +355,7 @@ https://console.aws.amazon.com/cloudwatch/home#dashboards:name=e-invoice-process
 
 | Dokument                                                                          | Beschreibung                           |
 | --------------------------------------------------------------------------------- | -------------------------------------- |
+| [OPERATIONS_RUNBOOK.md](docs/OPERATIONS_RUNBOOK.md)                               | Alerting, SNS-Subscriptions, Incident-Prozess |
 | [EVENTBRIDGE_VS_SQS_BATCHING.md](docs/EVENTBRIDGE_VS_SQS_BATCHING.md)             | Batching-Strategie & Kostenvergleich   |
 | [FACTURX_LIBRARY_DETAILED_BENEFITS.md](docs/FACTURX_LIBRARY_DETAILED_BENEFITS.md) | Warum `@e-invoice-eu/core`?            |
 | [MULTI_SOURCE_ARCHITECTURE_PART1.md](docs/MULTI_SOURCE_ARCHITECTURE_PART1.md)     | Adapter Pattern & Common Invoice Model |
