@@ -13,7 +13,8 @@ function createInvoice(): CommonInvoice {
         source: {
             system: 'MCBS',
             id: 'source-1',
-            timestamp: '2026-02-22T00:00:00Z'
+            timestamp: '2026-02-22T00:00:00Z',
+            billingAccountId: 'INV-DEF-0815'
         },
         seller: {
             name: 'Seller GmbH',
@@ -98,6 +99,10 @@ function createRecord(messageId: string, body: string): SQSRecord {
 
 jest.mock('../../src/core/s3/s3Uploader', () => ({
     uploadToS3: jest.fn().mockResolvedValue(undefined)
+}))
+
+jest.mock('../../src/services/eInvoiceEventPublisher', () => ({
+    publishEInvoiceCreated: jest.fn().mockResolvedValue(undefined)
 }))
 
 const mockLoadInvoiceData = jest.fn()
@@ -347,15 +352,17 @@ describe('EInvoiceProcessingService', () => {
         await expect(service.processRecord(record)).rejects.toThrow()
     })
 
-    it('logs error and rethrows when getInvoiceFormat throws (Zeile 84-85)', async () => {
-        process.env['ACTIVE_ADAPTER'] = 'custom.mcbs'
-        process.env['INVOICE_FORMAT'] = 'invalid-format'
+    it('logs error and rethrows when getInvoiceFormat throws', async () => {
+        process.env['E_INVOICE_PROFILE'] = 'invalid-format'
+        const invoice = createInvoice()
+        const rawData = createRawData()
+        const adapter: InvoiceAdapter = {
+            loadInvoiceData: jest.fn().mockResolvedValue(rawData),
+            mapToCommonModel: jest.fn().mockReturnValue(invoice),
+            loadPDF: jest.fn().mockResolvedValue(null)
+        }
         const svc = new EInvoiceProcessingService({
-            adapterRegistry: <AdapterRegistry>(<unknown>{
-                hasAdapter: jest.fn().mockReturnValue(true),
-                getAdapter: jest.fn().mockReturnValue(mockAdapter),
-                getSources: jest.fn().mockReturnValue(['custom.mcbs'])
-            }),
+            adapterRegistry: createRegistry(adapter),
             generateXml: jest.fn().mockResolvedValue('<xml/>'),
             uploadResult: jest.fn().mockResolvedValue(undefined)
         })
@@ -363,6 +370,54 @@ describe('EInvoiceProcessingService', () => {
             'msg-bad-format',
             JSON.stringify({source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: {id: '1'}})
         )
-        await expect(svc.processRecord(record)).rejects.toThrow()
+        await expect(svc.processRecord(record)).rejects.toThrow('Ungültiges E_INVOICE_PROFILE')
+        delete process.env['E_INVOICE_PROFILE']
+    })
+
+    it('throws when BUCKET_NAME is not set in defaultUploadResult', async () => {
+        delete process.env['BUCKET_NAME']
+        const invoice = createInvoice()
+        const rawData = createRawData()
+        const adapter: InvoiceAdapter = {
+            loadInvoiceData: jest.fn().mockResolvedValue(rawData),
+            mapToCommonModel: jest.fn().mockReturnValue(invoice),
+            loadPDF: jest.fn().mockResolvedValue(null)
+        }
+        const generateXml = jest.fn().mockResolvedValue('<xml/>')
+        // no uploadResult → uses defaultUploadResult which throws without BUCKET_NAME
+        const svc = new EInvoiceProcessingService({
+            adapterRegistry: createRegistry(adapter),
+            generateXml
+        })
+        const record = createRecord(
+            'msg-no-bucket',
+            JSON.stringify({source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: {id: '1'}})
+        )
+        await expect(svc.processRecord(record)).rejects.toThrow('BUCKET_NAME environment variable is not set')
+    })
+
+    it('resolves CREDIT_NOTE billingDocumentType for credit note invoices', async () => {
+        const invoice = {...createInvoice(), invoiceType: InvoiceType.CREDIT_NOTE}
+        const rawData = createRawData()
+        const adapter: InvoiceAdapter = {
+            loadInvoiceData: jest.fn().mockResolvedValue(rawData),
+            mapToCommonModel: jest.fn().mockReturnValue(invoice),
+            loadPDF: jest.fn().mockResolvedValue(null)
+        }
+        const {publishEInvoiceCreated} = <{publishEInvoiceCreated: jest.Mock}>jest.requireMock('../../src/services/eInvoiceEventPublisher')
+        const generateXml = jest.fn().mockResolvedValue('<xml/>')
+        const svc = new EInvoiceProcessingService({
+            adapterRegistry: createRegistry(adapter),
+            generateXml,
+            uploadResult: jest.fn().mockResolvedValue('e-invoices/INV-1000.pdf')
+        })
+        const record = createRecord(
+            'msg-credit-note',
+            JSON.stringify({source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: {id: '1'}})
+        )
+        await svc.processRecord(record)
+        expect(publishEInvoiceCreated).toHaveBeenCalledWith(
+            expect.objectContaining({billingDocumentType: 'CREDIT_NOTE'})
+        )
     })
 })

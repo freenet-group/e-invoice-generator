@@ -48,9 +48,10 @@ Der E-Invoice Generator konvertiert Rechnungsdaten aus verschiedenen Quellsystem
 │  (@e-invoice-eu/core → ZUGFeRD XML / PDF)    │
 └──────────────────┬───────────────────────────┘
                    ↓
-      ┌────────────────────────┐
-      │ S3: e-invoices/        │
-      └────────────────────────┘
+      ┌────────────────────────┐        ┌──────────────────────────────┐
+      │ S3: e-invoices/        │        │ SNS: einvoice-created-{stage}│
+      │ (ZUGFeRD PDF / XML)    │        │ → Consumer (SQS Subscription)│
+      └────────────────────────┘        └──────────────────────────────┘
 ```
 
 ---
@@ -188,15 +189,16 @@ mcbs-invoices-{stage}/
 
 Die Werte werden beim Deployment aus `serverless.yml` (`custom.prefixes`) als Umgebungsvariablen injiziert:
 
-| Variable            | Beschreibung                            | Standard                |
-| ------------------- | --------------------------------------- | ----------------------- |
-| `BUCKET_NAME`       | S3 Bucket für alle Artefakte            | `mcbs-invoices-{stage}` |
-| `XML_PREFIX`        | Präfix für eingehende MCBS-XML-Dateien  | `raw/xml/`              |
-| `PDF_PREFIX`        | Präfix für eingehende Kunden-PDFs       | `raw/pdf/`              |
-| `OUTPUT_PREFIX`     | Präfix für generierte E-Rechnungen      | `e-invoices/`           |
-| `E_INVOICE_PROFILE` | Factur-X / XRechnung Profil             | `factur-x-en16931`      |
-| `ACTIVE_ADAPTER`    | EventBridge source des aktiven Adapters | `custom.mcbs`           |
-| `AWS_ENDPOINT_URL`  | Nur lokal/LocalStack                    | `http://localhost:4566` |
+| Variable              | Beschreibung                            | Standard                |
+| --------------------- | --------------------------------------- | ----------------------- |
+| `BUCKET_NAME`         | S3 Bucket für alle Artefakte            | `mcbs-invoices-{stage}` |
+| `XML_PREFIX`          | Präfix für eingehende MCBS-XML-Dateien  | `raw/xml/`              |
+| `PDF_PREFIX`          | Präfix für eingehende Kunden-PDFs       | `raw/pdf/`              |
+| `OUTPUT_PREFIX`       | Präfix für generierte E-Rechnungen      | `e-invoices/`           |
+| `E_INVOICE_PROFILE`   | Factur-X / XRechnung Profil             | `factur-x-en16931`      |
+| `ACTIVE_ADAPTER`      | EventBridge source des aktiven Adapters | `custom.mcbs`           |
+| `AWS_ENDPOINT_URL`    | Nur lokal/LocalStack                    | `http://localhost:4566` |
+| `E_INVOICE_TOPIC_ARN` | ARN des SNS Topics für Output-Events    | (aus Stack-Output)      |
 
 > **Wichtig:** Die Präfixe werden beim Deployment eingefroren. Werden sie extern (durch das schreibende System oder per IaC) geändert, muss dieser Service **neu deployed** werden, damit EventBridge-Rule, Umgebungsvariablen und S3-Zugriffe konsistent bleiben.
 
@@ -221,6 +223,119 @@ Bucket-Name und Präfixe werden in den AWS Systems Manager Parameter Store gesch
 | `staging`, `production`   | Werden **extern** bereitgestellt, zusammen mit dem S3 Bucket     | IaC (Terraform / CDK) |
 
 In `staging` und `production` setzt dieser Stack voraus, dass alle vier SSM Parameter unter den obigen Pfaden bereits vorhanden sind, bevor das erste Deployment erfolgt. Fehlen sie, schlägt die Lambda-Konfiguration nicht fehl (Werte kommen aus Env-Vars), aber andere Services finden die Parameter nicht.
+
+---
+
+## Output-Event: EInvoice Created (SNS)
+
+Nach jeder erfolgreichen E-Rechnungs-Generierung publiziert der Service ein Event auf dem SNS Topic `e-invoice-generator-einvoice-created-{stage}`.
+
+### Topic-ARN
+
+Der ARN ist ein Stack-Output (`EInvoiceCreatedTopicARN`) und folgt diesem Schema:
+
+```
+arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-einvoice-created-{stage}
+```
+
+### Event-Struktur
+
+```json
+{
+  "storage": {
+    "bucketName": "mcbs-invoices-staging",
+    "key": "e-invoices/INV-12345.pdf",
+    "region": "eu-central-1"
+  },
+  "invoice": {
+    "id": "INV-12345",
+    "buyerName": "Mustermann GmbH",
+    "sourceId": "C25002242080",
+    "profile": "factur-x-en16931",
+    "adapter": "custom.mcbs"
+  },
+  "metadata": {
+    "stage": "staging",
+    "correlationId": "a1b2c3d4-EventBridge-Event-Id",
+    "generatedAt": "2026-03-09T10:00:00.000Z"
+  }
+}
+```
+
+### Felder im Detail
+
+| Feld                     | Beschreibung                                                                                                                                               |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage.key`            | Exakter S3-Key der generierten Datei – direkt für `s3.getObject()` nutzbar                                                                                 |
+| `storage.bucketName`     | S3 Bucket-Name – stage-agnostisch, kein Hardcoding nötig                                                                                                   |
+| `invoice.id`             | Rechnungsnummer                                                                                                                                            |
+| `invoice.sourceId`       | Eindeutige ID im Quellsystem (z.B. Kundennummer)                                                                                                           |
+| `invoice.profile`        | ZUGFeRD-Profil (`factur-x-en16931`, `factur-x-xrechnung`, ...)                                                                                             |
+| `invoice.adapter`        | Quellsystem (`custom.mcbs`, `custom.billing`)                                                                                                              |
+| `metadata.correlationId` | ID des ursprünglichen EventBridge-Events (S3 Object Created) – ermöglicht Distributed Tracing von S3-Upload bis SNS-Output. Fallback: neu generierte UUID. |
+
+> **Tracing mit `correlationId`:**
+> Die `correlationId` entspricht dem `id`-Feld des EventBridge-Events, das beim Hochladen des PDFs in S3 ausgelöst wurde.
+> Damit lässt sich der vollständige Verarbeitungsweg einer einzelnen Rechnung nachvollziehen:
+>
+> ```
+> S3 Upload → EventBridge Event (id: "abc-123")
+>                  └── SQS Message
+>                           └── Lambda Verarbeitung
+>                                    └── SNS Event (correlationId: "abc-123")
+> ```
+>
+> In CloudWatch Logs Insights über alle Stufen hinweg filterbar mit:
+>
+> ```
+> fields @timestamp, @message
+> | filter @message like "abc-123"
+> ```
+
+### MessageAttributes (SNS Filter-Policy)
+
+Das Event enthält zwei `MessageAttributes` für SNS-seitige Filterung:
+
+| Attribut    | Wert                     | Beispiel                         |
+| ----------- | ------------------------ | -------------------------------- |
+| `eventType` | Immer `EInvoice Created` | Für generellen Filter            |
+| `adapter`   | Aktiver Adapter          | `custom.mcbs` / `custom.billing` |
+
+### Consumer: SNS Subscription einrichten
+
+**SQS-Subscription** (empfohlen – für automatisierte Verarbeitung):
+
+```bash
+# 1. SQS Queue abonnieren
+aws sns subscribe \
+  --topic-arn arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-einvoice-created-{stage} \
+  --protocol sqs \
+  --notification-endpoint arn:aws:sqs:eu-central-1:{accountId}:{your-queue-name} \
+  --region eu-central-1
+
+# 2. Optional: Nur auf einen bestimmten Adapter filtern
+aws sns set-subscription-attributes \
+  --subscription-arn {subscription-arn} \
+  --attribute-name FilterPolicy \
+  --attribute-value '{"adapter": ["custom.mcbs"]}'
+```
+
+**Datei abholen** (im Consumer-Code):
+
+```typescript
+// Die SNS-Nachricht enthält das JSON oben als `Message`-Feld
+const snsMessage = JSON.parse(sqsRecord.body) // SQS-Wrapper
+const event = JSON.parse(snsMessage.Message) // eigentlicher Payload
+
+const file = await s3.send(
+  new GetObjectCommand({
+    Bucket: event.storage.bucketName,
+    Key: event.storage.key
+  })
+)
+```
+
+> **Hinweis:** Für den SQS-Queue-Zugriff auf den S3-Bucket benötigt der Consumer `s3:GetObject` auf `mcbs-invoices-{stage}/e-invoices/*`.
 
 ---
 
@@ -366,16 +481,16 @@ Für weitergehende Automatisierung (PagerDuty, Jira-Tickets, Auto-Remediation) s
 
 ## Technologie-Stack
 
-| Kategorie   | Technologie                              |
-| ----------- | ---------------------------------------- |
-| Runtime     | Node.js 22, TypeScript 5                 |
-| IaC         | Serverless Framework v4                  |
-| AWS         | Lambda, EventBridge, SQS, S3, CloudWatch |
-| E-Invoice   | `@e-invoice-eu/core`                     |
-| PDF         | `pdf-lib`                                |
-| XML Parsing | `fast-xml-parser` + Zod                  |
-| Logging     | `pino`                                   |
-| Testing     | Jest                                     |
+| Kategorie   | Technologie                                   |
+| ----------- | --------------------------------------------- |
+| Runtime     | Node.js 22, TypeScript 5                      |
+| IaC         | Serverless Framework v4                       |
+| AWS         | Lambda, EventBridge, SQS, S3, SNS, CloudWatch |
+| E-Invoice   | `@e-invoice-eu/core`                          |
+| PDF         | `pdf-lib`                                     |
+| XML Parsing | `fast-xml-parser` + Zod                       |
+| Logging     | `pino`                                        |
+| Testing     | Jest                                          |
 
 ---
 

@@ -7,6 +7,8 @@
 
 import {CommonInvoice} from '../models/commonInvoice'
 
+type SourceSystem = CommonInvoice['source']['system']
+
 /**
  * Adapter Interface - jedes Source-System implementiert dies
  */
@@ -40,7 +42,7 @@ export interface InvoiceAdapter {
  * Raw Invoice Data - Wrapper für Quelldaten
  */
 export interface RawInvoiceData {
-    source: string
+    source: SourceSystem
     data: Record<string, unknown> // ← unknown → Record<string, unknown>
     metadata: {
         id: string

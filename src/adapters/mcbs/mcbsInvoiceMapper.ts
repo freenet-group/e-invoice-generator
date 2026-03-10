@@ -92,9 +92,11 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
         invoiceType: doc['TYPE'] === 'GS' ? InvoiceType.CREDIT_NOTE : InvoiceType.COMMERCIAL,
         currency: toStringOrUndefined(header['INV_CURRENCY']) ?? 'EUR',
         source: {
-            system: 'MCBS',
+            system: rawData.source,
             id: rawData.metadata.id,
-            timestamp: rawData.metadata.timestamp
+            timestamp: rawData.metadata.timestamp,
+            partyId: resolvePartyId(doc),
+            billingAccountId: resolveBillingAccountId(header)
         },
         seller,
         buyer,
@@ -136,6 +138,21 @@ function resolveBuyerReference(doc: McbsDocument): string | undefined {
 
     const customerId = toStringOrUndefined(customer?.['PERSON_NO'])
     return customerId ?? toStringOrUndefined(recipient['PERSON_NO'])
+}
+
+function resolvePartyId(doc: McbsDocument): string | undefined {
+    const customer = doc['CUSTOMER']
+    const recipient = doc['RECIPIENT']
+    const customerId = toStringOrUndefined(customer?.['PERSON_NO'])
+    return customerId ?? toStringOrUndefined(recipient['PERSON_NO'])
+}
+
+function resolveBillingAccountId(header: McbsDocument['HEADER']): string {
+    const billingAccountId = toStringOrUndefined(header['INVOICE_DEF'])
+    if (billingAccountId === undefined) {
+        throw new Error('Missing billingAccountId: INVOICE_DEF is not present in MCBS header')
+    }
+    return billingAccountId
 }
 
 // ==================== Line Items ====================
@@ -287,6 +304,7 @@ function getConnectArray(connectValue: unknown): Record<string, unknown>[] {
     if (Array.isArray(connectValue)) {
         return <Record<string, unknown>[]>connectValue
     }
+    /* istanbul ignore next: xmlArray() in Zod schema normalises single elements to arrays */
     if (connectValue !== null && connectValue !== undefined) {
         return [<Record<string, unknown>>connectValue]
     }

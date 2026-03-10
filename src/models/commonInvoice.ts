@@ -53,14 +53,33 @@ export interface CommonInvoice {
 
     /** Metadata über die Datenquelle */
     source: {
-        /** Quellsystem: MCBS oder AWS_BILLING */
-        system: 'MCBS' | 'AWS_BILLING'
+        /**
+         * Quellsystem
+         * - MCBS: MCBS-Kundenabrechnungen
+         * - AWS_BILLING: AWS-Kundenabrechnungen
+         * - PARTNER_COMMISSION: Händlerprovisionsabrechnungen
+         */
+        system: 'MCBS' | 'AWS_BILLING' | 'PARTNER_COMMISSION'
 
         /** Eindeutige ID im Quellsystem */
         id: string
 
         /** Zeitstempel der Verarbeitung */
         timestamp: string
+
+        /**
+         * Partei-ID im Quellsystem
+         * - MCBS/AWS Billing: Kundennummer (PERSON_NO)
+         * - Provisionsabrechnung: Händlernummer
+         */
+        partyId?: string
+
+        /**
+         * Abrechnungskonto-ID
+         * - MCBS: HEADER.INVOICE_DEF
+         * - AWS Billing: Account-ID
+         */
+        billingAccountId: string
     }
 
     // ==================== Parties ====================

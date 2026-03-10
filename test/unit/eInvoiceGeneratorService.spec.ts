@@ -43,7 +43,8 @@ function createInvoice(): CommonInvoice {
         source: {
             system: 'MCBS',
             id: 'mcbs-123',
-            timestamp: '2026-02-22T10:00:00Z'
+            timestamp: '2026-02-22T10:00:00Z',
+            billingAccountId: 'BA-MCBS-123'
         },
         seller: {
             name: 'freenet DLS GmbH',

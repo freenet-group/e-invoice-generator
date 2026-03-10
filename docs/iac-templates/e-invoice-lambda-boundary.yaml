@@ -1,0 +1,106 @@
+# Default Permission Boundary für Lambda-Services
+#
+# Architekturvorschlag für billing-aws-account-iac:
+# Einmalig erstellen – gilt für alle Lambda-basierten Services im Account.
+# Service-spezifische Boundaries nur bei Bedarf (z.B. iam:PassRole, ec2:*).
+#
+# Einbinden in billing-aws-account-iac:
+#   Empfohlen: neues Modul, z.B. fndls.mcbs.3007520/shared/serverless.yaml
+#
+# Alle Lambda-Services referenzieren dann nur noch:
+#   permissionsBoundary: ${ssm:/shared/lambda-boundary-arn}
+#
+# Deploy-User eines jeden Lambda-Services bekommt iam:CreateRole
+# mit Condition auf diesen ARN (siehe github-action-deploy-iam-addendum.yaml).
+
+Resources:
+  # Einmalige Default-Boundary für alle Lambda Execution Roles im Account
+  DefaultLambdaPermissionBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: default-lambda-boundary
+      Description: >
+        Default Permission Boundary fuer Lambda Execution Roles.
+        Erlaubt Standard-AWS-Bausteine. Wird von IaC verwaltet –
+        Service-Deploy-User duerfen diese Policy nicht aendern.
+        Service-spezifische Boundaries nur fuer Sonderfaelle notwendig.
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudWatchLogs
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:DescribeLogGroups
+              - logs:DescribeLogStreams
+            Resource: '*'
+          - Sid: AllowXRay
+            Effect: Allow
+            Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Resource: '*'
+          - Sid: AllowSQS
+            Effect: Allow
+            Action:
+              - sqs:ReceiveMessage
+              - sqs:DeleteMessage
+              - sqs:SendMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+              - sqs:ChangeMessageVisibility
+            Resource: '*'
+          - Sid: AllowSNS
+            Effect: Allow
+            Action:
+              - sns:Publish
+              - sns:ListTopics
+            Resource: '*'
+          - Sid: AllowS3
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:ListBucket
+            Resource: '*'
+          - Sid: AllowSSM
+            Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:GetParameters
+              - ssm:GetParametersByPath
+            Resource: '*'
+          - Sid: AllowDynamoDB
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+            Resource: '*'
+          - Sid: AllowEventBridge
+            Effect: Allow
+            Action:
+              - events:PutEvents
+            Resource: '*'
+          # BEWUSST NICHT ENTHALTEN: iam:*, ec2:*, rds:*, organizations:*,
+          # s3:CreateBucket, sqs:CreateQueue, cloudformation:* etc.
+          # Infrastruktur wird von IaC verwaltet, nicht von Lambda-Funktionen.
+
+  # SSM Parameter – ARN der Boundary für ${ssm:/shared/lambda-boundary-arn}
+  DefaultLambdaBoundaryArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /shared/lambda-boundary-arn
+      Value: !Ref DefaultLambdaPermissionBoundary
+      Type: String
+      Description: >
+        ARN der Default Permission Boundary fuer Lambda Execution Roles.
+        Referenziert in serverless.yml via ${ssm:/shared/lambda-boundary-arn}.

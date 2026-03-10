@@ -43,6 +43,7 @@ function buildPaymentTerms(ci: CommonInvoice): Record<string, unknown> {
 
     const noteParts: string[] = []
     if (hasDescription) {
+        /* istanbul ignore next: description is always defined when hasDescription is true */
         noteParts.push(paymentTerms.description ?? '')
     }
     if (hasDueDate) {

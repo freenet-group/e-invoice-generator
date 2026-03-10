@@ -9,7 +9,7 @@ provider:
   runtime: nodejs22.x
   region: eu-central-1
   stage: ${opt:stage, 'dev'}
-  stackTags: {} # Verhindert iam:TagRole (AWSPowerUserAccess hat keine Tag-Rechte auf IAM)
+  stackTags: {} # Keine Stack-Tags → verhindert iam:TagRole auf Stack-Ebene
 
   # Lambda Defaults
   memorySize: 2048 # 2 GB
@@ -27,10 +27,12 @@ provider:
     ACTIVE_ADAPTER: ${self:custom.stages.${self:provider.stage}.activeAdapter, self:custom.stages.dev.activeAdapter}
     E_INVOICE_PROFILE: ${self:custom.stages.${self:provider.stage}.eInvoiceProfile, self:custom.stages.dev.eInvoiceProfile}
     ALERT_TOPIC_ARN: !Ref AlertTopic
+    E_INVOICE_TOPIC_ARN: !Ref EInvoiceCreatedTopic
 
-  # IAM: Vorhandene Rolle verwenden → verhindert iam:TagRole-Fehler (AWSPowerUserAccess)
+  # IAM: Lambda-Rolle wird als CloudFormation-Ressource definiert (LambdaExecutionRole).
+  # Alle notwendigen Berechtigungen und die Permission Boundary sind dort deklariert.
   iam:
-    role: arn:aws:iam::${aws:accountId}:role/e-invoice-generator-lambda-role
+    role: !GetAtt LambdaExecutionRole.Arn
 
 # Lambda Functions
 functions:
@@ -259,7 +261,64 @@ resources:
         Type: String
         Description: S3-Prefix für generierte ZUGFeRD-E-Rechnungen
 
+    # ==================== IAM ====================
+
+    LambdaExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        RoleName: ${self:service}-lambda-role-${self:provider.stage}
+        PermissionsBoundary: ${ssm:/shared/lambda-boundary-arn}
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service: lambda.amazonaws.com
+              Action: sts:AssumeRole
+        ManagedPolicyArns:
+          # CloudWatch Logs (CreateLogGroup, CreateLogStream, PutLogEvents)
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Policies:
+          - PolicyName: EInvoiceGeneratorPolicy
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                # SNS: E-Invoice-Events + DLQ-Alerts publizieren
+                - Effect: Allow
+                  Action: sns:Publish
+                  Resource:
+                    - !Ref EInvoiceCreatedTopic
+                    - !Ref AlertTopic
+                # S3: MCBS-XML/PDF lesen, ZUGFeRD-E-Rechnungen schreiben
+                - Effect: Allow
+                  Action:
+                    - s3:GetObject
+                    - s3:PutObject
+                  Resource: 'arn:aws:s3:::${self:custom.bucketName}/*'
+                # SQS: Messages aus Processing Queue und DLQ verarbeiten
+                - Effect: Allow
+                  Action:
+                    - sqs:ReceiveMessage
+                    - sqs:DeleteMessage
+                    - sqs:GetQueueAttributes
+                    - sqs:ChangeMessageVisibility
+                  Resource:
+                    - !GetAtt InvoiceProcessingQueue.Arn
+                    - !GetAtt InvoiceProcessingDLQ.Arn
+
     # ==================== SNS ====================
+
+    # Notification Topic: wird nach erfolgreicher E-Rechnungs-Generierung publiziert
+    EInvoiceCreatedTopic:
+      Type: AWS::SNS::Topic
+      Properties:
+        TopicName: ${self:service}-einvoice-created-${self:provider.stage}
+        DisplayName: E-Invoice Created Notifications
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
 
     # Alert Topic für DLQ-Fehler und Lambda-Errors
     AlertTopic:
@@ -326,11 +385,23 @@ resources:
       Export:
         Name: ${self:service}-${self:provider.stage}-create-einvoice-lambda
 
+    EInvoiceCreatedTopicARN:
+      Description: SNS Topic ARN for E-Invoice Created events
+      Value: !Ref EInvoiceCreatedTopic
+      Export:
+        Name: ${self:service}-${self:provider.stage}-einvoice-created-topic
+
     AlertTopicARN:
       Description: SNS Topic for Alerts
       Value: !Ref AlertTopic
       Export:
         Name: ${self:service}-${self:provider.stage}-alert-topic
+
+    LambdaExecutionRoleARN:
+      Description: IAM Role ARN for Lambda functions
+      Value: !GetAtt LambdaExecutionRole.Arn
+      Export:
+        Name: ${self:service}-${self:provider.stage}-lambda-role-arn
 
     DashboardURL:
       Description: CloudWatch Dashboard URL

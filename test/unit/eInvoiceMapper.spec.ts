@@ -63,7 +63,7 @@ const baseInvoice: CommonInvoice = {
             }
         }
     ],
-    source: {system: 'MCBS', id: 'test-id', timestamp: '2025-01-01T00:00:00Z'},
+    source: {system: 'MCBS', id: 'test-id', timestamp: '2025-01-01T00:00:00Z', billingAccountId: 'BA-TEST'},
     pdf: {s3Bucket: 'bucket', s3Key: 'key.pdf'}
 }
 
@@ -271,5 +271,90 @@ describe('eInvoiceMapper', () => {
         const period = <Record<string, unknown>>lines[0]?.['cac:InvoicePeriod']
         expect(period['cbc:StartDate']).toBe('2025-01-01')
         expect(period['cbc:EndDate']).toBe('2025-01-31')
+    })
+
+    it('omits StartDate in period when start is undefined', () => {
+        const firstLineItem = baseInvoice.lineItems[0]
+        if (firstLineItem === undefined) {
+            throw new Error('baseInvoice.lineItems[0] is undefined')
+        }
+        const ci: CommonInvoice = {
+            ...baseInvoice,
+            lineItems: [{...firstLineItem, period: {end: '2025-01-31'}}]
+        }
+        const invoice = <Record<string, unknown>>mapToEInvoice(ci)['ubl:Invoice']
+        const lines = <Record<string, unknown>[]>invoice['cac:InvoiceLine']
+        const period = <Record<string, unknown>>lines[0]?.['cac:InvoicePeriod']
+        expect(period['cbc:StartDate']).toBeUndefined()
+        expect(period['cbc:EndDate']).toBe('2025-01-31')
+    })
+
+    it('omits EndDate in period when end is undefined', () => {
+        const firstLineItem = baseInvoice.lineItems[0]
+        if (firstLineItem === undefined) {
+            throw new Error('baseInvoice.lineItems[0] is undefined')
+        }
+        const ci: CommonInvoice = {
+            ...baseInvoice,
+            lineItems: [{...firstLineItem, period: {start: '2025-01-01'}}]
+        }
+        const invoice = <Record<string, unknown>>mapToEInvoice(ci)['ubl:Invoice']
+        const lines = <Record<string, unknown>[]>invoice['cac:InvoiceLine']
+        const period = <Record<string, unknown>>lines[0]?.['cac:InvoicePeriod']
+        expect(period['cbc:StartDate']).toBe('2025-01-01')
+        expect(period['cbc:EndDate']).toBeUndefined()
+    })
+
+    it('includes description in Note and Item when set', () => {
+        const firstLineItem = baseInvoice.lineItems[0]
+        if (firstLineItem === undefined) {
+            throw new Error('baseInvoice.lineItems[0] is undefined')
+        }
+        const ci: CommonInvoice = {
+            ...baseInvoice,
+            lineItems: [{...firstLineItem, description: 'Detailed service description'}]
+        }
+        const invoice = <Record<string, unknown>>mapToEInvoice(ci)['ubl:Invoice']
+        const lines = <Record<string, unknown>[]>invoice['cac:InvoiceLine']
+        expect(lines[0]?.['cbc:Note']).toBe('Detailed service description')
+        const item = <Record<string, unknown>>lines[0]?.['cac:Item']
+        expect(item['cbc:Description']).toBe('Detailed service description')
+    })
+
+    it('includes contact with partial fields in seller', () => {
+        const ci: CommonInvoice = {
+            ...baseInvoice,
+            seller: {
+                ...baseInvoice.seller,
+                contact: {name: 'Only Name'}
+            }
+        }
+        const party = <Record<string, unknown>>buildSeller(ci)['cac:Party']
+        const contact = <Record<string, unknown>>party['cac:Contact']
+        expect(contact['cbc:Name']).toBe('Only Name')
+        expect(contact['cbc:Telephone']).toBeUndefined()
+        expect(contact['cbc:ElectronicMail']).toBeUndefined()
+    })
+
+    it('includes payeeAccount without iban or bic', () => {
+        const pm: CommonInvoice['paymentMeans'][number] = {
+            typeCode: PaymentMeansCode.CREDIT_TRANSFER,
+            payeeAccount: {accountName: 'My Account'}
+        }
+        const result = buildPaymentMeans(pm)
+        const account = <Record<string, unknown>>result['cac:PayeeFinancialAccount']
+        expect(account['cbc:ID']).toBeUndefined()
+        expect(account['cbc:Name']).toBe('My Account')
+        expect(account['cac:FinancialInstitutionBranch']).toBeUndefined()
+    })
+
+    it('omits FinancialInstitutionBranch when bic is not provided', () => {
+        const pm: CommonInvoice['paymentMeans'][number] = {
+            typeCode: PaymentMeansCode.CREDIT_TRANSFER,
+            payeeAccount: {iban: 'DE89370400440532013000'}
+        }
+        const result = buildPaymentMeans(pm)
+        const account = <Record<string, unknown>>result['cac:PayeeFinancialAccount']
+        expect(account['cac:FinancialInstitutionBranch']).toBeUndefined()
     })
 })

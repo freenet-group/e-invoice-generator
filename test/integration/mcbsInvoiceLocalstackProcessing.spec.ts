@@ -12,6 +12,11 @@ import {
 } from '@aws-sdk/client-s3'
 import {SQSClient, CreateQueueCommand} from '@aws-sdk/client-sqs'
 import {GenericContainer, StartedTestContainer, Wait} from 'testcontainers'
+
+// SNS-Publish mocken – nicht Teil dieses E2E-Tests (S3 → SQS → Handler → S3)
+jest.mock('../../src/services/eInvoiceEventPublisher', () => ({
+    publishEInvoiceCreated: jest.fn().mockResolvedValue(undefined)
+}))
 import {SQSEvent, SQSRecord} from 'aws-lambda'
 
 // ==================== Podman Socket Konfiguration ====================

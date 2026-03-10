@@ -44,7 +44,8 @@ const mockInvoice: CommonInvoice = {
     source: {
         system: 'MCBS',
         id: 'test-invoice.xml',
-        timestamp: '2026-02-22T00:00:00.000Z'
+        timestamp: '2026-02-22T00:00:00.000Z',
+        billingAccountId: 'BA-TEST'
     },
     seller: {
         name: 'freenet DLS GmbH',

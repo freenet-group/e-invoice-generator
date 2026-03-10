@@ -231,6 +231,7 @@ const DeliveryModeSchema = z
 const McbsHeaderSchema = z.object({
     INVOICE_DATE: germanDate,
     INVOICE_NO: z.string().optional(),
+    INVOICE_DEF: z.coerce.string().optional(),
     INV_CURRENCY: z.string().default('EUR'),
     BILLRUN_ID: z.coerce.string().optional(),
     BILLING_SYSTEM: z.string().optional(),

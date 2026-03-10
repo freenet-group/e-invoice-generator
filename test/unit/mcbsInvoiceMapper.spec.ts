@@ -11,6 +11,7 @@ const baseMetadata = {
 function buildXml(overrides: {
     type?: string
     invoiceNo?: string
+    invoiceDef?: string
     paymentType?: string
     unpaid?: string
     vatRate?: string
@@ -28,6 +29,7 @@ function buildXml(overrides: {
     const {
         type = 'RE',
         invoiceNo = 'INV-001',
+        invoiceDef = 'INV-DEF-001',
         paymentType = 'TRANSFER',
         unpaid = '0',
         vatRate = '19',
@@ -68,6 +70,7 @@ function buildXml(overrides: {
     <INVOICE_NO>${invoiceNo}</INVOICE_NO>
     <INVOICE_DATE>01.01.2025</INVOICE_DATE>
     <INV_CURRENCY>EUR</INV_CURRENCY>
+    <INVOICE_DEF>${invoiceDef}</INVOICE_DEF>
     ${brandXml}
   </HEADER>
   ${customerContent === '' ? '' : `<CUSTOMER>${customerContent}</CUSTOMER>`}
@@ -250,6 +253,7 @@ describe('mcbsInvoiceMapper', () => {
     <INVOICE_NO>INV-001</INVOICE_NO>
     <INVOICE_DATE>01.01.2025</INVOICE_DATE>
     <INV_CURRENCY>EUR</INV_CURRENCY>
+    <INVOICE_DEF>INV-DEF-001</INVOICE_DEF>
     <BRAND><DESC>Test Brand</DESC></BRAND>
     <DELIVERY_MODE>
       <SUPPLY>
@@ -435,6 +439,7 @@ describe('mcbsInvoiceMapper', () => {
     <INVOICE_NO>INV-001</INVOICE_NO>
     <INVOICE_DATE>01.01.2025</INVOICE_DATE>
     <INV_CURRENCY>EUR</INV_CURRENCY>
+    <INVOICE_DEF>INV-DEF-001</INVOICE_DEF>
     <BRAND><DESC>Test Brand</DESC></BRAND>
     <DELIVERY_MODE>
       <SUPPLY>
@@ -475,6 +480,60 @@ describe('mcbsInvoiceMapper', () => {
         const raw = parseMcbsXml(xml, 'test', baseMetadata)
         const result = mapMcbsToCommonInvoice(raw)
         expect(result.buyerReference).toBe('RECIP-FALLBACK')
+    })
+
+    // ── resolveBillingAccountId: throws when INVOICE_DEF absent ──
+
+    it('throws when INVOICE_DEF is missing from HEADER', () => {
+        const xml = `<?xml version="1.0"?>
+<DOCUMENT>
+  <TYPE>RE</TYPE>
+  <HEADER>
+    <INVOICE_NO>INV-001</INVOICE_NO>
+    <INVOICE_DATE>01.01.2025</INVOICE_DATE>
+    <INV_CURRENCY>EUR</INV_CURRENCY>
+    <BRAND><DESC>Test Brand</DESC></BRAND>
+  </HEADER>
+  <RECIPIENT>
+    <PERSON_NO>RECIP-001</PERSON_NO>
+    <ADDRESS>
+      <NAME>Mustermann</NAME>
+      <STREET>Str. 1</STREET>
+      <CITY>Berlin</CITY>
+      <POSTCODE>10001</POSTCODE>
+      <COUNTRY>DE</COUNTRY>
+    </ADDRESS>
+  </RECIPIENT>
+  <INVOICE_DATA>
+    <PAYMENT_MODE>
+      <PAYMENT_TYPE>TRANSFER</PAYMENT_TYPE>
+      <DUE_DATE>01.02.2025</DUE_DATE>
+      <BANK_ACCOUNT>DE89370400440532013000</BANK_ACCOUNT>
+      <BANK_CODE>COBADEFFXXX</BANK_CODE>
+    </PAYMENT_MODE>
+    <FRAMES>
+      <AMOUNTS>
+        <AMOUNT><TYPE>TOTAL_NET</TYPE><VALUE>100</VALUE></AMOUNT>
+        <AMOUNT><TYPE>TOTAL_VAT</TYPE><VALUE>19</VALUE></AMOUNT>
+        <AMOUNT><TYPE>TOTAL</TYPE><VALUE>119</VALUE></AMOUNT>
+      </AMOUNTS>
+      <DIFF_VATS>
+        <DIFF_VAT><VAT_RATE>19</VAT_RATE><NET>100</NET><VAT>19</VAT></DIFF_VAT>
+      </DIFF_VATS>
+      <FRAME><ID>MAIN</ID></FRAME>
+    </FRAMES>
+  </INVOICE_DATA>
+</DOCUMENT>`
+        const raw = parseMcbsXml(xml, 'test', baseMetadata)
+        expect(() => mapMcbsToCommonInvoice(raw)).toThrow('Missing billingAccountId: INVOICE_DEF is not present')
+    })
+
+    // ── parsePeriod: both dates invalid → returns undefined ──
+
+    it('returns undefined period when both date parts have invalid format', () => {
+        const raw = parseMcbsXml(buildXml({periodString: 'invalid - invalid'}), 'test', baseMetadata)
+        const result = mapMcbsToCommonInvoice(raw)
+        expect(result.lineItems[0]?.period).toBeUndefined()
     })
 
     // ── contentProvider with only one field ──

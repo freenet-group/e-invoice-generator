@@ -3,10 +3,13 @@ import {z} from 'zod'
 import {AdapterRegistry} from '../adapters/adapterRegistry'
 import {generateEInvoice} from './eInvoiceGeneratorService'
 import {uploadToS3} from '../core/s3/s3Uploader'
+import {publishEInvoiceCreated, type EInvoiceCreatedEventParams, type BillingDocumentType} from './eInvoiceEventPublisher'
 import {logger as rootLogger} from '../core/logger'
 import {getInvoiceFormat, type InvoiceFormat} from '../config/eInvoiceProfileConfiguration'
+import {InvoiceType} from '../models/commonInvoice'
 
 const EventBridgeEventSchema = z.object({
+    id: z.string().optional(),
     source: z.string(),
     'detail-type': z.string(),
     detail: z.record(z.string(), z.unknown())
@@ -17,7 +20,8 @@ type LoggerLike = Pick<typeof rootLogger, 'info' | 'error'>
 interface ProcessingDependencies {
     adapterRegistry: AdapterRegistry
     generateXml?: typeof generateEInvoice
-    uploadResult?: (zugferdResult: string | Uint8Array, invoiceNumber: string) => Promise<void>
+    uploadResult?: (zugferdResult: string | Uint8Array, invoiceNumber: string) => Promise<string>
+    publishEvent?: (params: EInvoiceCreatedEventParams) => Promise<void>
     logger?: LoggerLike
 }
 
@@ -26,13 +30,15 @@ const defaultLogger: LoggerLike = rootLogger.child({name: 'EInvoiceProcessingSer
 export class EInvoiceProcessingService {
     private readonly adapterRegistry: AdapterRegistry
     private readonly generateXml: typeof generateEInvoice
-    private readonly uploadResult: (zugferdResult: string | Uint8Array, invoiceNumber: string) => Promise<void>
+    private readonly uploadResult: (zugferdResult: string | Uint8Array, invoiceNumber: string) => Promise<string>
+    private readonly publishEvent: (params: EInvoiceCreatedEventParams) => Promise<void>
     private readonly logger: LoggerLike
 
     constructor(dependencies: ProcessingDependencies) {
         this.adapterRegistry = dependencies.adapterRegistry
         this.generateXml = dependencies.generateXml ?? generateEInvoice
         this.uploadResult = dependencies.uploadResult ?? defaultUploadResult
+        this.publishEvent = dependencies.publishEvent ?? publishEInvoiceCreated
         this.logger = dependencies.logger ?? defaultLogger
     }
 
@@ -97,22 +103,48 @@ export class EInvoiceProcessingService {
                 : {})
         })
 
-        await this.uploadResult(zugferdResult, invoice.invoiceNumber)
+        const s3Key = await this.uploadResult(zugferdResult, invoice.invoiceNumber)
+
+        const billingDocumentType = resolveBillingDocumentType(invoice.invoiceType)
+        const mediaType = isXRechnung ? 'application/xml' : 'application/pdf'
+
+        await this.publishEvent({
+            billingDocumentId: invoice.invoiceNumber,
+            partyId: invoice.source.partyId ?? invoice.source.id,
+            billingAccountId: invoice.source.billingAccountId,
+            s3Key,
+            bucketName: process.env['BUCKET_NAME'] ?? '',
+            profile,
+            source: invoice.source.system,
+            context: 'e-invoice-added',
+            billingDocumentType,
+            mediaType,
+            correlationId: eventBridgeEvent.id ?? crypto.randomUUID()
+        })
     }
 }
 
-async function defaultUploadResult(zugferdResult: string | Uint8Array, invoiceNumber: string): Promise<void> {
+async function defaultUploadResult(zugferdResult: string | Uint8Array, invoiceNumber: string): Promise<string> {
     const bucket = process.env['BUCKET_NAME']
     if (bucket === undefined || bucket === '') {
         throw new Error('BUCKET_NAME environment variable is not set')
     }
     const outputPrefix = process.env['OUTPUT_PREFIX'] ?? 'e-invoices/'
     const isXml = typeof zugferdResult === 'string'
+    const key = `${outputPrefix}${invoiceNumber}.${isXml ? 'xml' : 'pdf'}`
     await uploadToS3({
         bucketName: bucket,
-        key: `${outputPrefix}${invoiceNumber}.${isXml ? 'xml' : 'pdf'}`,
+        key,
         body: isXml ? Buffer.from(zugferdResult, 'utf-8') : Buffer.from(zugferdResult),
         contentType: isXml ? 'application/xml' : 'application/pdf',
         metadata: {invoiceNumber}
     })
+    return key
+}
+
+function resolveBillingDocumentType(invoiceType: InvoiceType): BillingDocumentType {
+    if (invoiceType === InvoiceType.CREDIT_NOTE || invoiceType === InvoiceType.CORRECTED) {
+        return 'CREDIT_NOTE'
+    }
+    return 'COMMERCIAL_INVOICE'
 }
