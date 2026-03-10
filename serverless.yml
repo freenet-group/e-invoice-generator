@@ -76,6 +76,12 @@ resources:
       - '${self:custom.stages.${self:provider.stage}.createBucket, self:custom.stages.dev.createBucket}'
       - 'true'
 
+    # Permission Boundary nur setzen wenn der SSM-Parameter vorhanden ist.
+    HasPermissionBoundary: !Not
+      - !Equals
+        - '${self:custom.lambdaBoundaryArn}'
+        - ''
+
   Resources:
     # ==================== S3 Buckets ====================
 
@@ -267,7 +273,10 @@ resources:
       Type: AWS::IAM::Role
       Properties:
         RoleName: ${self:service}-lambda-role-${self:provider.stage}
-        PermissionsBoundary: ${ssm:/shared/lambda-boundary-arn}
+        PermissionsBoundary: !If
+          - HasPermissionBoundary
+          - '${self:custom.lambdaBoundaryArn}'
+          - !Ref AWS::NoValue
         AssumeRolePolicyDocument:
           Version: '2012-10-17'
           Statement:
@@ -426,6 +435,9 @@ build:
 
 # Custom Configuration
 custom:
+  # Permission Boundary (optional) – wird nur gesetzt wenn der SSM-Parameter existiert
+  lambdaBoundaryArn: ${ssm:/shared/lambda-boundary-arn, ''}
+
   # Ein Bucket – Artefakte werden über Präfixe getrennt
   bucketName: mcbs-invoices-${self:provider.stage}
 
