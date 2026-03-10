@@ -404,7 +404,9 @@ describe('EInvoiceProcessingService', () => {
             mapToCommonModel: jest.fn().mockReturnValue(invoice),
             loadPDF: jest.fn().mockResolvedValue(null)
         }
-        const {publishEInvoiceCreated} = <{publishEInvoiceCreated: jest.Mock}>jest.requireMock('../../src/services/eInvoiceEventPublisher')
+        const {publishEInvoiceCreated} = <{publishEInvoiceCreated: jest.Mock}>(
+            jest.requireMock('../../src/services/eInvoiceEventPublisher')
+        )
         const generateXml = jest.fn().mockResolvedValue('<xml/>')
         const svc = new EInvoiceProcessingService({
             adapterRegistry: createRegistry(adapter),
@@ -416,8 +418,6 @@ describe('EInvoiceProcessingService', () => {
             JSON.stringify({source: 'custom.mcbs', 'detail-type': 'invoice.created', detail: {id: '1'}})
         )
         await svc.processRecord(record)
-        expect(publishEInvoiceCreated).toHaveBeenCalledWith(
-            expect.objectContaining({billingDocumentType: 'CREDIT_NOTE'})
-        )
+        expect(publishEInvoiceCreated).toHaveBeenCalledWith(expect.objectContaining({billingDocumentType: 'CREDIT_NOTE'}))
     })
 })

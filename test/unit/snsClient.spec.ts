@@ -49,4 +49,3 @@ describe('snsClient', () => {
         loadAndCheck('eu-central-1')
     })
 })
-

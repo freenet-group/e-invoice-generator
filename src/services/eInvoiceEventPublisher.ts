@@ -19,9 +19,7 @@ export interface EInvoiceCreatedEventParams {
 }
 
 function resolveEventType(source: CommonInvoice['source']['system']): string {
-    return source === 'PARTNER_COMMISSION'
-        ? 'BusinessPartnerSettlement:DocumentCreated'
-        : 'CustomerBill:DocumentCreated'
+    return source === 'PARTNER_COMMISSION' ? 'BusinessPartnerSettlement:DocumentCreated' : 'CustomerBill:DocumentCreated'
 }
 
 export async function publishEInvoiceCreated(params: EInvoiceCreatedEventParams): Promise<void> {

@@ -44,17 +44,13 @@ describe('publishEInvoiceCreated', () => {
 
     it('throws when E_INVOICE_TOPIC_ARN is not set', async () => {
         delete process.env['E_INVOICE_TOPIC_ARN']
-        await expect(publishEInvoiceCreated(baseParams)).rejects.toThrow(
-            'E_INVOICE_TOPIC_ARN environment variable is not set'
-        )
+        await expect(publishEInvoiceCreated(baseParams)).rejects.toThrow('E_INVOICE_TOPIC_ARN environment variable is not set')
         expect(mockSend).not.toHaveBeenCalled()
     })
 
     it('throws when E_INVOICE_TOPIC_ARN is empty string', async () => {
         process.env['E_INVOICE_TOPIC_ARN'] = ''
-        await expect(publishEInvoiceCreated(baseParams)).rejects.toThrow(
-            'E_INVOICE_TOPIC_ARN environment variable is not set'
-        )
+        await expect(publishEInvoiceCreated(baseParams)).rejects.toThrow('E_INVOICE_TOPIC_ARN environment variable is not set')
     })
 
     it('calls snsClient.send with PublishCommand', async () => {
