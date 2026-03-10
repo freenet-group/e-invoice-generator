@@ -11,6 +11,7 @@ on:
         default: dev
         options:
           - dev
+          - regtest
           - staging
           - production
 
