@@ -8,8 +8,12 @@ jest.mock('@aws-sdk/client-sns', () => ({
     PublishCommand: jest.fn().mockImplementation((input: unknown) => ({name: 'PublishCommand', input}))
 }))
 
-interface MockedSnsClient {snsClient: {send: jest.Mock}}
-interface MockedSnsSdk {PublishCommand: jest.Mock}
+interface MockedSnsClient {
+    snsClient: {send: jest.Mock}
+}
+interface MockedSnsSdk {
+    PublishCommand: jest.Mock
+}
 
 const baseParams: EInvoiceCreatedEventParams = {
     billingDocumentId: 'INV-001',
@@ -61,21 +65,21 @@ describe('publishEInvoiceCreated', () => {
 
     it('constructs correct TopicArn and Subject', async () => {
         await publishEInvoiceCreated(baseParams)
-        const commandInput = <Record<string, unknown>>((<unknown[][]>PublishCommand.mock.calls)[0]?.[0])
+        const commandInput = <Record<string, unknown>>(<unknown[][]>PublishCommand.mock.calls)[0]?.[0]
         expect(commandInput['TopicArn']).toBe('arn:aws:sns:eu-central-1:123456789012:einvoice-topic')
         expect(commandInput['Subject']).toBe('EInvoice Created')
     })
 
     it('constructs s3URI from bucketName and s3Key', async () => {
         await publishEInvoiceCreated(baseParams)
-        const commandInput = <Record<string, unknown>>((<unknown[][]>PublishCommand.mock.calls)[0]?.[0])
+        const commandInput = <Record<string, unknown>>(<unknown[][]>PublishCommand.mock.calls)[0]?.[0]
         const message = <Record<string, unknown>>JSON.parse(<string>commandInput['Message'])
         expect(message['s3URI']).toBe('s3://my-bucket/e-invoices/INV-001.pdf')
     })
 
     it('includes all required message body fields', async () => {
         await publishEInvoiceCreated(baseParams)
-        const commandInput = <Record<string, unknown>>((<unknown[][]>PublishCommand.mock.calls)[0]?.[0])
+        const commandInput = <Record<string, unknown>>(<unknown[][]>PublishCommand.mock.calls)[0]?.[0]
         const message = <Record<string, unknown>>JSON.parse(<string>commandInput['Message'])
         expect(message['correlationId']).toBe('corr-uuid-001')
         expect(message['billingDocumentType']).toBe('COMMERCIAL_INVOICE')
@@ -89,7 +93,7 @@ describe('publishEInvoiceCreated', () => {
 
     it('includes all MessageAttributes', async () => {
         await publishEInvoiceCreated(baseParams)
-        const commandInput = <Record<string, unknown>>((<unknown[][]>PublishCommand.mock.calls)[0]?.[0])
+        const commandInput = <Record<string, unknown>>(<unknown[][]>PublishCommand.mock.calls)[0]?.[0]
         const attrs = <Record<string, {DataType: string; StringValue: string}>>commandInput['MessageAttributes']
         expect(attrs['eventType']?.StringValue).toBe('CustomerBill:DocumentCreated')
         expect(attrs['context']?.StringValue).toBe('e-invoice-added')
@@ -101,28 +105,28 @@ describe('publishEInvoiceCreated', () => {
 
     it('sets eventType to CustomerBill:DocumentCreated for MCBS source', async () => {
         await publishEInvoiceCreated({...baseParams, source: 'MCBS'})
-        const commandInput = <Record<string, unknown>>((<unknown[][]>PublishCommand.mock.calls)[0]?.[0])
+        const commandInput = <Record<string, unknown>>(<unknown[][]>PublishCommand.mock.calls)[0]?.[0]
         const attrs = <Record<string, {DataType: string; StringValue: string}>>commandInput['MessageAttributes']
         expect(attrs['eventType']?.StringValue).toBe('CustomerBill:DocumentCreated')
     })
 
     it('sets eventType to CustomerBill:DocumentCreated for AWS_BILLING source', async () => {
         await publishEInvoiceCreated({...baseParams, source: 'AWS_BILLING'})
-        const commandInput = <Record<string, unknown>>((<unknown[][]>PublishCommand.mock.calls)[0]?.[0])
+        const commandInput = <Record<string, unknown>>(<unknown[][]>PublishCommand.mock.calls)[0]?.[0]
         const attrs = <Record<string, {DataType: string; StringValue: string}>>commandInput['MessageAttributes']
         expect(attrs['eventType']?.StringValue).toBe('CustomerBill:DocumentCreated')
     })
 
     it('sets eventType to BusinessPartnerSettlement:DocumentCreated for PARTNER_COMMISSION source', async () => {
         await publishEInvoiceCreated({...baseParams, source: 'PARTNER_COMMISSION'})
-        const commandInput = <Record<string, unknown>>((<unknown[][]>PublishCommand.mock.calls)[0]?.[0])
+        const commandInput = <Record<string, unknown>>(<unknown[][]>PublishCommand.mock.calls)[0]?.[0]
         const attrs = <Record<string, {DataType: string; StringValue: string}>>commandInput['MessageAttributes']
         expect(attrs['eventType']?.StringValue).toBe('BusinessPartnerSettlement:DocumentCreated')
     })
 
     it('uses CREDIT_NOTE billingDocumentType correctly', async () => {
         await publishEInvoiceCreated({...baseParams, billingDocumentType: 'CREDIT_NOTE'})
-        const commandInput = <Record<string, unknown>>((<unknown[][]>PublishCommand.mock.calls)[0]?.[0])
+        const commandInput = <Record<string, unknown>>(<unknown[][]>PublishCommand.mock.calls)[0]?.[0]
         const attrs = <Record<string, {DataType: string; StringValue: string}>>commandInput['MessageAttributes']
         expect(attrs['billingDocumentType']?.StringValue).toBe('CREDIT_NOTE')
         const message = <Record<string, unknown>>JSON.parse(<string>commandInput['Message'])

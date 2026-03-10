@@ -404,7 +404,9 @@ describe('EInvoiceProcessingService', () => {
             mapToCommonModel: jest.fn().mockReturnValue(invoice),
             loadPDF: jest.fn().mockResolvedValue(null)
         }
-        const {publishEInvoiceCreated} = jest.requireMock<{publishEInvoiceCreated: jest.Mock}>('../../src/services/eInvoiceEventPublisher')
+        const {publishEInvoiceCreated} = jest.requireMock<{publishEInvoiceCreated: jest.Mock}>(
+            '../../src/services/eInvoiceEventPublisher'
+        )
         const generateXml = jest.fn().mockResolvedValue('<xml/>')
         const svc = new EInvoiceProcessingService({
             adapterRegistry: createRegistry(adapter),
