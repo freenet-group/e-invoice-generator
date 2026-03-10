@@ -22,11 +22,11 @@ describe('snsClient', () => {
 
     function loadAndCheck(region: string): void {
         jest.isolateModules(() => {
-            const {SNSClient} = jest.requireMock('@aws-sdk/client-sns') as {SNSClient: jest.Mock}
+            const {SNSClient} = jest.requireMock<{SNSClient: jest.Mock}>('@aws-sdk/client-sns')
             SNSClient.mockClear()
-            require('../../src/core/sns/snsClient')
+            jest.requireActual('../../src/core/sns/snsClient')
             expect(SNSClient).toHaveBeenCalledWith(expect.objectContaining({region}))
-            const instance = SNSClient.mock.results[0]?.value as {name: string}
+            const instance = <{name: string}>SNSClient.mock.results[0]?.value
             expect(instance.name).toBe('SNSClient')
         })
     }

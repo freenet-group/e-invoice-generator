@@ -11,7 +11,6 @@ jest.mock('node:fs/promises', () => ({
 
 import {s3Client} from '../../src/core/s3/s3Client'
 
-// eslint-disable-next-line @typescript-eslint/unbound-method
 const mockSend = <jest.MockedFunction<() => Promise<unknown>>>(<unknown>jest.mocked(s3Client.send))
 const mockReadFile = jest.mocked(readFile)
 
