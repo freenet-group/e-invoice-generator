@@ -477,6 +477,20 @@ custom:
       eventDetailType: Object Created
       createBucket: 'false' # Bucket extern verwaltet (IaC)
 
+    regtest:
+      logLevel: info
+      eInvoiceProfile: factur-x-en16931
+      activeAdapter: custom.mcbs
+      lambdaMemory: 2048
+      lambdaTimeout: 60
+      batchSize: 10
+      maxBatchingWindow: 5
+      s3RuleState: ENABLED
+      activeRuleState: DISABLED
+      eventSource: custom.mcbs
+      eventDetailType: Object Created
+      createBucket: 'false' # Bucket extern verwaltet (IaC)
+
     production:
       logLevel: warn
       eInvoiceProfile: factur-x-en16931
