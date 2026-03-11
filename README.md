@@ -249,6 +249,7 @@ arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-einvoice-created-{stage
   "partyId": "C25002242080",
   "billingAccountId": "INV-DEF-0815",
   "profile": "factur-x-en16931",
+  "fileName": "M26008957394.pdf",
   "mediaType": "application/pdf",
   "s3URI": "s3://mcbs-invoices-staging/e-invoices/M26008957394.pdf"
 }
@@ -265,6 +266,7 @@ arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-einvoice-created-{stage
 | `partyId`             | Kundennummer / Partei-ID im Quellsystem (MCBS: `PERSON_NO`)                                                                                                 |
 | `billingAccountId`    | Abrechnungskonto-ID (MCBS: `HEADER.INVOICE_DEF`)                                                                                                            |
 | `profile`             | ZUGFeRD-Profil (`factur-x-en16931`, `factur-x-xrechnung`, ...)                                                                                              |
+| `fileName`            | Dateiname der generierten Datei – entspricht dem Namen des Quell-PDFs                                                                                       |
 | `mediaType`           | `application/pdf` (ZUGFeRD mit eingebettetem XML) oder `application/xml` (reines XRechnung-XML)                                                             |
 | `s3URI`               | Vollständiger S3-URI der generierten Datei (`s3://{bucket}/{key}`) – direkt für `s3.getObject()` nutzbar; der Dateiname entspricht dem Namen des Quell-PDFs |
 
@@ -315,7 +317,7 @@ aws sns subscribe \
 aws sns set-subscription-attributes \
   --subscription-arn {subscription-arn} \
   --attribute-name FilterPolicy \
-  --attribute-value '{"adapter": ["custom.mcbs"]}'
+  --attribute-value '{"source": ["MCBS"]}'
 ```
 
 **Datei abholen** (im Consumer-Code):

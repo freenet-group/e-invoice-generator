@@ -1,3 +1,4 @@
+import path from 'node:path'
 import {PublishCommand} from '@aws-sdk/client-sns'
 import {snsClient} from '../core/sns/snsClient'
 import type {CommonInvoice} from '../models/commonInvoice'
@@ -42,6 +43,7 @@ export async function publishEInvoiceCreated(params: EInvoiceCreatedEventParams)
                 partyId: params.partyId,
                 billingAccountId: params.billingAccountId,
                 profile: params.profile,
+                fileName: path.basename(params.s3Key),
                 mediaType: params.mediaType,
                 s3URI
             }),
