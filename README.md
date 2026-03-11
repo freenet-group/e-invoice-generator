@@ -242,37 +242,31 @@ arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-einvoice-created-{stage
 
 ```json
 {
-  "storage": {
-    "bucketName": "mcbs-invoices-staging",
-    "key": "e-invoices/INV-12345.pdf",
-    "region": "eu-central-1"
-  },
-  "invoice": {
-    "id": "INV-12345",
-    "buyerName": "Mustermann GmbH",
-    "sourceId": "C25002242080",
-    "profile": "factur-x-en16931",
-    "adapter": "custom.mcbs"
-  },
-  "metadata": {
-    "stage": "staging",
-    "correlationId": "a1b2c3d4-EventBridge-Event-Id",
-    "generatedAt": "2026-03-09T10:00:00.000Z"
-  }
+  "eventDate": "2026-03-11T10:00:00.000Z",
+  "correlationId": "a1b2c3d4-EventBridge-Event-Id",
+  "billingDocumentType": "COMMERCIAL_INVOICE",
+  "billingDocumentId": "M26008957394",
+  "partyId": "C25002242080",
+  "billingAccountId": "INV-DEF-0815",
+  "profile": "factur-x-en16931",
+  "mediaType": "application/pdf",
+  "s3URI": "s3://mcbs-invoices-staging/e-invoices/M26008957394.pdf"
 }
 ```
 
 ### Felder im Detail
 
-| Feld                     | Beschreibung                                                                                                                                               |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `storage.key`            | Exakter S3-Key der generierten Datei – direkt für `s3.getObject()` nutzbar                                                                                 |
-| `storage.bucketName`     | S3 Bucket-Name – stage-agnostisch, kein Hardcoding nötig                                                                                                   |
-| `invoice.id`             | Rechnungsnummer                                                                                                                                            |
-| `invoice.sourceId`       | Eindeutige ID im Quellsystem (z.B. Kundennummer)                                                                                                           |
-| `invoice.profile`        | ZUGFeRD-Profil (`factur-x-en16931`, `factur-x-xrechnung`, ...)                                                                                             |
-| `invoice.adapter`        | Quellsystem (`custom.mcbs`, `custom.billing`)                                                                                                              |
-| `metadata.correlationId` | ID des ursprünglichen EventBridge-Events (S3 Object Created) – ermöglicht Distributed Tracing von S3-Upload bis SNS-Output. Fallback: neu generierte UUID. |
+| Feld                  | Beschreibung                                                                                                                                                      |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `eventDate`           | Zeitstempel der Verarbeitung (ISO 8601)                                                                                                                           |
+| `correlationId`       | ID des ursprünglichen EventBridge-Events (S3 Object Created) – ermöglicht Distributed Tracing von S3-Upload bis SNS-Output                                       |
+| `billingDocumentType` | `COMMERCIAL_INVOICE` oder `CREDIT_NOTE`                                                                                                                           |
+| `billingDocumentId`   | Rechnungsnummer                                                                                                                                                   |
+| `partyId`             | Kundennummer / Partei-ID im Quellsystem (MCBS: `PERSON_NO`)                                                                                                      |
+| `billingAccountId`    | Abrechnungskonto-ID (MCBS: `HEADER.INVOICE_DEF`)                                                                                                                  |
+| `profile`             | ZUGFeRD-Profil (`factur-x-en16931`, `factur-x-xrechnung`, ...)                                                                                                    |
+| `mediaType`           | `application/pdf` (ZUGFeRD mit eingebettetem XML) oder `application/xml` (reines XRechnung-XML)                                                                   |
+| `s3URI`               | Vollständiger S3-URI der generierten Datei (`s3://{bucket}/{key}`) – direkt für `s3.getObject()` nutzbar; der Dateiname entspricht dem Namen des Quell-PDFs       |
 
 > **Tracing mit `correlationId`:**
 > Die `correlationId` entspricht dem `id`-Feld des EventBridge-Events, das beim Hochladen des PDFs in S3 ausgelöst wurde.
@@ -294,12 +288,16 @@ arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-einvoice-created-{stage
 
 ### MessageAttributes (SNS Filter-Policy)
 
-Das Event enthält zwei `MessageAttributes` für SNS-seitige Filterung:
+Das Event enthält folgende `MessageAttributes` für SNS-seitige Filterung:
 
-| Attribut    | Wert                     | Beispiel                         |
-| ----------- | ------------------------ | -------------------------------- |
-| `eventType` | Immer `EInvoice Created` | Für generellen Filter            |
-| `adapter`   | Aktiver Adapter          | `custom.mcbs` / `custom.billing` |
+| Attribut              | Wert                                                                                                    | Beispiel                                    |
+| --------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| `eventType`           | Abhängig von `source`: `CustomerBill:DocumentCreated` oder `BusinessPartnerSettlement:DocumentCreated`  | Für source-spezifischen Filter              |
+| `context`             | Verarbeitungskontext, z. B. `e-invoice-added`                                                           | Für kontextbasierte Filter                  |
+| `source`              | Quellsystem                                                                                             | `MCBS` / `AWS_BILLING` / `PARTNER_COMMISSION` |
+| `billingDocumentType` | Dokumententyp                                                                                           | `COMMERCIAL_INVOICE` / `CREDIT_NOTE`        |
+| `profile`             | ZUGFeRD-Profil                                                                                          | `factur-x-en16931` / `factur-x-xrechnung`  |
+| `mediaType`           | MIME-Type der generierten Datei                                                                         | `application/pdf` / `application/xml`       |
 
 ### Consumer: SNS Subscription einrichten
 
@@ -327,11 +325,13 @@ aws sns set-subscription-attributes \
 const snsMessage = JSON.parse(sqsRecord.body) // SQS-Wrapper
 const event = JSON.parse(snsMessage.Message) // eigentlicher Payload
 
+// S3-URI parsen: s3://{bucket}/{key}
+const s3URI = new URL(event.s3URI)
+const bucket = s3URI.hostname
+const key = s3URI.pathname.slice(1) // führenden / entfernen
+
 const file = await s3.send(
-  new GetObjectCommand({
-    Bucket: event.storage.bucketName,
-    Key: event.storage.key
-  })
+  new GetObjectCommand({Bucket: bucket, Key: key})
 )
 ```
 
