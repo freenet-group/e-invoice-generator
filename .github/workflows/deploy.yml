@@ -8,12 +8,12 @@ on:
         required: true
         type: choice
         description: 'Deployment stage:'
-        default: dev
+        default: test
         options:
-          - dev
           - regtest
-          - staging
-          - production
+          - test
+          - git
+          - prod
 
 jobs:
   deploy:

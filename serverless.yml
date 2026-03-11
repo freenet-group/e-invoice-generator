@@ -24,8 +24,8 @@ provider:
     PDF_PREFIX: ${self:custom.prefixes.pdf}
     OUTPUT_PREFIX: ${self:custom.prefixes.output}
     STAGE: ${self:provider.stage}
-    ACTIVE_ADAPTER: ${self:custom.stages.${self:provider.stage}.activeAdapter, self:custom.stages.dev.activeAdapter}
-    E_INVOICE_PROFILE: ${self:custom.stages.${self:provider.stage}.eInvoiceProfile, self:custom.stages.dev.eInvoiceProfile}
+    ACTIVE_ADAPTER: ${self:custom.stages.${self:provider.stage}.activeAdapter, self:custom.defaults.activeAdapter}
+    E_INVOICE_PROFILE: ${self:custom.stages.${self:provider.stage}.eInvoiceProfile, self:custom.defaults.eInvoiceProfile}
     ALERT_TOPIC_ARN: !Ref AlertTopic
     E_INVOICE_TOPIC_ARN: !Ref EInvoiceCreatedTopic
 
@@ -147,7 +147,7 @@ resources:
         Name: mcbs-invoice-s3-events-to-sqs-${self:provider.stage}
         Description: Routes S3 Object Created events to SQS for batching
         EventBusName: default
-        State: ${self:custom.stages.${self:provider.stage}.s3RuleState, self:custom.stages.dev.s3RuleState}
+        State: ${self:custom.stages.${self:provider.stage}.s3RuleState, self:custom.defaults.s3RuleState}
 
         # Pattern: S3 Object Created in mcbs-invoices bucket
         EventPattern:
@@ -173,12 +173,12 @@ resources:
       Type: AWS::Events::Rule
       Properties:
         Name: active-adapter-rule-${self:provider.stage}
-        State: ${self:custom.stages.${self:provider.stage}.activeRuleState, self:custom.stages.dev.activeRuleState}
+        State: ${self:custom.stages.${self:provider.stage}.activeRuleState, self:custom.defaults.activeRuleState}
         EventPattern:
           source:
-            - ${self:custom.stages.${self:provider.stage}.eventSource, self:custom.stages.dev.eventSource}
+            - ${self:custom.stages.${self:provider.stage}.eventSource, self:custom.defaults.eventSource}
           detail-type:
-            - ${self:custom.stages.${self:provider.stage}.eventDetailType, self:custom.stages.dev.eventDetailType}
+            - ${self:custom.stages.${self:provider.stage}.eventDetailType, self:custom.defaults.eventDetailType}
         Targets:
           - Arn: !GetAtt InvoiceProcessingQueue.Arn
             Id: SQSBatchingTarget
@@ -447,64 +447,40 @@ custom:
     pdf: 'raw/pdf/' # Eingehende Kunden-PDFs
     output: 'e-invoices/' # Generierte ZUGFeRD-E-Rechnungen
 
-  # Stage-specific overrides
+  # Standardwerte – gelten für alle Stages, sofern nicht unten überschrieben
+  defaults:
+    logLevel: info
+    eInvoiceProfile: factur-x-en16931
+    activeAdapter: custom.mcbs
+    lambdaMemory: 2048
+    lambdaTimeout: 60
+    batchSize: 10
+    maxBatchingWindow: 5
+    s3RuleState: ENABLED
+    activeRuleState: DISABLED
+    eventSource: custom.mcbs
+    eventDetailType: Object Created
+    createBucket: 'false' # Bucket extern verwaltet (IaC)
+
+  # Stage-spezifische Abweichungen von den Defaults
   stages:
     dev:
       logLevel: debug
-      eInvoiceProfile: factur-x-en16931
-      activeAdapter: custom.mcbs
-      lambdaMemory: 2048
-      lambdaTimeout: 60
-      batchSize: 10
-      maxBatchingWindow: 5
-      s3RuleState: ENABLED # S3 Events → MCBS Adapter
-      activeRuleState: DISABLED # Kein zweiter Adapter aktiv
-      eventSource: custom.mcbs
-      eventDetailType: Object Created
-      createBucket: 'true' # Bucket wird vom Stack erstellt (dev + persönliche Stages)
+      createBucket: 'true' # Bucket wird vom Stack erstellt
 
-    staging:
-      logLevel: info
-      eInvoiceProfile: factur-x-en16931
-      activeAdapter: custom.mcbs
-      lambdaMemory: 2048
-      lambdaTimeout: 60
-      batchSize: 10
-      maxBatchingWindow: 5
-      s3RuleState: ENABLED
-      activeRuleState: DISABLED
-      eventSource: custom.mcbs
-      eventDetailType: Object Created
-      createBucket: 'false' # Bucket extern verwaltet (IaC)
+    git:
+      createBucket: 'false'
+
+    test:
+      createBucket: 'false'
 
     regtest:
-      logLevel: info
-      eInvoiceProfile: factur-x-en16931
-      activeAdapter: custom.mcbs
-      lambdaMemory: 2048
-      lambdaTimeout: 60
-      batchSize: 10
-      maxBatchingWindow: 5
-      s3RuleState: ENABLED
-      activeRuleState: DISABLED
-      eventSource: custom.mcbs
-      eventDetailType: Object Created
-      createBucket: 'false' # Bucket extern verwaltet (IaC)
+      createBucket: 'false'
 
-    production:
+    prod:
       logLevel: warn
-      eInvoiceProfile: factur-x-en16931
-      activeAdapter: custom.billing
-      lambdaMemory: 2048
-      lambdaTimeout: 60
-      batchSize: 10
-      maxBatchingWindow: 5
       reservedConcurrency: 200
-      s3RuleState: DISABLED # MCBS nicht aktiv in production
-      activeRuleState: ENABLED # Billing Adapter aktiv
-      eventSource: custom.billing
-      eventDetailType: Invoice Created
-      createBucket: 'false' # Bucket extern verwaltet (IaC)
+      createBucket: 'false'
 
 # Package Configuration
 package:
