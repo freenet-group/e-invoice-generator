@@ -417,11 +417,37 @@ npm run test:e2e          # E2E (gegen deployed Stack)
 
 ## Monitoring
 
-**CloudWatch Dashboard** nach Deployment:
+### CloudWatch Dashboard
+
+Nach dem Deployment automatisch verfügbar unter:
 
 ```
 https://console.aws.amazon.com/cloudwatch/home?region=eu-central-1#dashboards:name=e-invoice-generator-{stage}
 ```
+
+Der Stack-Output `DashboardURL` enthält die direkte URL:
+
+```bash
+aws cloudformation describe-stacks \
+  --stack-name e-invoice-generator-{stage} \
+  --query "Stacks[0].Outputs[?OutputKey=='DashboardURL'].OutputValue" \
+  --output text
+```
+
+#### Widgets
+
+| Widget                                   | Metriken                                              | Zweck                                                                          |
+| ---------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Lambda Invocations & Errors**          | `Invocations`, `Errors` (createEInvoice)              | Durchsatz und Fehlerrate auf einen Blick                                       |
+| **Lambda Duration**                      | `Duration` p50 / p99 (createEInvoice)                 | Latenzen und Ausreißer erkennen                                                |
+| **SQS Queue – Messages**                 | `Sent`, `Deleted`, `Visible`                          | Rückstau in der Processing Queue sichtbar machen                               |
+| **DLQ – Messages**                       | `Visible`, `Sent` (DLQ)                               | Sollte dauerhaft 0 sein; jeder Wert >0 ist ein Incident                        |
+| **DLQ Processor – Invocations & Errors** | `Invocations`, `Errors` (processDLQ)                  | Verarbeitung fehlgeschlagener Messages                                         |
+| **Lambda Throttles**                     | `Throttles` (beide Funktionen)                        | Concurrency-Engpässe                                                           |
+| **SNS Output – Published Messages**      | `NumberOfMessagesSent`, `NumberOfNotificationsFailed` | Absoluter Output-Durchsatz; Failed sollte 0 sein                               |
+| **SNS vs. Lambda – Verhältnis**          | Lambda `Invocations` vs. SNS `NumberOfMessagesSent`   | **Doppel-Publishing-Erkennung**: beide Linien sollten deckungsgleich verlaufen |
+
+> Das letzte Widget ist besonders nützlich zur Diagnose von Doppel-Events aus EventBridge (zwei Rules → zwei SQS-Messages für ein PDF). Weichen die Linien dauerhaft auseinander, liegt ein strukturelles Problem in der EventBridge-Konfiguration vor.
 
 ### Fehlerbehandlung: DLQ → SNS → Operations
 

@@ -70,6 +70,28 @@ Properties:
             ],
             "period": 300, "view": "timeSeries", "region": "${AWS::Region}"
           }
+        },
+        {
+          "type": "metric", "x": 0, "y": 12, "width": 12, "height": 6,
+          "properties": {
+            "title": "SNS Output – Published Messages (sollte = Lambda Invocations sein)",
+            "metrics": [
+              ["AWS/SNS", "NumberOfMessagesSent",        "TopicName", "${self:service}-einvoice-created-${self:provider.stage}", {"stat": "Sum", "label": "Sent"}],
+              ["AWS/SNS", "NumberOfNotificationsFailed", "TopicName", "${self:service}-einvoice-created-${self:provider.stage}", {"stat": "Sum", "label": "Failed", "color": "#d62728"}]
+            ],
+            "period": 300, "view": "timeSeries", "region": "${AWS::Region}"
+          }
+        },
+        {
+          "type": "metric", "x": 12, "y": 12, "width": 12, "height": 6,
+          "properties": {
+            "title": "SNS vs. Lambda – Verhältnis (Doppel-Publishing-Erkennung)",
+            "metrics": [
+              ["AWS/Lambda", "Invocations", "FunctionName", "e-invoice-generator-${self:provider.stage}-createEInvoice", {"stat": "Sum", "label": "Lambda Invocations"}],
+              ["AWS/SNS",    "NumberOfMessagesSent", "TopicName", "${self:service}-einvoice-created-${self:provider.stage}", {"stat": "Sum", "label": "SNS Sent", "color": "#ff7f0e"}]
+            ],
+            "period": 300, "view": "timeSeries", "region": "${AWS::Region}"
+          }
         }
       ]
     }
