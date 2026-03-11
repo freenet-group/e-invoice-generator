@@ -2,10 +2,11 @@ import {parseMcbsXml, mapMcbsToCommonInvoice} from '../../../../src/adapters/mcb
 import {TaxCategoryCode, PaymentMeansCode, InvoiceType} from '../../../../src/models/commonInvoice'
 
 const baseMetadata = {
-    id: 'test-id',
+    source: 'MCBS' as const,
     timestamp: '2025-01-01T00:00:00Z',
     s3Bucket: 'test-bucket',
-    s3Key: 'test-key.xml'
+    sourceDataKey: 'test-key.xml',
+    sourcePdfKey: 'raw/pdf/test.pdf'
 }
 
 function buildXml(overrides: {
@@ -332,10 +333,10 @@ describe('mcbsInvoiceMapper', () => {
 
     // ── pdfKey in metadata ──
 
-    it('uses pdfKey as pdf.s3Key when provided', () => {
+    it('uses sourcePdfKey as pdf.s3Key when provided', () => {
         const raw = parseMcbsXml(buildXml({}), 'test', {
             ...baseMetadata,
-            pdfKey: 'invoices/invoice.pdf'
+            sourcePdfKey: 'invoices/invoice.pdf'
         })
         const result = mapMcbsToCommonInvoice(raw)
         expect(result.pdf?.s3Key).toBe('invoices/invoice.pdf')

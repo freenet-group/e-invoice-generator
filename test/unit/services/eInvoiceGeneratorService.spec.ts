@@ -42,8 +42,8 @@ function createInvoice(): CommonInvoice {
         currency: 'EUR',
         source: {
             system: 'MCBS',
-            id: 'mcbs-123',
             timestamp: '2026-02-22T10:00:00Z',
+            partyId: 'P-MCBS-123',
             billingAccountId: 'BA-MCBS-123'
         },
         seller: {

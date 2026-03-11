@@ -26,12 +26,12 @@ jest.mock('../../../../src/adapters/mcbs/mcbsInvoiceMapper', () => ({
 // ==================== Fixtures ====================
 
 const mockRawData: RawInvoiceData = {
-    source: 'MCBS',
     metadata: {
-        id: 'test-invoice.xml',
+        source: 'MCBS',
         timestamp: '2026-02-22T00:00:00.000Z',
         s3Bucket: 'my-bucket',
-        s3Key: 'invoices/test-invoice.xml'
+        sourceDataKey: 'invoices/test-invoice.xml',
+        sourcePdfKey: 'invoices/test-invoice.pdf'
     },
     data: {}
 }
@@ -43,8 +43,8 @@ const mockInvoice: CommonInvoice = {
     currency: 'EUR',
     source: {
         system: 'MCBS',
-        id: 'test-invoice.xml',
         timestamp: '2026-02-22T00:00:00.000Z',
+        partyId: 'P-TEST',
         billingAccountId: 'BA-TEST'
     },
     seller: {
@@ -112,10 +112,10 @@ describe('MCBSAdapter', () => {
                 '<DOCUMENT/>',
                 's3://my-bucket/invoices/test-invoice.xml',
                 expect.objectContaining({
-                    id: 'invoices/test-invoice.xml',
+                    source: 'MCBS',
                     s3Bucket: 'my-bucket',
-                    s3Key: 'invoices/test-invoice.xml',
-                    pdfKey: 'invoices/test-invoice.pdf'
+                    sourceDataKey: 'invoices/test-invoice.xml',
+                    sourcePdfKey: 'invoices/test-invoice.pdf'
                 })
             )
             expect(result).toBe(mockRawData)
@@ -198,59 +198,29 @@ describe('MCBSAdapter', () => {
     // ==================== loadPDF ====================
 
     describe('loadPDF', () => {
-        it('loads PDF from S3 with .xml replaced by .pdf in key', async () => {
+        it('loads PDF from S3 using pdfKey from metadata', async () => {
             const pdfBuffer = Buffer.from('%PDF-mock')
             mockLoadPdfFromS3.mockResolvedValue(pdfBuffer)
 
-            const result = await adapter.loadPDF(mockInvoice)
+            const result = await adapter.loadPDF(mockRawData)
 
             expect(mockLoadPdfFromS3).toHaveBeenCalledWith('my-bucket', 'invoices/test-invoice.pdf')
             expect(result).toBe(pdfBuffer)
         })
 
         it('returns null when s3Bucket is missing', async () => {
-            const invoice = {...mockInvoice, pdf: {s3Key: 'invoices/test-invoice.xml'}}
+            const rawData: RawInvoiceData = {...mockRawData, metadata: {...mockRawData.metadata, s3Bucket: undefined}}
 
-            const result = await adapter.loadPDF(invoice)
-
-            expect(mockLoadPdfFromS3).not.toHaveBeenCalled()
-            expect(result).toBeNull()
-        })
-
-        it('returns null when s3Key is missing', async () => {
-            const invoice = {...mockInvoice, pdf: {s3Bucket: 'my-bucket'}}
-
-            const result = await adapter.loadPDF(invoice)
+            const result = await adapter.loadPDF(rawData)
 
             expect(mockLoadPdfFromS3).not.toHaveBeenCalled()
             expect(result).toBeNull()
-        })
-
-        it('returns null when pdf is undefined', async () => {
-            const invoice = {...mockInvoice, pdf: undefined}
-
-            const result = await adapter.loadPDF(invoice)
-
-            expect(mockLoadPdfFromS3).not.toHaveBeenCalled()
-            expect(result).toBeNull()
-        })
-
-        it('handles PDF key without .xml extension', async () => {
-            const invoice = {
-                ...mockInvoice,
-                pdf: {s3Bucket: 'my-bucket', s3Key: 'invoices/test-invoice'}
-            }
-            mockLoadPdfFromS3.mockResolvedValue(Buffer.from('%PDF'))
-
-            await adapter.loadPDF(invoice)
-
-            expect(mockLoadPdfFromS3).toHaveBeenCalledWith('my-bucket', 'invoices/test-invoice')
         })
 
         it('throws when loadPdfFromS3 fails', async () => {
             mockLoadPdfFromS3.mockRejectedValue(new Error('PDF not found'))
 
-            await expect(adapter.loadPDF(mockInvoice)).rejects.toThrow('PDF not found')
+            await expect(adapter.loadPDF(mockRawData)).rejects.toThrow('PDF not found')
         })
     })
 })

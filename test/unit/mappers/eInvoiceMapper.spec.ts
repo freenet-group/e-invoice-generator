@@ -63,7 +63,7 @@ const baseInvoice: CommonInvoice = {
             }
         }
     ],
-    source: {system: 'MCBS', id: 'test-id', timestamp: '2025-01-01T00:00:00Z', billingAccountId: 'BA-TEST'},
+    source: {system: 'MCBS', timestamp: '2025-01-01T00:00:00Z', partyId: 'P-001', billingAccountId: 'BA-TEST'},
     pdf: {s3Bucket: 'bucket', s3Key: 'key.pdf'}
 }
 

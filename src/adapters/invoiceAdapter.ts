@@ -32,24 +32,23 @@ export interface InvoiceAdapter {
     /**
      * Lädt zugehöriges PDF (falls separat gespeichert)
      *
-     * @param invoice - Common Invoice mit PDF-Referenz
+     * @param rawData - Raw Invoice Data mit PDF-Referenz in metadata
      * @returns PDF als Buffer, oder null wenn nicht verfügbar
      */
-    loadPDF(invoice: CommonInvoice): Promise<Buffer | null>
+    loadPDF(rawData: RawInvoiceData): Promise<Buffer | null>
 }
 
 /**
  * Raw Invoice Data - Wrapper für Quelldaten
  */
 export interface RawInvoiceData {
-    source: SourceSystem
-    data: Record<string, unknown> // ← unknown → Record<string, unknown>
+    data: Record<string, unknown>
     metadata: {
-        id: string
+        source: SourceSystem
         timestamp: string
         s3Bucket?: string
-        s3Key?: string
-        pdfKey?: string
+        sourceDataKey?: string
+        sourcePdfKey: string
     }
 }
 

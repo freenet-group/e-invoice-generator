@@ -24,7 +24,7 @@ export function parseMcbsXml(xmlString: string, source: string, metadata: RawInv
     if (document === undefined) {
         throw new Error(`Invalid MCBS XML: missing <DOCUMENT> root element in ${source}`)
     }
-    return {source: 'MCBS', data: document, metadata}
+    return {data: document, metadata}
 }
 
 // ==================== Mapping ====================
@@ -92,8 +92,7 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
         invoiceType: doc['TYPE'] === 'GS' ? InvoiceType.CREDIT_NOTE : InvoiceType.COMMERCIAL,
         currency: toStringOrUndefined(header['INV_CURRENCY']) ?? 'EUR',
         source: {
-            system: rawData.source,
-            id: rawData.metadata.id,
+            system: rawData.metadata.source,
             timestamp: rawData.metadata.timestamp,
             partyId: resolvePartyId(doc),
             billingAccountId: resolveBillingAccountId(header)
@@ -109,7 +108,7 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
         lineItems,
         pdf: {
             s3Bucket: rawData.metadata.s3Bucket,
-            s3Key: rawData.metadata.pdfKey ?? rawData.metadata.s3Key
+            s3Key: rawData.metadata.sourcePdfKey
         },
         buyerReference: resolveBuyerReference(doc)
     }
@@ -140,11 +139,14 @@ function resolveBuyerReference(doc: McbsDocument): string | undefined {
     return customerId ?? toStringOrUndefined(recipient['PERSON_NO'])
 }
 
-function resolvePartyId(doc: McbsDocument): string | undefined {
+function resolvePartyId(doc: McbsDocument): string {
     const customer = doc['CUSTOMER']
     const recipient = doc['RECIPIENT']
-    const customerId = toStringOrUndefined(customer?.['PERSON_NO'])
-    return customerId ?? toStringOrUndefined(recipient['PERSON_NO'])
+    const partyId = toStringOrUndefined(customer?.['PERSON_NO']) ?? toStringOrUndefined(recipient['PERSON_NO'])
+    if (partyId === undefined) {
+        throw new Error('Missing partyId: neither CUSTOMER.PERSON_NO nor RECIPIENT.PERSON_NO is present')
+    }
+    return partyId
 }
 
 function resolveBillingAccountId(header: McbsDocument['HEADER']): string {

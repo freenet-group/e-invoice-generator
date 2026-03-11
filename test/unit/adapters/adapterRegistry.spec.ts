@@ -8,7 +8,7 @@ function createInvoice(): CommonInvoice {
         invoiceDate: '2026-02-22',
         invoiceType: InvoiceType.COMMERCIAL,
         currency: 'EUR',
-        source: {system: 'MCBS', id: 'id-1', timestamp: '2026-02-22T00:00:00Z', billingAccountId: 'BA-001'},
+        source: {system: 'MCBS', timestamp: '2026-02-22T00:00:00Z', partyId: 'P-001', billingAccountId: 'BA-001'},
         seller: {
             name: 'Seller',
             postalAddress: {postalCode: '1', cityName: 'A', countryCode: 'DE'}
@@ -36,11 +36,11 @@ function createInvoice(): CommonInvoice {
 
 function createRawData(): RawInvoiceData {
     return {
-        source: 'MCBS',
         data: {},
         metadata: {
-            id: 'raw-id',
-            timestamp: '2026-02-22T00:00:00Z'
+            source: 'MCBS',
+            timestamp: '2026-02-22T00:00:00Z',
+            sourcePdfKey: 'raw/pdf/test.pdf'
         }
     }
 }

@@ -61,9 +61,6 @@ export interface CommonInvoice {
          */
         system: 'MCBS' | 'AWS_BILLING' | 'PARTNER_COMMISSION'
 
-        /** Eindeutige ID im Quellsystem */
-        id: string
-
         /** Zeitstempel der Verarbeitung */
         timestamp: string
 
@@ -72,7 +69,7 @@ export interface CommonInvoice {
          * - MCBS/AWS Billing: Kundennummer (PERSON_NO)
          * - Provisionsabrechnung: Händlernummer
          */
-        partyId?: string
+        partyId: string
 
         /**
          * Abrechnungskonto-ID
@@ -407,12 +404,6 @@ export interface PDFInfo {
 
     /** S3 Bucket Name */
     s3Bucket?: string
-
-    /** DynamoDB ID (für AWS Billing Service) */
-    dynamoDbId?: string
-
-    /** Base64-encoded PDF (für AWS Billing Service) */
-    base64?: string
 }
 
 // ==================== Neu für Comfort ====================

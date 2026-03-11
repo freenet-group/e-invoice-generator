@@ -42,8 +42,9 @@ describe('MCBS Real Invoice → ZUGFeRD E-Rechnung Integration', () => {
     describe('Parsing + ZUGFeRD-Erzeugung', () => {
         beforeAll(async () => {
             const metadata = {
-                id: 'mcbs-real-invoice.xml',
-                timestamp: new Date().toISOString()
+                source: <const>'MCBS',
+                timestamp: new Date().toISOString(),
+                sourcePdfKey: 'raw/pdf/mcbs-real-invoice.pdf'
             }
             rawData = parseMcbsXml(xmlContent, 'mcbs-real-invoice.xml', metadata)
             commonInvoice = mapMcbsToCommonInvoice(rawData)
@@ -61,7 +62,7 @@ describe('MCBS Real Invoice → ZUGFeRD E-Rechnung Integration', () => {
 
         it('parst MCBS XML und mappt in CommonInvoice', () => {
             expect(rawData).toBeDefined()
-            expect(rawData.metadata['id']).toBe('mcbs-real-invoice.xml')
+            expect(rawData.metadata.source).toBe('MCBS')
 
             expect(commonInvoice).toBeDefined()
             expect(commonInvoice.invoiceNumber).toBe('M26008957394')

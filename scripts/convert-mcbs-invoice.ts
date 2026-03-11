@@ -151,11 +151,11 @@ async function run(): Promise<void> {
 
     logger.info('🔄 Parse MCBS XML...')
     const rawData = parseMcbsXml(xmlContent, <string>values.xml, {
-        id: <string>values.xml,
+        source: 'MCBS',
         timestamp: new Date().toISOString(),
         s3Bucket: undefined,
-        s3Key: <string>values.xml,
-        pdfKey: <string>values.pdf
+        sourceDataKey: <string>values.xml,
+        sourcePdfKey: <string>values.pdf
     })
     const invoice = mapMcbsToCommonInvoice(rawData)
     logger.info(`✅ Rechnung: ${invoice.invoiceNumber}`)

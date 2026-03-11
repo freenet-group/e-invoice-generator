@@ -1,3 +1,4 @@
+import path from 'node:path'
 import {SQSRecord} from 'aws-lambda'
 import {z} from 'zod'
 import {AdapterRegistry} from '../adapters/adapterRegistry'
@@ -20,7 +21,7 @@ type LoggerLike = Pick<typeof rootLogger, 'info' | 'error'>
 interface ProcessingDependencies {
     adapterRegistry: AdapterRegistry
     generateXml?: typeof generateEInvoice
-    uploadResult?: (zugferdResult: string | Uint8Array, invoiceNumber: string) => Promise<string>
+    uploadResult?: (zugferdResult: string | Uint8Array, sourceFilename: string) => Promise<string>
     publishEvent?: (params: EInvoiceCreatedEventParams) => Promise<void>
     logger?: LoggerLike
 }
@@ -30,7 +31,7 @@ const defaultLogger: LoggerLike = rootLogger.child({name: 'EInvoiceProcessingSer
 export class EInvoiceProcessingService {
     private readonly adapterRegistry: AdapterRegistry
     private readonly generateXml: typeof generateEInvoice
-    private readonly uploadResult: (zugferdResult: string | Uint8Array, invoiceNumber: string) => Promise<string>
+    private readonly uploadResult: (zugferdResult: string | Uint8Array, sourceFilename: string) => Promise<string>
     private readonly publishEvent: (params: EInvoiceCreatedEventParams) => Promise<void>
     private readonly logger: LoggerLike
 
@@ -80,7 +81,7 @@ export class EInvoiceProcessingService {
 
         const rawData = await adapter.loadInvoiceData(eventBridgeEvent.detail)
         const invoice = adapter.mapToCommonModel(rawData)
-        const pdf = await adapter.loadPDF(invoice)
+        const pdf = await adapter.loadPDF(rawData)
 
         // Format: aus Environment — XRechnung-Erkennung kommt später
         let profile: InvoiceFormat
@@ -90,7 +91,7 @@ export class EInvoiceProcessingService {
             this.logger.error({err: error}, 'Failed to get invoice format')
             throw error
         }
-        const isXRechnung = profile.startsWith('xrechnung')
+        const isXRechnung = profile === 'factur-x-xrechnung'
 
         const zugferdResult = await this.generateXml(invoice, {
             profile,
@@ -103,14 +104,15 @@ export class EInvoiceProcessingService {
                 : {})
         })
 
-        const s3Key = await this.uploadResult(zugferdResult, invoice.invoiceNumber)
+        const sourceFilename = path.basename(rawData.metadata.sourcePdfKey)
+        const s3Key = await this.uploadResult(zugferdResult, sourceFilename)
 
         const billingDocumentType = resolveBillingDocumentType(invoice.invoiceType)
         const mediaType = isXRechnung ? 'application/xml' : 'application/pdf'
 
         await this.publishEvent({
             billingDocumentId: invoice.invoiceNumber,
-            partyId: invoice.source.partyId ?? invoice.source.id,
+            partyId: invoice.source.partyId,
             billingAccountId: invoice.source.billingAccountId,
             s3Key,
             bucketName: process.env['BUCKET_NAME'] ?? '',
@@ -124,20 +126,21 @@ export class EInvoiceProcessingService {
     }
 }
 
-async function defaultUploadResult(zugferdResult: string | Uint8Array, invoiceNumber: string): Promise<string> {
+async function defaultUploadResult(zugferdResult: string | Uint8Array, sourceFilename: string): Promise<string> {
     const bucket = process.env['BUCKET_NAME']
     if (bucket === undefined || bucket === '') {
         throw new Error('BUCKET_NAME environment variable is not set')
     }
     const outputPrefix = process.env['OUTPUT_PREFIX'] ?? 'e-invoices/'
     const isXml = typeof zugferdResult === 'string'
-    const key = `${outputPrefix}${invoiceNumber}.${isXml ? 'xml' : 'pdf'}`
+    const baseName = sourceFilename.replace(/\.[^.]+$/, '')
+    const key = `${outputPrefix}${baseName}.${isXml ? 'xml' : 'pdf'}`
     await uploadToS3({
         bucketName: bucket,
         key,
         body: isXml ? Buffer.from(zugferdResult, 'utf-8') : Buffer.from(zugferdResult),
         contentType: isXml ? 'application/xml' : 'application/pdf',
-        metadata: {invoiceNumber}
+        metadata: {sourceFilename}
     })
     return key
 }

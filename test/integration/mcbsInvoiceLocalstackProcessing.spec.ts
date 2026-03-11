@@ -278,7 +278,7 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
         expect(result.batchItemFailures).toHaveLength(0)
 
         // Ergebnis-PDF aus S3 laden
-        const outputKey = `e-invoices/${INVOICE_NO}.pdf`
+        const outputKey = `e-invoices/${path.basename(PDF_KEY, '.pdf')}.pdf`
         const getResult = await s3.send(
             new GetObjectCommand({
                 Bucket: OUTPUT_BUCKET,
@@ -329,7 +329,7 @@ describe('MCBS E2E → LocalStack (S3 → SQS → Handler → S3)', () => {
         expect(result.batchItemFailures).toHaveLength(0)
 
         // Ergebnis-PDF ist immer noch vorhanden und valide
-        const outputKey = `e-invoices/${INVOICE_NO}.pdf`
+        const outputKey = `e-invoices/${path.basename(PDF_KEY, '.pdf')}.pdf`
         const getResult = await s3.send(
             new GetObjectCommand({
                 Bucket: OUTPUT_BUCKET,

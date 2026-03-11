@@ -12,8 +12,8 @@ function createInvoice(): CommonInvoice {
         currency: 'EUR',
         source: {
             system: 'MCBS',
-            id: 'source-1',
             timestamp: '2026-02-22T00:00:00Z',
+            partyId: 'P-MCBS-001',
             billingAccountId: 'INV-DEF-0815'
         },
         seller: {
@@ -69,11 +69,11 @@ function createInvoice(): CommonInvoice {
 
 function createRawData(): RawInvoiceData {
     return {
-        source: 'MCBS',
         data: {},
         metadata: {
-            id: 'raw-1',
-            timestamp: '2026-02-22T00:00:00Z'
+            source: 'MCBS',
+            timestamp: '2026-02-22T00:00:00Z',
+            sourcePdfKey: 'raw/pdf/INV-1000.pdf'
         }
     }
 }
@@ -177,7 +177,7 @@ describe('EInvoiceProcessingService', () => {
             pdf: new Uint8Array(Buffer.from([1, 2, 3])),
             pdfFilename: 'INV-1000.pdf'
         })
-        expect(uploadResult).toHaveBeenCalledWith('<xml/>', 'INV-1000')
+        expect(uploadResult).toHaveBeenCalledWith('<xml/>', 'INV-1000.pdf')
     })
 
     it('omits pdf options when adapter returns null pdf', async () => {

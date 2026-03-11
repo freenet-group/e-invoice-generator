@@ -29,11 +29,11 @@ export class MCBSAdapter implements InvoiceAdapter {
         const xml = await loadXmlFromS3OrLocal({bucket, key: xmlKey})
 
         return parseMcbsXml(xml, `s3://${bucket}/${xmlKey}`, {
-            id: xmlKey,
+            source: 'MCBS',
             timestamp: new Date().toISOString(),
             s3Bucket: bucket,
-            s3Key: xmlKey, // ← XML Key (für s3XmlLoader)
-            pdfKey: triggerKey // ← PDF Key (trigger war das PDF)
+            sourceDataKey: xmlKey,
+            sourcePdfKey: triggerKey
         })
     }
 
@@ -41,11 +41,11 @@ export class MCBSAdapter implements InvoiceAdapter {
         return mapMcbsToCommonInvoice(rawData)
     }
 
-    async loadPDF(invoice: CommonInvoice): Promise<Buffer | null> {
-        if (invoice.pdf?.s3Bucket === undefined || invoice.pdf.s3Key === undefined) {
+    async loadPDF(rawData: RawInvoiceData): Promise<Buffer | null> {
+        const {s3Bucket, sourcePdfKey} = rawData.metadata
+        if (s3Bucket === undefined) {
             return null
         }
-        // s3Key ist bereits der PDF Key (triggerKey aus loadInvoiceData)
-        return loadPdfFromS3(invoice.pdf.s3Bucket, invoice.pdf.s3Key)
+        return loadPdfFromS3(s3Bucket, sourcePdfKey)
     }
 }
