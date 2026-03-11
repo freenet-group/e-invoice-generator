@@ -1,4 +1,4 @@
-import {getSellerByGroupShortcut} from '../../src/config/sellers'
+import {getSellerByGroupShortcut} from '../../../../src/adapters/mcbs/mcbsSellersMapper'
 
 describe('getSellerByGroupShortcut', () => {
     it('returns freenetAG for known shortcut MC', () => {

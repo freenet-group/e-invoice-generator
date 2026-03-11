@@ -11,7 +11,7 @@ function loadS3Client(): jest.MockedClass<typeof S3Client> {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const {S3Client: FreshS3Client} = <{S3Client: jest.MockedClass<typeof S3Client>}>require('@aws-sdk/client-s3')
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('../../src/core/s3/s3Client')
+    require('../../../src/core/s3/s3Client')
     return FreshS3Client
 }
 

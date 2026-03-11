@@ -1,11 +1,11 @@
 import {PutObjectCommand} from '@aws-sdk/client-s3'
-import {uploadToS3} from '../../src/core/s3/s3Uploader'
+import {uploadToS3} from '../../../src/core/s3/s3Uploader'
 
-jest.mock('../../src/core/s3/s3Client', () => ({
+jest.mock('../../../src/core/s3/s3Client', () => ({
     s3Client: {send: jest.fn()}
 }))
 
-import {s3Client} from '../../src/core/s3/s3Client'
+import {s3Client} from '../../../src/core/s3/s3Client'
 
 const mockSend = jest.mocked(s3Client.send)
 

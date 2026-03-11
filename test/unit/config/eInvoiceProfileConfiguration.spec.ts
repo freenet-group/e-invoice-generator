@@ -1,4 +1,4 @@
-import {getInvoiceFormat} from '../../src/config/eInvoiceProfileConfiguration'
+import {getInvoiceFormat} from '../../../src/config/eInvoiceProfileConfiguration'
 
 describe('eInvoiceProfileConfiguration', () => {
     beforeEach(() => {

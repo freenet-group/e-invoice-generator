@@ -1,6 +1,6 @@
 import {InvoiceService} from '@e-invoice-eu/core'
-import {generateEInvoice} from '../../src/services/eInvoiceGeneratorService'
-import {CommonInvoice, InvoiceType, TaxCategoryCode, UnitCode, PaymentMeansCode} from '../../src/models/commonInvoice'
+import {generateEInvoice} from '../../../src/services/eInvoiceGeneratorService'
+import {CommonInvoice, InvoiceType, TaxCategoryCode, UnitCode, PaymentMeansCode} from '../../../src/models/commonInvoice'
 
 // ==================== Mocks ====================
 
@@ -12,7 +12,7 @@ jest.mock('@e-invoice-eu/core', () => ({
     }))
 }))
 
-jest.mock('../../src/core/logger', () => ({
+jest.mock('../../../src/core/logger', () => ({
     logger: {
         info: jest.fn(),
         warn: jest.fn(),
@@ -22,7 +22,7 @@ jest.mock('../../src/core/logger', () => ({
 }))
 
 // Nach den jest.mock-Aufrufen importieren
-import {logger} from '../../src/core/logger'
+import {logger} from '../../../src/core/logger'
 const mockServiceLogger = <
     {
         info: jest.Mock

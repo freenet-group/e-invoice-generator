@@ -1,5 +1,5 @@
-import {parseMcbsXml, mapMcbsToCommonInvoice} from '../../src/adapters/mcbs/mcbsInvoiceMapper'
-import {TaxCategoryCode, PaymentMeansCode, InvoiceType} from '../../src/models/commonInvoice'
+import {parseMcbsXml, mapMcbsToCommonInvoice} from '../../../../src/adapters/mcbs/mcbsInvoiceMapper'
+import {TaxCategoryCode, PaymentMeansCode, InvoiceType} from '../../../../src/models/commonInvoice'
 
 const baseMetadata = {
     id: 'test-id',

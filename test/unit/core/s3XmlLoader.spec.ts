@@ -1,7 +1,7 @@
-import {loadXmlFromS3, loadXmlFromS3OrLocal} from '../../src/core/s3/s3XmlLoader'
+import {loadXmlFromS3, loadXmlFromS3OrLocal} from '../../../src/core/s3/s3XmlLoader'
 import {readFile} from 'node:fs/promises'
 
-jest.mock('../../src/core/s3/s3Client', () => ({
+jest.mock('../../../src/core/s3/s3Client', () => ({
     s3Client: {send: jest.fn()}
 }))
 
@@ -9,7 +9,7 @@ jest.mock('node:fs/promises', () => ({
     readFile: jest.fn()
 }))
 
-import {s3Client} from '../../src/core/s3/s3Client'
+import {s3Client} from '../../../src/core/s3/s3Client'
 
 const mockSend = <jest.MockedFunction<() => Promise<unknown>>>(<unknown>jest.mocked(s3Client.send))
 const mockReadFile = jest.mocked(readFile)

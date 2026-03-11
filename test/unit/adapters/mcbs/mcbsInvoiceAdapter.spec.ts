@@ -1,6 +1,6 @@
-import {MCBSAdapter} from '../../src/adapters/mcbs/mcbsInvoiceAdapter'
-import {CommonInvoice, InvoiceType, PaymentMeansCode} from '../../src/models/commonInvoice'
-import {RawInvoiceData} from '../../src/adapters/invoiceAdapter'
+import {MCBSAdapter} from '../../../../src/adapters/mcbs/mcbsInvoiceAdapter'
+import {CommonInvoice, InvoiceType, PaymentMeansCode} from '../../../../src/models/commonInvoice'
+import {RawInvoiceData} from '../../../../src/adapters/invoiceAdapter'
 
 // ==================== Mocks ====================
 
@@ -9,16 +9,16 @@ const mockLoadPdfFromS3 = jest.fn()
 const mockParseMcbsXml = jest.fn()
 const mockMapMcbsToCommonInvoice = jest.fn()
 
-jest.mock('../../src/core/s3/s3XmlLoader', () => ({
+jest.mock('../../../../src/core/s3/s3XmlLoader', () => ({
     loadXmlFromS3OrLocal: async (...args: unknown[]): Promise<string> => <string>await mockLoadXmlFromS3OrLocal(...args)
 }))
 
-jest.mock('../../src/core/s3/s3PdfLoader', () => ({
+jest.mock('../../../../src/core/s3/s3PdfLoader', () => ({
     loadPdfFromS3: async (...args: unknown[]): Promise<Buffer | null> =>
         <Promise<Buffer | null>>await mockLoadPdfFromS3(...args)
 }))
 
-jest.mock('../../src/adapters/mcbs/mcbsInvoiceMapper', () => ({
+jest.mock('../../../../src/adapters/mcbs/mcbsInvoiceMapper', () => ({
     parseMcbsXml: (...args: unknown[]): RawInvoiceData => <RawInvoiceData>mockParseMcbsXml(...args),
     mapMcbsToCommonInvoice: (...args: unknown[]): CommonInvoice => <CommonInvoice>mockMapMcbsToCommonInvoice(...args)
 }))

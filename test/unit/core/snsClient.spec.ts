@@ -20,17 +20,6 @@ describe('snsClient', () => {
         jest.resetModules()
     })
 
-    function loadAndCheck(region: string): void {
-        jest.isolateModules(() => {
-            const {SNSClient} = jest.requireMock<{SNSClient: jest.Mock}>('@aws-sdk/client-sns')
-            SNSClient.mockClear()
-            jest.requireActual('../../src/core/sns/snsClient')
-            expect(SNSClient).toHaveBeenCalledWith(expect.objectContaining({region}))
-            const instance = <{name: string}>SNSClient.mock.results[0]?.value
-            expect(instance.name).toBe('SNSClient')
-        })
-    }
-
     it('uses AWS_REGION when set', () => {
         process.env['AWS_REGION'] = 'us-east-1'
         delete process.env['AWS_DEFAULT_REGION']
@@ -49,3 +38,14 @@ describe('snsClient', () => {
         loadAndCheck('eu-central-1')
     })
 })
+
+function loadAndCheck(region: string): void {
+    jest.isolateModules(() => {
+        const {SNSClient} = jest.requireMock<{SNSClient: jest.Mock}>('@aws-sdk/client-sns')
+        SNSClient.mockClear()
+        jest.requireActual('../../../src/core/sns/snsClient')
+        expect(SNSClient).toHaveBeenCalledWith(expect.objectContaining({region}))
+        const instance = <{name: string}>SNSClient.mock.results[0]?.value
+        expect(instance.name).toBe('SNSClient')
+    })
+}

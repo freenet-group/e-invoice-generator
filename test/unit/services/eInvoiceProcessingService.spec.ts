@@ -1,8 +1,8 @@
 import {SQSRecord} from 'aws-lambda'
-import {InvoiceAdapter, RawInvoiceData} from '../../src/adapters/invoiceAdapter'
-import {AdapterRegistry} from '../../src/adapters/adapterRegistry'
-import {EInvoiceProcessingService} from '../../src/services/eInvoiceProcessingService'
-import {CommonInvoice, InvoiceType, TaxCategoryCode} from '../../src/models/commonInvoice'
+import {InvoiceAdapter, RawInvoiceData} from '../../../src/adapters/invoiceAdapter'
+import {AdapterRegistry} from '../../../src/adapters/adapterRegistry'
+import {EInvoiceProcessingService} from '../../../src/services/eInvoiceProcessingService'
+import {CommonInvoice, InvoiceType, TaxCategoryCode} from '../../../src/models/commonInvoice'
 
 function createInvoice(): CommonInvoice {
     return {
@@ -97,11 +97,11 @@ function createRecord(messageId: string, body: string): SQSRecord {
     }
 }
 
-jest.mock('../../src/core/s3/s3Uploader', () => ({
+jest.mock('../../../src/core/s3/s3Uploader', () => ({
     uploadToS3: jest.fn().mockResolvedValue(undefined)
 }))
 
-jest.mock('../../src/services/eInvoiceEventPublisher', () => ({
+jest.mock('../../../src/services/eInvoiceEventPublisher', () => ({
     publishEInvoiceCreated: jest.fn().mockResolvedValue(undefined)
 }))
 
@@ -405,7 +405,7 @@ describe('EInvoiceProcessingService', () => {
             loadPDF: jest.fn().mockResolvedValue(null)
         }
         const {publishEInvoiceCreated} = jest.requireMock<{publishEInvoiceCreated: jest.Mock}>(
-            '../../src/services/eInvoiceEventPublisher'
+            '../../../src/services/eInvoiceEventPublisher'
         )
         const generateXml = jest.fn().mockResolvedValue('<xml/>')
         const svc = new EInvoiceProcessingService({

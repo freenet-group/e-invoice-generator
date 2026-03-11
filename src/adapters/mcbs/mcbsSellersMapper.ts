@@ -13,18 +13,11 @@
  * Bei Änderungen: Datei editieren + Redeployment.
  */
 
-import type {Party} from '../models/commonInvoice'
-
-// ─── Seller-Konfiguration inkl. SEPA-Gläubiger-ID ──────────────────────────
-
-export interface SellerConfig extends Party {
-    /** SEPA-Gläubiger-Identifikationsnummer (für SEPA-Lastschrift im ZUGFeRD) */
-    creditorId: string
-}
+import type {Party} from '../../models/commonInvoice'
 
 // ─── Seller-Definitionen ────────────────────────────────────────────────────
 
-const freenetAG: SellerConfig = {
+const freenetAG: Party = {
     name: 'freenet DLS GmbH',
     postalAddress: {
         streetName: 'Hollerstraße 126',
@@ -59,7 +52,7 @@ const freenetAG: SellerConfig = {
  *
  * GROUP_SHORTCUT "KM" mappt auf einen abweichenden Rechnungssteller.
  */
-const kmSeller: SellerConfig = {
+const kmSeller: Party = {
     name: 'klarmobil GmbH',
     postalAddress: {
         streetName: 'Holstenstraße 126',
@@ -90,13 +83,13 @@ const kmSeller: SellerConfig = {
     creditorId: 'DE53ZZZ00000074869'
 }
 
-// ─── Lookup-Map GROUP_SHORTCUT → SellerConfig ───────────────────────────────
+// ─── Lookup-Map GROUP_SHORTCUT → Party ───────────────────────────────
 
 /**
  * Alle bekannten GROUP_SHORTCUTs.
  * Nicht gelistete Kürzel erhalten den Default-Seller (freenetAG).
  */
-const sellerByGroupShortcut: Readonly<Record<string, SellerConfig>> = {
+const sellerByGroupShortcut: Readonly<Record<string, Party>> = {
     // Standard-Seller (alle Brand-Groups außer KM)
     MC: freenetAG,
     WS: freenetAG,
@@ -116,7 +109,7 @@ const sellerByGroupShortcut: Readonly<Record<string, SellerConfig>> = {
  * Gibt den Seller anhand des MCBS GROUP_SHORTCUT zurück.
  * Unbekannte Kürzel → freenetAG als sicherer Fallback (mit Warnung im Log).
  */
-export function getSellerByGroupShortcut(groupShortcut: string | undefined, warn?: (msg: string) => void): SellerConfig {
+export function getSellerByGroupShortcut(groupShortcut: string | undefined, warn?: (msg: string) => void): Party {
     if (groupShortcut === undefined || groupShortcut === '') {
         warn?.(`BRAND/GROUP_SHORTCUT fehlt – verwende Default-Seller (freenetAG)`)
         return freenetAG

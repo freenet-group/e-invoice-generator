@@ -1,4 +1,7 @@
-import {McbsXmlRootSchema as McbsXmlInvoiceSchema, parseMcbsDocument} from '../../src/adapters/mcbs/zod/mcbsXmlInvoiceSchema'
+import {
+    McbsXmlRootSchema as McbsXmlInvoiceSchema,
+    parseMcbsDocument
+} from '../../../../../src/adapters/mcbs/zod/mcbsXmlInvoiceSchema'
 
 describe('mcbsXmlInvoiceSchema', () => {
     const validBase = {

@@ -1,6 +1,6 @@
-import {InvoiceAdapter, RawInvoiceData} from '../../src/adapters/invoiceAdapter'
-import {AdapterRegistry} from '../../src/adapters/adapterRegistry'
-import {CommonInvoice, InvoiceType, TaxCategoryCode} from '../../src/models/commonInvoice'
+import {InvoiceAdapter, RawInvoiceData} from '../../../src/adapters/invoiceAdapter'
+import {AdapterRegistry} from '../../../src/adapters/adapterRegistry'
+import {CommonInvoice, InvoiceType, TaxCategoryCode} from '../../../src/models/commonInvoice'
 
 function createInvoice(): CommonInvoice {
     return {

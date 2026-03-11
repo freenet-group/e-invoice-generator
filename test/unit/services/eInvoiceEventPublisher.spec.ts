@@ -1,6 +1,6 @@
-import {publishEInvoiceCreated, type EInvoiceCreatedEventParams} from '../../src/services/eInvoiceEventPublisher'
+import {publishEInvoiceCreated, type EInvoiceCreatedEventParams} from '../../../src/services/eInvoiceEventPublisher'
 
-jest.mock('../../src/core/sns/snsClient', () => ({
+jest.mock('../../../src/core/sns/snsClient', () => ({
     snsClient: {send: jest.fn().mockResolvedValue({})}
 }))
 
@@ -35,7 +35,7 @@ describe('publishEInvoiceCreated', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
-        const snsClientMock = jest.requireMock<MockedSnsClient>('../../src/core/sns/snsClient')
+        const snsClientMock = jest.requireMock<MockedSnsClient>('../../../src/core/sns/snsClient')
         snsClientMock.snsClient.send.mockResolvedValue({})
         mockSend = snsClientMock.snsClient.send
         PublishCommand = jest.requireMock<MockedSnsSdk>('@aws-sdk/client-sns').PublishCommand

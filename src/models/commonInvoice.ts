@@ -191,6 +191,9 @@ export interface Party {
 
     /** Rechtliche Registrierung (nur Seller) */
     legalOrganization?: LegalOrganization
+
+    /** SEPA-Gläubiger-ID (nur Seller, für SEPA-Lastschrift) */
+    creditorId?: string
 }
 
 export interface PostalAddress {

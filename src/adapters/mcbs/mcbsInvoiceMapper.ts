@@ -2,7 +2,7 @@ import {XMLParser} from 'fast-xml-parser'
 import {CommonInvoice, InvoiceType, PaymentMeansCode, TaxCategoryCode, UnitCode} from '../../models/commonInvoice'
 import {RawInvoiceData} from '../invoiceAdapter'
 import {parseMcbsDocument, McbsDocument, McbsBillItem} from './zod/mcbsXmlInvoiceSchema'
-import {getSellerByGroupShortcut} from '../../config/sellers'
+import {getSellerByGroupShortcut} from './mcbsSellersMapper'
 
 const xmlParser = new XMLParser({
     ignoreAttributes: false,

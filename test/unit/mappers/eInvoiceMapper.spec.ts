@@ -1,5 +1,5 @@
-import {buildBuyer, buildPaymentMeans, buildSeller, mapToEInvoice} from '../../src/mappers/eInvoiceMapper'
-import {CommonInvoice, InvoiceType, PaymentMeansCode, TaxCategoryCode, UnitCode} from '../../src/models/commonInvoice'
+import {buildBuyer, buildPaymentMeans, buildSeller, mapToEInvoice} from '../../../src/mappers/eInvoiceMapper'
+import {CommonInvoice, InvoiceType, PaymentMeansCode, TaxCategoryCode, UnitCode} from '../../../src/models/commonInvoice'
 
 const baseInvoice: CommonInvoice = {
     invoiceNumber: 'INV-001',

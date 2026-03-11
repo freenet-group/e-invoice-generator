@@ -1,10 +1,10 @@
-import {loadPdfFromS3} from '../../src/core/s3/s3PdfLoader'
+import {loadPdfFromS3} from '../../../src/core/s3/s3PdfLoader'
 
-jest.mock('../../src/core/s3/s3Client', () => ({
+jest.mock('../../../src/core/s3/s3Client', () => ({
     s3Client: {send: jest.fn()}
 }))
 
-import {s3Client} from '../../src/core/s3/s3Client'
+import {s3Client} from '../../../src/core/s3/s3Client'
 
 const mockSend = <jest.Mock>s3Client.send
 
