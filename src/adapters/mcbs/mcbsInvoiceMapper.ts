@@ -3,6 +3,7 @@ import {CommonInvoice, InvoiceType, PaymentMeansCode, TaxCategoryCode, UnitCode}
 import {RawInvoiceData} from '../invoiceAdapter'
 import {parseMcbsDocument, McbsDocument, McbsBillItem} from './zod/mcbsXmlInvoiceSchema'
 import {getSellerByGroupShortcut} from './mcbsSellersMapper'
+import {FatalProcessingError} from '../../core/errors/fatalProcessingError'
 
 const xmlParser = new XMLParser({
     ignoreAttributes: false,
@@ -30,6 +31,16 @@ export function parseMcbsXml(xmlString: string, source: string, metadata: RawInv
 // ==================== Mapping ====================
 
 export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
+    const source = rawData.metadata.sourceDataKey ?? 'unknown'
+    try {
+        return mapMcbsToCommonInvoiceInternal(rawData)
+    } catch (err) {
+        const cause = err instanceof Error ? err : new Error(String(err))
+        throw new FatalProcessingError(cause.message, source, cause)
+    }
+}
+
+function mapMcbsToCommonInvoiceInternal(rawData: RawInvoiceData): CommonInvoice {
     const doc: McbsDocument = parseMcbsDocument(rawData.data)
     const header = doc['HEADER']
     const recipient = doc['RECIPIENT']
@@ -55,20 +66,7 @@ export function mapMcbsToCommonInvoice(rawData: RawInvoiceData): CommonInvoice {
         }
     }
 
-    const paymentMeans: CommonInvoice['paymentMeans'] = [
-        {
-            typeCode:
-                paymentMode['PAYMENT_TYPE'] === 'SEPADEBIT'
-                    ? PaymentMeansCode.SEPA_DIRECT_DEBIT
-                    : PaymentMeansCode.CREDIT_TRANSFER,
-            payeeAccount: {
-                iban: String(paymentMode['BANK_ACCOUNT'] ?? header['CLIENTBANK_ACNT'] ?? '')
-            },
-            payeeInstitution: {
-                bic: String(paymentMode['BANK_CODE'] ?? header['CLIENTBANK_CODE'] ?? '')
-            }
-        }
-    ]
+    const paymentMeans: CommonInvoice['paymentMeans'] = [buildMcbsPaymentMeans(paymentMode, header)]
 
     const taxes = mapTaxes(diffVats, amounts)
 
@@ -144,7 +142,7 @@ function resolvePartyId(doc: McbsDocument): string {
     const recipient = doc['RECIPIENT']
     const partyId = toStringOrUndefined(customer?.['PERSON_NO']) ?? toStringOrUndefined(recipient['PERSON_NO'])
     if (partyId === undefined) {
-        throw new Error('Missing partyId: neither CUSTOMER.PERSON_NO nor RECIPIENT.PERSON_NO is present')
+        throw new Error('Missing partyId: neither CUSTOMER.PERSON_NO nor RECIPIENT.PERSON_NO is present') // wird von mapMcbsToCommonInvoice zu FatalProcessingError
     }
     return partyId
 }
@@ -152,7 +150,7 @@ function resolvePartyId(doc: McbsDocument): string {
 function resolveBillingAccountId(header: McbsDocument['HEADER']): string {
     const billingAccountId = toStringOrUndefined(header['INVOICE_DEF'])
     if (billingAccountId === undefined) {
-        throw new Error('Missing billingAccountId: INVOICE_DEF is not present in MCBS header')
+        throw new Error('Missing billingAccountId: INVOICE_DEF is not present in MCBS header') // wird von mapMcbsToCommonInvoice zu FatalProcessingError
     }
     return billingAccountId
 }
@@ -318,6 +316,57 @@ function toStringOrUndefined(value: unknown): string | undefined {
         return String(value)
     }
     return undefined
+}
+
+// ==================== Payment Means ====================
+
+function resolvePaymentTypeCode(paymentType: McbsDocument['INVOICE_DATA']['PAYMENT_MODE']['PAYMENT_TYPE']): PaymentMeansCode {
+    const codeMap: Record<typeof paymentType, PaymentMeansCode> = {
+        SEPADEBIT: PaymentMeansCode.SEPA_DIRECT_DEBIT,
+        SEPACREDIT: PaymentMeansCode.CREDIT_TRANSFER,
+        INVOICE: PaymentMeansCode.CREDIT_TRANSFER,
+        SEF: PaymentMeansCode.CREDIT_TRANSFER,
+        CREDITCARD: PaymentMeansCode.CARD,
+        ZERO: PaymentMeansCode.CREDIT_TRANSFER,
+        NO_SEPADEBIT: PaymentMeansCode.CREDIT_TRANSFER,
+        INFO: PaymentMeansCode.CREDIT_TRANSFER
+    }
+    return codeMap[paymentType]
+}
+
+function buildMcbsPaymentMeans(
+    paymentMode: McbsDocument['INVOICE_DATA']['PAYMENT_MODE'],
+    header: McbsDocument['HEADER']
+): CommonInvoice['paymentMeans'][number] {
+    const paymentType = paymentMode.PAYMENT_TYPE
+    const useCustomerBank = paymentType === 'SEPADEBIT' || paymentType === 'SEPACREDIT'
+    const useCompanyBank = paymentType === 'INVOICE' || paymentType === 'SEF'
+
+    let payeeIban: string | undefined
+    if (useCustomerBank) {
+        payeeIban = paymentMode.BANK_ACCOUNT ?? undefined
+    } else if (useCompanyBank) {
+        payeeIban = header.CLIENTBANK_ACNT ?? undefined
+    }
+
+    let payeeBic: string | undefined
+    if (useCustomerBank) {
+        payeeBic = paymentMode.BANK_CODE ?? undefined
+    } else if (useCompanyBank) {
+        payeeBic = header.CLIENTBANK_CODE ?? undefined
+    }
+
+    return {
+        typeCode: resolvePaymentTypeCode(paymentType),
+        ...(payeeIban !== undefined && {payeeAccount: {iban: payeeIban}}),
+        ...(payeeBic !== undefined && {payeeInstitution: {bic: payeeBic}}),
+        ...(paymentType === 'CREDITCARD' && {
+            card: {
+                primaryAccountNumber: paymentMode.CARD_NUMBER ?? undefined,
+                holderName: paymentMode.CARD_HOLDER ?? undefined
+            }
+        })
+    }
 }
 
 function mapTaxes(

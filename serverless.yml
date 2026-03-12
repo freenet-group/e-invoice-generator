@@ -28,6 +28,7 @@ provider:
     E_INVOICE_PROFILE: ${self:custom.stages.${self:provider.stage}.eInvoiceProfile, self:custom.defaults.eInvoiceProfile}
     ALERT_TOPIC_ARN: !Ref AlertTopic
     E_INVOICE_TOPIC_ARN: !Ref EInvoiceCreatedTopic
+    FATAL_DLQ_URL: !Ref InvoiceProcessingFatalDLQ
 
   # IAM: Lambda-Rolle wird als CloudFormation-Ressource definiert (LambdaExecutionRole).
   # Alle notwendigen Berechtigungen und die Permission Boundary sind dort deklariert.
@@ -51,7 +52,7 @@ functions:
           batchSize: 10 # ← Process 10 messages at once (90% cost savings!)
           functionResponseType: ReportBatchItemFailures # Partial batch failures
 
-  # DLQ Processor (Alerting bei fehlgeschlagenen Nachrichten)
+  # DLQ Processor (Alerting bei fehlgeschlagenen Nachrichten nach maxReceiveCount Retries)
   processDLQ:
     handler: src/handlers/dlqProcessor.handler
     description: Processes DLQ messages - logs details and sends SNS alerts
@@ -61,6 +62,22 @@ functions:
     events:
       - sqs:
           arn: !GetAtt InvoiceProcessingDLQ.Arn
+          batchSize: 1
+          functionResponseType: ReportBatchItemFailures
+
+    environment:
+      ALERT_TOPIC_ARN: !Ref AlertTopic
+
+  # Fatal DLQ Processor (Alerting bei deterministischen Fehlern – kein Retry möglich)
+  processFatalDLQ:
+    handler: src/handlers/fatalDlqProcessor.handler
+    description: Processes Fatal DLQ messages - logs fatal errors and alerts Dev-Team
+    memorySize: 512
+    timeout: 30
+
+    events:
+      - sqs:
+          arn: !GetAtt InvoiceProcessingFatalDLQ.Arn
           batchSize: 1
           functionResponseType: ReportBatchItemFailures
 
@@ -208,7 +225,7 @@ resources:
           - Key: Purpose
             Value: Batching
 
-    # Dead Letter Queue (für fehlgeschlagene Messages)
+    # Dead Letter Queue (für fehlgeschlagene Messages nach maxReceiveCount Retries)
     InvoiceProcessingDLQ:
       Type: AWS::SQS::Queue
       Properties:
@@ -222,6 +239,21 @@ resources:
             Value: ${self:provider.stage}
           - Key: Type
             Value: DeadLetterQueue
+
+    # Fatal Dead Letter Queue (für deterministische Fehler – kein Retry sinnvoll)
+    InvoiceProcessingFatalDLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: mcbs-invoice-processing-fatal-dlq-${self:provider.stage}
+        MessageRetentionPeriod: 1209600 # 14 Days
+
+        Tags:
+          - Key: Service
+            Value: ${self:service}
+          - Key: Stage
+            Value: ${self:provider.stage}
+          - Key: Type
+            Value: FatalDeadLetterQueue
 
     # ==================== CloudWatch Dashboard ====================
 
@@ -314,6 +346,13 @@ resources:
                   Resource:
                     - !GetAtt InvoiceProcessingQueue.Arn
                     - !GetAtt InvoiceProcessingDLQ.Arn
+                    - !GetAtt InvoiceProcessingFatalDLQ.Arn
+                # SQS: Nachrichten direkt an Fatal DLQ senden (deterministischer Fehler)
+                - Effect: Allow
+                  Action:
+                    - sqs:SendMessage
+                  Resource:
+                    - !GetAtt InvoiceProcessingFatalDLQ.Arn
 
     # ==================== SNS ====================
 
@@ -387,6 +426,18 @@ resources:
       Value: !Ref InvoiceProcessingDLQ
       Export:
         Name: ${self:service}-${self:provider.stage}-invoice-dlq-url
+
+    FatalDLQQueueURL:
+      Description: Fatal Dead Letter Queue URL (deterministische Fehler – kein Retry)
+      Value: !Ref InvoiceProcessingFatalDLQ
+      Export:
+        Name: ${self:service}-${self:provider.stage}-invoice-fatal-dlq-url
+
+    FatalDLQQueueARN:
+      Description: Fatal Dead Letter Queue ARN
+      Value: !GetAtt InvoiceProcessingFatalDLQ.Arn
+      Export:
+        Name: ${self:service}-${self:provider.stage}-invoice-fatal-dlq-arn
 
     LambdaFunctionARN:
       Description: Lambda Function ARN (Unified E-Invoice Processor)

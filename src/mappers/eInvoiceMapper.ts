@@ -167,7 +167,7 @@ function buildInvoiceLines(ci: CommonInvoice): Record<string, unknown>[] {
         return {
             'cbc:ID': String(item.id),
             'cbc:InvoicedQuantity': String(item.quantity),
-            'cbc:InvoicedQuantity@unitCode': UNIT_CODE[<UnitCode>item.unitCode],
+            'cbc:InvoicedQuantity@unitCode': UNIT_CODE[item.unitCode],
             'cbc:LineExtensionAmount': formatAmount(item.netAmount),
             'cbc:LineExtensionAmount@currencyID': ci.currency,
             ...(item.period === undefined
@@ -284,7 +284,7 @@ export function buildBuyer(ci: CommonInvoice): Record<string, unknown> {
 
 export function buildPaymentMeans(pm: CommonInvoice['paymentMeans'][number]): Record<string, unknown> {
     const result: Record<string, unknown> = {
-        'cbc:PaymentMeansCode': PAYMENT_MEANS_CODE[<PaymentMeansCode>pm.typeCode]
+        'cbc:PaymentMeansCode': PAYMENT_MEANS_CODE[pm.typeCode]
     }
 
     if (pm.information !== undefined) {
@@ -302,6 +302,13 @@ export function buildPaymentMeans(pm: CommonInvoice['paymentMeans'][number]): Re
                           'cbc:ID': pm.payeeInstitution.bic
                       }
                   })
+        }
+    }
+
+    if (pm.card?.primaryAccountNumber !== undefined || pm.card?.holderName !== undefined) {
+        result['cac:CardAccount'] = {
+            ...(pm.card.primaryAccountNumber !== undefined && {'cbc:PrimaryAccountNumberID': pm.card.primaryAccountNumber}),
+            ...(pm.card.holderName !== undefined && {'cbc:HolderName': pm.card.holderName})
         }
     }
 

@@ -202,11 +202,14 @@ describe('eInvoiceGeneratorService', () => {
         )
     })
 
-    it('logs and rethrows when generate throws a non-Error value', async () => {
+    it('logs and wraps as FatalProcessingError when generate throws a non-Error value', async () => {
         const invoice = createInvoice()
         mockGenerate.mockRejectedValueOnce('plain string error')
 
-        await expect(generateEInvoice(invoice)).rejects.toBe('plain string error')
+        await expect(generateEInvoice(invoice)).rejects.toMatchObject({
+            name: 'FatalProcessingError',
+            message: <string>expect.stringContaining('plain string error')
+        })
 
         expect(mockServiceLogger.error).toHaveBeenCalledWith(
             {invoiceNumber: 'INV-TEST-001', error: 'plain string error'},

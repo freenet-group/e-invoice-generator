@@ -65,14 +65,51 @@ Properties:
           "properties": {
             "title": "Lambda Throttles",
             "metrics": [
-              ["AWS/Lambda", "Throttles", "FunctionName", "e-invoice-generator-${self:provider.stage}-createEInvoice", {"stat": "Sum", "label": "createEInvoice", "color": "#ff7f0e"}],
-              ["AWS/Lambda", "Throttles", "FunctionName", "e-invoice-generator-${self:provider.stage}-processDLQ",    {"stat": "Sum", "label": "processDLQ"}]
+              ["AWS/Lambda", "Throttles", "FunctionName", "e-invoice-generator-${self:provider.stage}-createEInvoice",   {"stat": "Sum", "label": "createEInvoice", "color": "#ff7f0e"}],
+              ["AWS/Lambda", "Throttles", "FunctionName", "e-invoice-generator-${self:provider.stage}-processDLQ",      {"stat": "Sum", "label": "processDLQ"}],
+              ["AWS/Lambda", "Throttles", "FunctionName", "e-invoice-generator-${self:provider.stage}-processFatalDLQ", {"stat": "Sum", "label": "processFatalDLQ", "color": "#9467bd"}]
             ],
             "period": 300, "view": "timeSeries", "region": "${AWS::Region}"
           }
         },
         {
-          "type": "metric", "x": 0, "y": 12, "width": 12, "height": 6,
+          "type": "metric", "x": 0, "y": 12, "width": 8, "height": 6,
+          "properties": {
+            "title": "Fatal DLQ – Messages (Dev-Team Eingriff erforderlich)",
+            "metrics": [
+              ["AWS/SQS", "ApproximateNumberOfMessagesVisible", "QueueName", "mcbs-invoice-processing-fatal-dlq-${self:provider.stage}", {"stat": "Maximum", "label": "Fatal DLQ Visible", "color": "#9467bd"}],
+              ["AWS/SQS", "NumberOfMessagesSent",              "QueueName", "mcbs-invoice-processing-fatal-dlq-${self:provider.stage}", {"stat": "Sum",     "label": "Fatal DLQ Sent",    "color": "#d62728"}]
+            ],
+            "period": 300, "view": "timeSeries", "region": "${AWS::Region}",
+            "annotations": {
+              "horizontal": [{"label": "Kein Wert erwartet", "value": 1, "color": "#d62728", "fill": "above"}]
+            }
+          }
+        },
+        {
+          "type": "metric", "x": 8, "y": 12, "width": 8, "height": 6,
+          "properties": {
+            "title": "Fatal DLQ Processor – Invocations & Errors",
+            "metrics": [
+              ["AWS/Lambda", "Invocations", "FunctionName", "e-invoice-generator-${self:provider.stage}-processFatalDLQ", {"stat": "Sum", "label": "Invocations"}],
+              ["AWS/Lambda", "Errors",       "FunctionName", "e-invoice-generator-${self:provider.stage}-processFatalDLQ", {"stat": "Sum", "label": "Errors", "color": "#d62728"}]
+            ],
+            "period": 300, "view": "timeSeries", "region": "${AWS::Region}"
+          }
+        },
+        {
+          "type": "metric", "x": 16, "y": 12, "width": 8, "height": 6,
+          "properties": {
+            "title": "Fatal DLQ vs. DLQ – Fehler-Typen im Vergleich",
+            "metrics": [
+              ["AWS/SQS", "NumberOfMessagesSent", "QueueName", "mcbs-invoice-processing-dlq-${self:provider.stage}",       {"stat": "Sum", "label": "DLQ (transient)",     "color": "#ff7f0e"}],
+              ["AWS/SQS", "NumberOfMessagesSent", "QueueName", "mcbs-invoice-processing-fatal-dlq-${self:provider.stage}", {"stat": "Sum", "label": "Fatal DLQ (deterministisch)", "color": "#d62728"}]
+            ],
+            "period": 300, "view": "timeSeries", "region": "${AWS::Region}"
+          }
+        },
+        {
+          "type": "metric", "x": 0, "y": 18, "width": 12, "height": 6,
           "properties": {
             "title": "SNS Output – Published Messages (sollte = Lambda Invocations sein)",
             "metrics": [
@@ -83,7 +120,7 @@ Properties:
           }
         },
         {
-          "type": "metric", "x": 12, "y": 12, "width": 12, "height": 6,
+          "type": "metric", "x": 12, "y": 18, "width": 12, "height": 6,
           "properties": {
             "title": "SNS vs. Lambda – Verhältnis (Doppel-Publishing-Erkennung)",
             "metrics": [

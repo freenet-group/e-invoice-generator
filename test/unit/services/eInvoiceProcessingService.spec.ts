@@ -2,7 +2,7 @@ import {SQSRecord} from 'aws-lambda'
 import {InvoiceAdapter, RawInvoiceData} from '../../../src/adapters/invoiceAdapter'
 import {AdapterRegistry} from '../../../src/adapters/adapterRegistry'
 import {EInvoiceProcessingService} from '../../../src/services/eInvoiceProcessingService'
-import {CommonInvoice, InvoiceType, TaxCategoryCode} from '../../../src/models/commonInvoice'
+import {CommonInvoice, InvoiceType, TaxCategoryCode, UnitCode, PaymentMeansCode} from '../../../src/models/commonInvoice'
 
 function createInvoice(): CommonInvoice {
     return {
@@ -37,7 +37,7 @@ function createInvoice(): CommonInvoice {
                 id: 1,
                 name: 'Leistung',
                 quantity: 1,
-                unitCode: 'C62',
+                unitCode: UnitCode.PIECE,
                 unitPrice: 100,
                 netAmount: 100,
                 tax: {
@@ -47,7 +47,7 @@ function createInvoice(): CommonInvoice {
                 }
             }
         ],
-        paymentMeans: [{typeCode: '58'}],
+        paymentMeans: [{typeCode: PaymentMeansCode.CREDIT_TRANSFER}],
         taxes: [
             {
                 typeCode: 'VAT',

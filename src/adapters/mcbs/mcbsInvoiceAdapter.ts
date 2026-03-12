@@ -1,10 +1,16 @@
+import {z} from 'zod'
 import {InvoiceAdapter, InvoiceAdapterConfig, RawInvoiceData} from '../invoiceAdapter'
-import {CommonInvoice} from '../../models/commonInvoice'
+import {CommonInvoice, InvoiceSource} from '../../models/commonInvoice'
 import {loadXmlFromS3OrLocal} from '../../core/s3/s3XmlLoader'
 import {loadPdfFromS3} from '../../core/s3/s3PdfLoader'
 import {parseMcbsXml, mapMcbsToCommonInvoice} from './mcbsInvoiceMapper'
 
-const defaultResolvePrimaryKey = (triggerKey: string): string => triggerKey.replace(/\.pdf$/i, '.xml') // raw/pdf/invoice-123.pdf → raw/pdf/invoice-123.xml (Fallback; Handler nutzt PDF_PREFIX/XML_PREFIX)
+const defaultResolvePrimaryKey = (triggerKey: string): string => triggerKey.replace(/\.pdf$/i, '.xml')
+
+const S3EventPayloadSchema = z.object({
+    bucket: z.object({name: z.string()}),
+    object: z.object({key: z.string()})
+})
 
 export class MCBSAdapter implements InvoiceAdapter {
     private readonly resolvePrimaryKey: (triggerKey: string) => string
@@ -16,12 +22,12 @@ export class MCBSAdapter implements InvoiceAdapter {
     }
 
     async loadInvoiceData(payload: Record<string, unknown>): Promise<RawInvoiceData> {
-        const triggerBucket = (<{name?: string} | undefined>payload['bucket'])?.name
-        const triggerKey = (<{key?: string} | undefined>payload['object'])?.key
-
-        if (triggerBucket === undefined || triggerKey === undefined) {
+        const parsed = S3EventPayloadSchema.safeParse(payload)
+        if (!parsed.success) {
             throw new Error(`Invalid S3 event payload: missing bucket or key`)
         }
+        const triggerBucket = parsed.data.bucket.name
+        const triggerKey = parsed.data.object.key
 
         const bucket = this.primaryBucket ?? triggerBucket
         const xmlKey = this.resolvePrimaryKey(triggerKey) // PDF → XML Key
@@ -29,7 +35,7 @@ export class MCBSAdapter implements InvoiceAdapter {
         const xml = await loadXmlFromS3OrLocal({bucket, key: xmlKey})
 
         return parseMcbsXml(xml, `s3://${bucket}/${xmlKey}`, {
-            source: 'MCBS',
+            source: 'MCBS' satisfies InvoiceSource,
             timestamp: new Date().toISOString(),
             s3Bucket: bucket,
             sourceDataKey: xmlKey,

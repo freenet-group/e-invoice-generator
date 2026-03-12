@@ -46,12 +46,26 @@ Der E-Invoice Generator konvertiert Rechnungsdaten aus verschiedenen Quellsystem
 │       ↓                                      │
 │  EInvoiceGeneratorService                    │
 │  (@e-invoice-eu/core → ZUGFeRD XML / PDF)    │
-└──────────────────┬───────────────────────────┘
-                   ↓
-      ┌────────────────────────┐        ┌──────────────────────────────┐
-      │ S3: e-invoices/        │        │ SNS: einvoice-created-{stage}│
-      │ (ZUGFeRD PDF / XML)    │        │ → Consumer (SQS Subscription)│
-      └────────────────────────┘        └──────────────────────────────┘
+└──────┬───────────────────────┬───────────────┘
+       │ Erfolg                │ FatalProcessingError
+       ↓                       ↓ (kein Retry)
+┌──────────────┐   ┌──────────────────────────────────┐
+│ S3: e-inv/   │   │ Fatal DLQ (SQS)                  │
+│ SNS output   │   │ mcbs-invoice-processing-fatal-dlq│
+└──────────────┘   └──────────────┬───────────────────┘
+                                  ↓
+                   ┌──────────────────────────────────┐
+                   │ Lambda: fatalDlqProcessor        │
+                   │ (Structured Logging + SNS Alert) │
+                   └──────────────┬───────────────────┘
+                                  ↓
+                   ┌──────────────────────────────────┐
+                   │ SNS: alerts-{stage}              │
+                   │ → Dev-Team (Email / Slack)       │
+                   └──────────────────────────────────┘
+
+Transiente Fehler (3× Retry):
+  SQS Retry → DLQ → processDLQ Lambda → SNS (Ops-Team)
 ```
 
 ---
@@ -199,6 +213,8 @@ Die Werte werden beim Deployment aus `serverless.yml` (`custom.prefixes`) als Um
 | `ACTIVE_ADAPTER`      | EventBridge source des aktiven Adapters | `custom.mcbs`           |
 | `AWS_ENDPOINT_URL`    | Nur lokal/LocalStack                    | `http://localhost:4566` |
 | `E_INVOICE_TOPIC_ARN` | ARN des SNS Topics für Output-Events    | (aus Stack-Output)      |
+| `FATAL_DLQ_URL`       | SQS-URL der Fatal DLQ                   | (aus Stack-Output)      |
+| `ALERT_TOPIC_ARN`     | ARN des SNS Alert-Topics (DLQ + Fatal)  | (aus Stack-Output)      |
 
 > **Wichtig:** Die Präfixe werden beim Deployment eingefroren. Werden sie extern (durch das schreibende System oder per IaC) geändert, muss dieser Service **neu deployed** werden, damit EventBridge-Rule, Umgebungsvariablen und S3-Zugriffe konsistent bleiben.
 
@@ -436,31 +452,107 @@ aws cloudformation describe-stacks \
 
 #### Widgets
 
-| Widget                                   | Metriken                                              | Zweck                                                                          |
-| ---------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
-| **Lambda Invocations & Errors**          | `Invocations`, `Errors` (createEInvoice)              | Durchsatz und Fehlerrate auf einen Blick                                       |
-| **Lambda Duration**                      | `Duration` p50 / p99 (createEInvoice)                 | Latenzen und Ausreißer erkennen                                                |
-| **SQS Queue – Messages**                 | `Sent`, `Deleted`, `Visible`                          | Rückstau in der Processing Queue sichtbar machen                               |
-| **DLQ – Messages**                       | `Visible`, `Sent` (DLQ)                               | Sollte dauerhaft 0 sein; jeder Wert >0 ist ein Incident                        |
-| **DLQ Processor – Invocations & Errors** | `Invocations`, `Errors` (processDLQ)                  | Verarbeitung fehlgeschlagener Messages                                         |
-| **Lambda Throttles**                     | `Throttles` (beide Funktionen)                        | Concurrency-Engpässe                                                           |
-| **SNS Output – Published Messages**      | `NumberOfMessagesSent`, `NumberOfNotificationsFailed` | Absoluter Output-Durchsatz; Failed sollte 0 sein                               |
-| **SNS vs. Lambda – Verhältnis**          | Lambda `Invocations` vs. SNS `NumberOfMessagesSent`   | **Doppel-Publishing-Erkennung**: beide Linien sollten deckungsgleich verlaufen |
+Das Dashboard ist in vier Zeilen à drei Widgets (24 Spalten) aufgeteilt:
 
-> Das letzte Widget ist besonders nützlich zur Diagnose von Doppel-Events aus EventBridge (zwei Rules → zwei SQS-Messages für ein PDF). Weichen die Linien dauerhaft auseinander, liegt ein strukturelles Problem in der EventBridge-Konfiguration vor.
+**Zeile 1 – Lambda & SQS Durchsatz**
 
-### Fehlerbehandlung: DLQ → SNS → Operations
+| Widget                          | Metriken                                 | Zweck                                            |
+| ------------------------------- | ---------------------------------------- | ------------------------------------------------ |
+| **Lambda Invocations & Errors** | `Invocations`, `Errors` (createEInvoice) | Durchsatz und Fehlerrate auf einen Blick         |
+| **Lambda Duration**             | `Duration` p50 / p99 (createEInvoice)    | Latenzen und Ausreißer erkennen                  |
+| **SQS Queue – Messages**        | `Sent`, `Deleted`, `Visible`             | Rückstau in der Processing Queue sichtbar machen |
+
+**Zeile 2 – Transiente Fehler (DLQ)**
+
+| Widget                                   | Metriken                             | Zweck                                                                |
+| ---------------------------------------- | ------------------------------------ | -------------------------------------------------------------------- |
+| **DLQ – Messages**                       | `Visible`, `Sent` (DLQ)              | Sollte dauerhaft 0 sein; jeder Wert >0 ist ein Incident              |
+| **DLQ Processor – Invocations & Errors** | `Invocations`, `Errors` (processDLQ) | Verarbeitung transient fehlgeschlagener Messages                     |
+| **Lambda Throttles**                     | `Throttles` (alle drei Funktionen)   | Concurrency-Engpässe bei createEInvoice, processDLQ, processFatalDLQ |
+
+**Zeile 3 – Deterministische Fehler (Fatal DLQ)**
+
+| Widget                                            | Metriken                                  | Zweck                                                                        |
+| ------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------- |
+| **Fatal DLQ – Messages**                          | `Visible`, `Sent` (Fatal DLQ)             | Sollte dauerhaft 0 sein; roter Alarm-Threshold ab Wert 1                     |
+| **Fatal DLQ Processor – Invocations & Errors**    | `Invocations`, `Errors` (processFatalDLQ) | Verarbeitung deterministisch fehlgeschlagener Messages                       |
+| **Fatal DLQ vs. DLQ – Fehler-Typen im Vergleich** | `Sent` beider DLQ-Queues                  | Zeigt auf einen Blick, ob transiente oder deterministische Fehler dominieren |
+
+> **Fatal DLQ Alarm**: Das Widget enthält eine rote horizontale Annotation bei Wert 1. Jeder Eintrag in der Fatal DLQ bedeutet einen deterministischen Fehler, der **Dev-Team-Eingriff erfordert** – die Quelldaten oder der Code müssen korrigiert werden.
+
+**Zeile 4 – SNS Output**
+
+| Widget                              | Metriken                                              | Zweck                                                                          |
+| ----------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **SNS Output – Published Messages** | `NumberOfMessagesSent`, `NumberOfNotificationsFailed` | Absoluter Output-Durchsatz; Failed sollte 0 sein                               |
+| **SNS vs. Lambda – Verhältnis**     | Lambda `Invocations` vs. SNS `NumberOfMessagesSent`   | **Doppel-Publishing-Erkennung**: beide Linien sollten deckungsgleich verlaufen |
+
+> Das SNS-Verhältnis-Widget ist besonders nützlich zur Diagnose von Doppel-Events aus EventBridge (zwei Rules → zwei SQS-Messages für ein PDF). Weichen die Linien dauerhaft auseinander, liegt ein strukturelles Problem in der EventBridge-Konfiguration vor.
+
+### Fehlerbehandlung: Zwei Fehler-Pfade
+
+Der Service unterscheidet zwei Kategorien von Fehlern, die unterschiedlich behandelt werden:
+
+#### Pfad 1: Transiente Fehler → DLQ → Operations
 
 ```
-Lambda-Fehler
+Lambda-Fehler (z. B. S3 nicht erreichbar, temporärer Netzwerkfehler)
     └── 3× Retry (SQS VisibilityTimeout)
             └── Dead Letter Queue (DLQ)
-                    └── DLQ Processor Lambda
+                    └── processDLQ Lambda
                             └── SNS Alert Topic
                                     └── Operations (Email / PagerDuty / Slack)
 ```
 
-Nach 3 fehlgeschlagenen Verarbeitungsversuchen landet eine Message in der DLQ. Der DLQ-Prozessor liest sie aus, loggt alle Details und publiziert eine Nachricht auf dem SNS Alert Topic.
+Nach 3 fehlgeschlagenen Verarbeitungsversuchen landet eine Message in der DLQ. Der DLQ-Prozessor liest sie aus, loggt alle Details und publiziert eine Nachricht auf dem SNS Alert Topic. Diese Fehler werden in der Regel durch temporäre Infrastrukturprobleme verursacht und können oft durch erneutes Einliefern der Message behoben werden.
+
+#### Pfad 2: Deterministische Fehler → Fatal DLQ → Dev-Team
+
+```
+FatalProcessingError (deterministische Fehler in den Eingabedaten)
+    └── sofort → Fatal DLQ (kein SQS-Retry)
+                    └── fatalDlqProcessor Lambda
+                            └── SNS Alert Topic
+                                    └── Dev-Team (strukturiertes Logging + Alert)
+```
+
+**Wann wird ein Fehler als fatal eingestuft?**
+
+Ein `FatalProcessingError` wird ausgelöst, wenn der Fehler deterministisch ist – ein erneuter Versuch mit denselben Eingabedaten würde immer wieder scheitern:
+
+| Fehlerquelle                | Beispiel                                                        |
+| --------------------------- | --------------------------------------------------------------- |
+| Ungültige MCBS-XML-Struktur | Pflichtfeld fehlt, ungültiger `PAYMENT_TYPE`, Schema-Verletzung |
+| Geschäftslogik-Fehler       | Widersprüchliche Rechnungsdaten, die EN-16931-Regeln verletzen  |
+| Bibliotheksfehler           | `@e-invoice-eu/core` lehnt das gemappte UBL-Objekt ab           |
+
+**Unterschied zur normalen DLQ:**
+
+- **DLQ**: SQS wartet 3 Versuche ab, bevor die Message weitergeleitet wird → für transiente Fehler
+- **Fatal DLQ**: `batchItemFailures` enthält die Message **nicht** → SQS behandelt sie als erfolgreich verarbeitet und sendet **keinen Retry** → für deterministische Fehler
+
+**Was muss das Dev-Team tun?**
+
+Fatal-DLQ-Nachrichten bedeuten immer, dass die **Quelldaten korrigiert** oder der **Service-Code angepasst** werden muss. Die SNS-Alert-Nachricht enthält:
+
+```json
+{
+  "type": "FatalProcessingError",
+  "messageId": "<SQS Message ID der Fatal DLQ>",
+  "originalMessageId": "<SQS Message ID der ursprünglichen Queue>",
+  "errorSource": "raw/xml/INV-001.xml",
+  "errorMessage": "[raw/xml/INV-001.xml] Invalid MCBS XML structure: INVOICE_DATA.PAYMENT_MODE.PAYMENT_TYPE: Invalid option",
+  "failedAt": "2026-03-12T10:00:00.000Z",
+  "sentAt": "2026-03-12T10:00:01.000Z"
+}
+```
+
+Mit `errorSource` lässt sich die betroffene Quelldatei direkt in S3 identifizieren:
+
+```bash
+# Betroffene XML-Datei aus S3 laden
+aws s3 cp s3://mcbs-invoices-{stage}/{errorSource} /tmp/failed-invoice.xml
+```
 
 ### SNS Alert Topic abonnieren
 

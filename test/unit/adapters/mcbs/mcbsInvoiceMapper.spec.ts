@@ -2,7 +2,7 @@ import {parseMcbsXml, mapMcbsToCommonInvoice} from '../../../../src/adapters/mcb
 import {TaxCategoryCode, PaymentMeansCode, InvoiceType} from '../../../../src/models/commonInvoice'
 
 const baseMetadata = {
-    source: 'MCBS' as const,
+    source: <const>'MCBS',
     timestamp: '2025-01-01T00:00:00Z',
     s3Bucket: 'test-bucket',
     sourceDataKey: 'test-key.xml',
@@ -31,7 +31,7 @@ function buildXml(overrides: {
         type = 'RE',
         invoiceNo = 'INV-001',
         invoiceDef = 'INV-DEF-001',
-        paymentType = 'TRANSFER',
+        paymentType = 'INVOICE',
         unpaid = '0',
         vatRate = '19',
         diffVatRate = '19',
@@ -167,7 +167,7 @@ describe('mcbsInvoiceMapper', () => {
     })
 
     it('maps other payment type to CREDIT_TRANSFER', () => {
-        const raw = parseMcbsXml(buildXml({paymentType: 'TRANSFER'}), 'test', baseMetadata)
+        const raw = parseMcbsXml(buildXml({paymentType: 'INVOICE'}), 'test', baseMetadata)
         const result = mapMcbsToCommonInvoice(raw)
         expect(result.paymentMeans[0]?.typeCode).toBe(PaymentMeansCode.CREDIT_TRANSFER)
     })
@@ -275,7 +275,7 @@ describe('mcbsInvoiceMapper', () => {
   </RECIPIENT>
   <INVOICE_DATA>
     <PAYMENT_MODE>
-      <PAYMENT_TYPE>TRANSFER</PAYMENT_TYPE>
+      <PAYMENT_TYPE>INVOICE</PAYMENT_TYPE>
       <DUE_DATE>01.02.2025</DUE_DATE>
       <BANK_ACCOUNT>DE89370400440532013000</BANK_ACCOUNT>
       <BANK_CODE>COBADEFFXXX</BANK_CODE>
@@ -460,7 +460,7 @@ describe('mcbsInvoiceMapper', () => {
   </RECIPIENT>
   <INVOICE_DATA>
     <PAYMENT_MODE>
-      <PAYMENT_TYPE>TRANSFER</PAYMENT_TYPE>
+      <PAYMENT_TYPE>INVOICE</PAYMENT_TYPE>
       <DUE_DATE>01.02.2025</DUE_DATE>
       <BANK_ACCOUNT>DE89370400440532013000</BANK_ACCOUNT>
       <BANK_CODE>COBADEFFXXX</BANK_CODE>
@@ -507,7 +507,7 @@ describe('mcbsInvoiceMapper', () => {
   </RECIPIENT>
   <INVOICE_DATA>
     <PAYMENT_MODE>
-      <PAYMENT_TYPE>TRANSFER</PAYMENT_TYPE>
+      <PAYMENT_TYPE>INVOICE</PAYMENT_TYPE>
       <DUE_DATE>01.02.2025</DUE_DATE>
       <BANK_ACCOUNT>DE89370400440532013000</BANK_ACCOUNT>
       <BANK_CODE>COBADEFFXXX</BANK_CODE>

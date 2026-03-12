@@ -2,6 +2,8 @@ import {readFile, mkdir, writeFile} from 'node:fs/promises'
 import {parseArgs} from 'node:util'
 import {parseMcbsXml, mapMcbsToCommonInvoice} from '../src/adapters/mcbs/mcbsInvoiceMapper'
 import {generateEInvoice} from '../src/services/eInvoiceGeneratorService'
+import {DEFAULT_PROFILE} from '../src/config/eInvoiceProfileConfiguration'
+import {type InvoiceSource} from '../src/models/commonInvoice'
 import {spawnSync} from 'node:child_process'
 import * as path from 'node:path'
 import * as zlib from 'node:zlib'
@@ -151,7 +153,7 @@ async function run(): Promise<void> {
 
     logger.info('🔄 Parse MCBS XML...')
     const rawData = parseMcbsXml(xmlContent, <string>values.xml, {
-        source: 'MCBS',
+        source: 'MCBS' satisfies InvoiceSource,
         timestamp: new Date().toISOString(),
         s3Bucket: undefined,
         sourceDataKey: <string>values.xml,
@@ -162,7 +164,7 @@ async function run(): Promise<void> {
 
     logger.info('🔄 Generiere ZUGFeRD PDF...')
     const result = await generateEInvoice(invoice, {
-        profile: 'factur-x-en16931',
+        profile: DEFAULT_PROFILE,
         pdf: pdfBuffer,
         pdfFilename: 'invoice.pdf'
     })

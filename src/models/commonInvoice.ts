@@ -59,7 +59,7 @@ export interface CommonInvoice {
          * - AWS_BILLING: AWS-Kundenabrechnungen
          * - PARTNER_COMMISSION: Händlerprovisionsabrechnungen
          */
-        system: 'MCBS' | 'AWS_BILLING' | 'PARTNER_COMMISSION'
+        system: InvoiceSource
 
         /** Zeitstempel der Verarbeitung */
         timestamp: string
@@ -120,6 +120,9 @@ export interface CommonInvoice {
 }
 
 // ==================== Enums ====================
+
+export const INVOICE_SOURCES = <const>['MCBS', 'AWS_BILLING', 'PARTNER_COMMISSION']
+export type InvoiceSource = (typeof INVOICE_SOURCES)[number]
 
 export enum InvoiceType {
     COMMERCIAL = 'COMMERCIAL',
@@ -267,7 +270,7 @@ export interface LineItem {
     quantity: number
 
     /** Einheitencode (BT-130) */
-    unitCode: string
+    unitCode: UnitCode
 
     /** Einzelpreis (BT-146) */
     unitPrice: number
@@ -320,7 +323,7 @@ export interface LineItem {
 
 export interface PaymentMeans {
     /** Zahlungsmittel-Code (BT-81) */
-    typeCode: string
+    typeCode: PaymentMeansCode
 
     /** Zusätzliche Informationen (BT-82) */
     information?: string
@@ -338,6 +341,14 @@ export interface PaymentMeans {
     payeeInstitution?: {
         /** BIC (BT-86) */
         bic?: string
+    }
+
+    /** Kreditkarte (BG-18 / BT-87) – nur bei typeCode CARD */
+    card?: {
+        /** Primäre Kontonummer der Zahlungskarte, i.d.R. letzte 4 Stellen (BT-87) */
+        primaryAccountNumber?: string
+        /** Name des Karteninhabers (BT-88) */
+        holderName?: string
     }
 
     /** SEPA Mandat (optional) */

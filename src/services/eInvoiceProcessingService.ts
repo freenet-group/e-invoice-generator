@@ -6,8 +6,10 @@ import {generateEInvoice} from './eInvoiceGeneratorService'
 import {uploadToS3} from '../core/s3/s3Uploader'
 import {publishEInvoiceCreated, type EInvoiceCreatedEventParams, type BillingDocumentType} from './eInvoiceEventPublisher'
 import {logger as rootLogger} from '../core/logger'
-import {getInvoiceFormat, type InvoiceFormat} from '../config/eInvoiceProfileConfiguration'
+import {getInvoiceFormat, type InvoiceFormat, DEFAULT_ADAPTER} from '../config/eInvoiceProfileConfiguration'
 import {InvoiceType} from '../models/commonInvoice'
+import {FatalProcessingError} from '../core/errors/fatalProcessingError'
+import {sendToFatalDlq} from '../core/sqs/sqsFatalDlqSender'
 
 const EventBridgeEventSchema = z.object({
     id: z.string().optional(),
@@ -52,8 +54,17 @@ export class EInvoiceProcessingService {
             try {
                 await this.processRecord(record)
             } catch (error) {
-                this.logger.error({err: error, messageId: record.messageId}, `Failed to process record ${record.messageId}`)
-                batchItemFailures.push({itemIdentifier: record.messageId})
+                if (error instanceof FatalProcessingError) {
+                    this.logger.error(
+                        {err: error, messageId: record.messageId, source: error.source},
+                        `Fatal error – no retry, routing to Fatal DLQ: ${record.messageId}`
+                    )
+                    await sendToFatalDlq(record, error)
+                    // Nicht in batchItemFailures → SQS behandelt die Message als erfolgreich verarbeitet
+                } else {
+                    this.logger.error({err: error, messageId: record.messageId}, `Failed to process record ${record.messageId}`)
+                    batchItemFailures.push({itemIdentifier: record.messageId})
+                }
             }
         }
 
@@ -71,7 +82,7 @@ export class EInvoiceProcessingService {
 
         this.logger.info({source: eventBridgeEvent.source, detailType: eventBridgeEvent['detail-type']}, 'Event received')
 
-        const activeAdapter = process.env['ACTIVE_ADAPTER'] ?? 'custom.mcbs'
+        const activeAdapter = process.env['ACTIVE_ADAPTER'] ?? DEFAULT_ADAPTER
         if (!this.adapterRegistry.hasAdapter(activeAdapter)) {
             throw new Error(
                 `Unknown adapter: '${activeAdapter}' – check ACTIVE_ADAPTER environment variable. Available adapters: ${this.adapterRegistry.getSources().join(', ')}`
@@ -146,8 +157,11 @@ async function defaultUploadResult(zugferdResult: string | Uint8Array, sourceFil
 }
 
 function resolveBillingDocumentType(invoiceType: InvoiceType): BillingDocumentType {
-    if (invoiceType === InvoiceType.CREDIT_NOTE || invoiceType === InvoiceType.CORRECTED) {
-        return 'CREDIT_NOTE'
+    const map: Record<InvoiceType, BillingDocumentType> = {
+        [InvoiceType.COMMERCIAL]: 'COMMERCIAL_INVOICE',
+        [InvoiceType.CREDIT_NOTE]: 'CREDIT_NOTE',
+        [InvoiceType.CORRECTED]: 'CORRECTED_INVOICE',
+        [InvoiceType.SELF_BILLING]: 'SELF_BILLING'
     }
-    return 'COMMERCIAL_INVOICE'
+    return map[invoiceType]
 }

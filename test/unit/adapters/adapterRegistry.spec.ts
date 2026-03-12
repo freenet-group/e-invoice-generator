@@ -1,6 +1,6 @@
 import {InvoiceAdapter, RawInvoiceData} from '../../../src/adapters/invoiceAdapter'
 import {AdapterRegistry} from '../../../src/adapters/adapterRegistry'
-import {CommonInvoice, InvoiceType, TaxCategoryCode} from '../../../src/models/commonInvoice'
+import {CommonInvoice, InvoiceType, TaxCategoryCode, UnitCode, PaymentMeansCode} from '../../../src/models/commonInvoice'
 
 function createInvoice(): CommonInvoice {
     return {
@@ -22,13 +22,13 @@ function createInvoice(): CommonInvoice {
                 id: 1,
                 name: 'Item',
                 quantity: 1,
-                unitCode: 'C62',
+                unitCode: UnitCode.PIECE,
                 unitPrice: 10,
                 netAmount: 10,
                 tax: {typeCode: 'VAT', categoryCode: TaxCategoryCode.STANDARD, rate: 19}
             }
         ],
-        paymentMeans: [{typeCode: '58'}],
+        paymentMeans: [{typeCode: PaymentMeansCode.CREDIT_TRANSFER}],
         taxes: [{typeCode: 'VAT', categoryCode: TaxCategoryCode.STANDARD, rate: 19, basisAmount: 10, calculatedAmount: 1.9}],
         totals: {lineTotal: 10, taxBasisTotal: 10, taxTotal: 1.9, grandTotal: 11.9, duePayable: 11.9}
     }

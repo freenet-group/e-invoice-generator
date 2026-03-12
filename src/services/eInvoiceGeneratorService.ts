@@ -13,6 +13,8 @@ import {logger} from '../core/logger'
 import {mapToEInvoice} from '../mappers/eInvoiceMapper'
 export type {InvoiceFormat} from '../config/eInvoiceProfileConfiguration'
 import type {InvoiceFormat} from '../config/eInvoiceProfileConfiguration'
+import {DEFAULT_PROFILE} from '../config/eInvoiceProfileConfiguration'
+import {FatalProcessingError} from '../core/errors/fatalProcessingError'
 
 export interface EInvoiceGeneratorOptions {
     /** E-Invoice Format/Profil (default: factur-x-en16931) */
@@ -48,7 +50,7 @@ export async function generateEInvoice(
     commonInvoice: CommonInvoice,
     options?: EInvoiceGeneratorOptions
 ): Promise<string | Uint8Array> {
-    const profile = options?.profile ?? 'factur-x-en16931'
+    const profile = options?.profile ?? DEFAULT_PROFILE
     const invoice = mapToEInvoice(commonInvoice)
 
     const serviceOptions: InvoiceServiceOptions = {
@@ -70,8 +72,9 @@ export async function generateEInvoice(
     try {
         return await service.generate(invoice, serviceOptions)
     } catch (e) {
-        const message = e instanceof Error ? e.message : String(e)
-        logger.error({invoiceNumber: commonInvoice.invoiceNumber, error: message}, 'E-Invoice Generierung fehlgeschlagen')
-        throw e
+        const cause = e instanceof Error ? e : new Error(String(e))
+        logger.error({invoiceNumber: commonInvoice.invoiceNumber, error: cause.message}, 'E-Invoice Generierung fehlgeschlagen')
+        // InvoiceService.generate() macht keine externen Calls → deterministischer Fehler
+        throw new FatalProcessingError(cause.message, commonInvoice.invoiceNumber, cause)
     }
 }

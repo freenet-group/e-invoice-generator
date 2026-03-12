@@ -10,18 +10,19 @@ import {AdapterRegistry} from '../adapters/adapterRegistry'
 import {MCBSAdapter} from '../adapters/mcbs/mcbsInvoiceAdapter'
 import {EInvoiceProcessingService} from '../services/eInvoiceProcessingService'
 import {logger} from '../core/logger'
+import {DEFAULT_ADAPTER} from '../config/eInvoiceProfileConfiguration'
 
 const handlerLogger = logger.child({name: 'unified-e-invoice-handler'})
 
-const activeAdapter = process.env['ACTIVE_ADAPTER'] ?? 'custom.mcbs'
+const activeAdapter = process.env['ACTIVE_ADAPTER'] ?? DEFAULT_ADAPTER
 
 const adapterRegistry = new AdapterRegistry()
 
-if (activeAdapter === 'custom.mcbs') {
+if (activeAdapter === DEFAULT_ADAPTER) {
     const pdfPrefix = process.env['PDF_PREFIX'] ?? 'raw/pdf/'
     const xmlPrefix = process.env['XML_PREFIX'] ?? 'raw/xml/'
     adapterRegistry.register(
-        'custom.mcbs',
+        DEFAULT_ADAPTER,
         () =>
             new MCBSAdapter({
                 resolvePrimaryKey: (pdfKey: string): string =>

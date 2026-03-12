@@ -26,7 +26,7 @@ describe('mcbsXmlInvoiceSchema', () => {
             },
             INVOICE_DATA: {
                 PAYMENT_MODE: {
-                    PAYMENT_TYPE: 'TRANSFER',
+                    PAYMENT_TYPE: 'INVOICE',
                     DUE_DATE: '01.02.2025',
                     BANK_ACCOUNT: 'DE89370400440532013000',
                     BANK_CODE: 'COBADEFFXXX'

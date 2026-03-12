@@ -1,4 +1,5 @@
 import type {SQSEvent} from 'aws-lambda'
+import {DEFAULT_ADAPTER} from '../../../src/config/eInvoiceProfileConfiguration'
 
 const mockRegister = jest.fn()
 const mockProcessBatch = jest.fn()
@@ -51,7 +52,7 @@ describe('unified-e-invoice.handler', () => {
             const result = await mod.handler(event)
 
             expect(result).toEqual({batchItemFailures: []})
-            expect(mockRegister).toHaveBeenCalledWith('custom.mcbs', expect.any(Function))
+            expect(mockRegister).toHaveBeenCalledWith(DEFAULT_ADAPTER, expect.any(Function))
             expect(mockProcessBatch).toHaveBeenCalledWith(event.Records)
 
             expect(mockInfo).toHaveBeenCalled()

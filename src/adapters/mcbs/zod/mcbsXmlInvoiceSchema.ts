@@ -207,12 +207,26 @@ const McbsDiffVatSchema = z.object({
 // ==================== PAYMENT_MODE ====================
 
 const McbsPaymentModeSchema = z.object({
-    PAYMENT_TYPE: z.enum(['SEPADEBIT', 'TRANSFER']).default('TRANSFER'),
+    PAYMENT_TYPE: z
+        .enum(['SEPADEBIT', 'SEPACREDIT', 'INVOICE', 'SEF', 'ZERO', 'NO_SEPADEBIT', 'CREDITCARD', 'INFO'])
+        .default('INVOICE'),
+    LEDGER_ACCOUNT: z.string().optional(),
+    ACCOUNT_OWNER: z
+        .object({
+            CUSTOMER_DIFF: z.string(),
+            OWNER_NAME: z.string().optional()
+        })
+        .optional(),
     SEPA_MANDATE: z.string().optional().nullable(),
     BANK_ACCOUNT: z.string().optional().nullable(),
     BANK_CODE: z.string().optional().nullable(),
+    CARD_END_DATE: z.string().optional(),
+    PAYMENT_TERM: z.coerce.number().optional(),
     DUE_DATE: germanDate.optional(),
-    PAYMENT_TERM: z.coerce.number().optional()
+    CARD_PROVIDER: z.string().optional(),
+    CARD_NUMBER: z.string().optional(),
+    CARD_HOLDER: z.string().optional(),
+    CARD_EXPIRATION: z.string().optional()
 })
 
 // ==================== HEADER ====================
