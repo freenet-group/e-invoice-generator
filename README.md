@@ -264,6 +264,8 @@ arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-einvoice-created-{stage
   "billingDocumentId": "M26008957394",
   "partyId": "C25002242080",
   "billingAccountId": "INV-DEF-0815",
+  "billrunId": "BR-2026-03",
+  "mandant": "01",
   "profile": "factur-x-en16931",
   "fileName": "M26008957394.pdf",
   "mediaType": "application/pdf",
@@ -281,6 +283,8 @@ arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-einvoice-created-{stage
 | `billingDocumentId`   | Rechnungsnummer                                                                                                                                             |
 | `partyId`             | Kundennummer / Partei-ID im Quellsystem (MCBS: `PERSON_NO`)                                                                                                 |
 | `billingAccountId`    | Abrechnungskonto-ID (MCBS: `HEADER.INVOICE_DEF`)                                                                                                            |
+| `billrunId`           | Abrechnungslauf-ID, falls vorhanden (MCBS: `HEADER.BILLRUN_ID`) – optional                                                                                  |
+| `mandant`             | Mandant des Quellsystems, falls vorhanden (MCBS: `HEADER.MANDANT`) – optional                                                                               |
 | `profile`             | ZUGFeRD-Profil (`factur-x-en16931`, `factur-x-xrechnung`, ...)                                                                                              |
 | `fileName`            | Dateiname der generierten Datei – entspricht dem Namen des Quell-PDFs                                                                                       |
 | `mediaType`           | `application/pdf` (ZUGFeRD mit eingebettetem XML) oder `application/xml` (reines XRechnung-XML)                                                             |
@@ -316,6 +320,8 @@ Das Event enthält folgende `MessageAttributes` für SNS-seitige Filterung:
 | `billingDocumentType` | Dokumententyp                                                                                          | `COMMERCIAL_INVOICE` / `CREDIT_NOTE`          |
 | `profile`             | ZUGFeRD-Profil                                                                                         | `factur-x-en16931` / `factur-x-xrechnung`     |
 | `mediaType`           | MIME-Type der generierten Datei                                                                        | `application/pdf` / `application/xml`         |
+| `billrunId`           | Abrechnungslauf-ID – nur vorhanden wenn in MCBS XML gesetzt                                            | `BR-2026-03`                                  |
+| `mandant`             | Mandant – nur vorhanden wenn in MCBS XML gesetzt                                                       | `01`                                          |
 
 ### Consumer: SNS Subscription einrichten
 

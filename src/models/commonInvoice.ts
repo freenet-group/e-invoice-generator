@@ -77,6 +77,18 @@ export interface CommonInvoice {
          * - AWS Billing: Account-ID
          */
         billingAccountId: string
+
+        /**
+         * Abrechnungslauf-ID
+         * - MCBS: HEADER.BILLRUN_ID
+         */
+        billrunId?: string
+
+        /**
+         * Mandant
+         * - MCBS: HEADER.MANDANT
+         */
+        mandant?: string
     }
 
     // ==================== Parties ====================

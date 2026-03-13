@@ -15,6 +15,8 @@ export interface EInvoiceCreatedEventParams {
     billingDocumentId: string
     partyId: string
     billingAccountId: string
+    billrunId?: string
+    mandant?: string
     s3Key: string
     bucketName: string
     profile: string
@@ -32,6 +34,8 @@ export const EInvoiceCreatedEventSchema = z.object({
     billingDocumentId: z.string(),
     partyId: z.string(),
     billingAccountId: z.string(),
+    billrunId: z.string().optional(),
+    mandant: z.string().optional(),
     profile: z.string(),
     fileName: z.string(),
     mediaType: z.enum(MEDIA_TYPES),
@@ -46,7 +50,9 @@ export const EInvoiceMessageAttributesSchema = z.object({
     source: z.enum(INVOICE_SOURCES),
     billingDocumentType: z.enum(BILLING_DOCUMENT_TYPES),
     profile: z.string(),
-    mediaType: z.enum(MEDIA_TYPES)
+    mediaType: z.enum(MEDIA_TYPES),
+    billrunId: z.string().optional(),
+    mandant: z.string().optional()
 })
 
 export type EInvoiceMessageAttributes = z.infer<typeof EInvoiceMessageAttributesSchema>
@@ -70,6 +76,8 @@ export async function publishEInvoiceCreated(params: EInvoiceCreatedEventParams)
         billingDocumentId: params.billingDocumentId,
         partyId: params.partyId,
         billingAccountId: params.billingAccountId,
+        ...(params.billrunId !== undefined && {billrunId: params.billrunId}),
+        ...(params.mandant !== undefined && {mandant: params.mandant}),
         profile: params.profile,
         fileName: path.basename(params.s3Key),
         mediaType: params.mediaType,
@@ -82,7 +90,9 @@ export async function publishEInvoiceCreated(params: EInvoiceCreatedEventParams)
         source: params.source,
         billingDocumentType: params.billingDocumentType,
         profile: params.profile,
-        mediaType: params.mediaType
+        mediaType: params.mediaType,
+        ...(params.billrunId !== undefined && {billrunId: params.billrunId}),
+        ...(params.mandant !== undefined && {mandant: params.mandant})
     }
 
     await snsClient.send(

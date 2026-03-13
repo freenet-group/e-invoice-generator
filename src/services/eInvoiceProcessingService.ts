@@ -125,6 +125,8 @@ export class EInvoiceProcessingService {
             billingDocumentId: invoice.invoiceNumber,
             partyId: invoice.source.partyId,
             billingAccountId: invoice.source.billingAccountId,
+            billrunId: invoice.source.billrunId,
+            mandant: invoice.source.mandant,
             s3Key,
             bucketName: process.env['BUCKET_NAME'] ?? '',
             profile,

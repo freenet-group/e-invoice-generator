@@ -93,7 +93,9 @@ function mapMcbsToCommonInvoiceInternal(rawData: RawInvoiceData): CommonInvoice 
             system: rawData.metadata.source,
             timestamp: rawData.metadata.timestamp,
             partyId: resolvePartyId(doc),
-            billingAccountId: resolveBillingAccountId(header)
+            billingAccountId: resolveBillingAccountId(header),
+            billrunId: toStringOrUndefined(header['BILLRUN_ID']),
+            mandant: toStringOrUndefined(header['MANDANT'])
         },
         seller,
         buyer,
