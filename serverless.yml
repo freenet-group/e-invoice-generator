@@ -18,6 +18,7 @@ provider:
   # Environment Variables
   environment:
     AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+    SERVICE_NAME: ${self:service}
     DLQ_QUEUE_URL: !Ref InvoiceProcessingDLQ
     BUCKET_NAME: ${self:custom.bucketName}
     XML_PREFIX: ${self:custom.prefixes.xml}

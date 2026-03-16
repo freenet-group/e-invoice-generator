@@ -1,7 +1,7 @@
 {
-  "name": "mcbs-zugferd-converter",
+  "name": "e-invoice-generator",
   "version": "1.0.0",
-  "description": "MCBS to ZUGFeRD E-Invoice Converter - AWS Lambda",
+  "description": "ZUGFeRD E-Invoice Generator - AWS Lambda",
   "main": "dist/index.js",
   "validatorConfig": {
     "validatorVersion": "1.6.0",
