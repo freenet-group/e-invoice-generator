@@ -9,6 +9,7 @@ on:
 env:
   NODE_VERSION: '22'
   JAVA_VERSION: '17' # Für KOSIT Validator (Java-basiert)
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ============================================================
