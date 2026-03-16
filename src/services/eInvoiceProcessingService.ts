@@ -59,7 +59,13 @@ export class EInvoiceProcessingService {
                         {err: error, messageId: record.messageId, source: error.source},
                         `Fatal error – no retry, routing to Fatal DLQ: ${record.messageId}`
                     )
-                    await sendToFatalDlq(record, error)
+                    try {
+                        await sendToFatalDlq(record, error)
+                    } catch (dlqError) {
+                        // Fatal DLQ send fehlgeschlagen → als transient behandeln, damit SQS retried
+                        this.logger.error({err: dlqError, messageId: record.messageId}, 'Failed to send to Fatal DLQ – falling back to batchItemFailures')
+                        batchItemFailures.push({itemIdentifier: record.messageId})
+                    }
                     // Nicht in batchItemFailures → SQS behandelt die Message als erfolgreich verarbeitet
                 } else {
                     this.logger.error({err: error, messageId: record.messageId}, `Failed to process record ${record.messageId}`)

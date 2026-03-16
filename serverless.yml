@@ -336,6 +336,10 @@ resources:
                     - s3:GetObject
                     - s3:PutObject
                   Resource: 'arn:aws:s3:::${self:custom.bucketName}/*'
+                - Effect: Allow
+                  Action:
+                    - s3:ListBucket
+                  Resource: 'arn:aws:s3:::${self:custom.bucketName}'
                 # SQS: Messages aus Processing Queue und DLQ verarbeiten
                 - Effect: Allow
                   Action:

@@ -221,7 +221,7 @@ const McbsPaymentModeSchema = z.object({
     BANK_ACCOUNT: z.string().optional().nullable(),
     BANK_CODE: z.string().optional().nullable(),
     CARD_END_DATE: z.string().optional(),
-    PAYMENT_TERM: z.coerce.number().optional(),
+    PAYMENT_TERM: z.coerce.string().optional(),
     DUE_DATE: germanDate.optional(),
     CARD_PROVIDER: z.string().optional(),
     CARD_NUMBER: z.string().optional(),
