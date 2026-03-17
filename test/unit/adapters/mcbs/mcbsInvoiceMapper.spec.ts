@@ -14,6 +14,7 @@ function buildXml(overrides: {
     invoiceNo?: string
     invoiceDef?: string
     paymentType?: string
+    sepaMandate?: string
     unpaid?: string
     vatRate?: string
     diffVatRate?: string
@@ -26,12 +27,14 @@ function buildXml(overrides: {
     unitContractDataXml?: string
     brandXml?: string
     extraFrameXml?: string
+    recipientAddressXml?: string
 }): string {
     const {
         type = 'RE',
         invoiceNo = 'INV-001',
         invoiceDef = 'INV-DEF-001',
         paymentType = 'INVOICE',
+        sepaMandate,
         unpaid = '0',
         vatRate = '19',
         diffVatRate = '19',
@@ -43,7 +46,8 @@ function buildXml(overrides: {
         periodString = '',
         unitContractDataXml = '',
         brandXml = '<BRAND><DESC>Test Brand</DESC></BRAND>',
-        extraFrameXml = ''
+        extraFrameXml = '',
+        recipientAddressXml
     } = overrides
 
     const customerContent = [
@@ -78,12 +82,15 @@ function buildXml(overrides: {
   <RECIPIENT>
     <PERSON_NO>${recipientPersonNo}</PERSON_NO>
     <ADDRESS>
-      <FIRSTNAME>Max</FIRSTNAME>
+      ${
+          recipientAddressXml ??
+          `<FIRSTNAME>Max</FIRSTNAME>
       <NAME>Mustermann</NAME>
       <STREET>Musterstr. 1</STREET>
       <CITY>Berlin</CITY>
       <POSTCODE>10001</POSTCODE>
-      <COUNTRY>DE</COUNTRY>
+      <COUNTRY>DE</COUNTRY>`
+      }
     </ADDRESS>
   </RECIPIENT>
   <INVOICE_DATA>
@@ -92,6 +99,7 @@ function buildXml(overrides: {
       <DUE_DATE>01.02.2025</DUE_DATE>
       <BANK_ACCOUNT>DE89370400440532013000</BANK_ACCOUNT>
       <BANK_CODE>COBADEFFXXX</BANK_CODE>
+      ${sepaMandate === undefined ? '' : `<SEPA_MANDATE>${sepaMandate}</SEPA_MANDATE>`}
     </PAYMENT_MODE>
     <FRAMES>
       <AMOUNTS>
@@ -166,10 +174,134 @@ describe('mcbsInvoiceMapper', () => {
         expect(result.paymentMeans[0]?.typeCode).toBe(PaymentMeansCode.SEPA_DIRECT_DEBIT)
     })
 
+    it('sets mandate.reference and mandate.creditorReferenceId for SEPADEBIT', () => {
+        const raw = parseMcbsXml(buildXml({paymentType: 'SEPADEBIT', sepaMandate: 'MANDATE-REF-001'}), 'test', baseMetadata)
+        const result = mapMcbsToCommonInvoice(raw)
+        expect(result.paymentMeans[0]?.mandate?.reference).toBe('MANDATE-REF-001')
+        expect(result.paymentMeans[0]?.mandate?.creditorReferenceId).toBeDefined()
+    })
+
+    it('sets mandate with creditorReferenceId even without SEPA_MANDATE for SEPADEBIT', () => {
+        const raw = parseMcbsXml(buildXml({paymentType: 'SEPADEBIT'}), 'test', baseMetadata)
+        const result = mapMcbsToCommonInvoice(raw)
+        expect(result.paymentMeans[0]?.mandate?.creditorReferenceId).toBeDefined()
+        expect(result.paymentMeans[0]?.mandate?.reference).toBeUndefined()
+    })
+
+    it('does not set mandate for non-SEPA payment types', () => {
+        const raw = parseMcbsXml(buildXml({paymentType: 'INVOICE'}), 'test', baseMetadata)
+        const result = mapMcbsToCommonInvoice(raw)
+        expect(result.paymentMeans[0]?.mandate).toBeUndefined()
+    })
+
+    it('does not set mandate for SEPACREDIT (Überweisung, kein Lastschrift-Mandat)', () => {
+        const raw = parseMcbsXml(buildXml({paymentType: 'SEPACREDIT', sepaMandate: 'SHOULD-BE-IGNORED'}), 'test', baseMetadata)
+        const result = mapMcbsToCommonInvoice(raw)
+        expect(result.paymentMeans[0]?.mandate).toBeUndefined()
+    })
+
     it('maps other payment type to CREDIT_TRANSFER', () => {
         const raw = parseMcbsXml(buildXml({paymentType: 'INVOICE'}), 'test', baseMetadata)
         const result = mapMcbsToCommonInvoice(raw)
         expect(result.paymentMeans[0]?.typeCode).toBe(PaymentMeansCode.CREDIT_TRANSFER)
+    })
+
+    // ── buyer name + department ──
+
+    it('uses only NAME as buyer name when SHORT_OPENING is Firma', () => {
+        const raw = parseMcbsXml(
+            buildXml({
+                recipientAddressXml:
+                    '<SHORT_OPENING>Firma</SHORT_OPENING><NAME>HaaPACS GmbH</NAME><STREET>Bahnhofstr. 19c</STREET><CITY>Schriesheim</CITY><POSTCODE>69198</POSTCODE>'
+            }),
+            'test',
+            baseMetadata
+        )
+        const result = mapMcbsToCommonInvoice(raw)
+        expect(result.buyer.name).toBe('HaaPACS GmbH')
+    })
+
+    it('maps DEPARTMENT to buyer.contact.name', () => {
+        const raw = parseMcbsXml(
+            buildXml({
+                recipientAddressXml:
+                    '<SHORT_OPENING>Firma</SHORT_OPENING><NAME>HaaPACS GmbH</NAME><DEPARTMENT>Dr. Uwe Haag</DEPARTMENT><STREET>Bahnhofstr. 19c</STREET><CITY>Schriesheim</CITY><POSTCODE>69198</POSTCODE>'
+            }),
+            'test',
+            baseMetadata
+        )
+        const result = mapMcbsToCommonInvoice(raw)
+        expect(result.buyer.contact?.name).toBe('Dr. Uwe Haag')
+    })
+
+    it('leaves contact undefined when DEPARTMENT is absent', () => {
+        const raw = parseMcbsXml(buildXml({}), 'test', baseMetadata)
+        const result = mapMcbsToCommonInvoice(raw)
+        expect(result.buyer.contact).toBeUndefined()
+    })
+
+    it('maps ADDITIONAL to buyer postalAddress.addressLine for private person', () => {
+        const raw = parseMcbsXml(
+            buildXml({
+                recipientAddressXml:
+                    '<FIRSTNAME>Max</FIRSTNAME><NAME>Mustermann</NAME><ADDITIONAL>c/o Hausverwaltung XY</ADDITIONAL><STREET>Musterstr. 1</STREET><CITY>Berlin</CITY><POSTCODE>10001</POSTCODE>'
+            }),
+            'test',
+            baseMetadata
+        )
+        const result = mapMcbsToCommonInvoice(raw)
+        expect(result.buyer.postalAddress.addressLine).toBe('c/o Hausverwaltung XY')
+        expect(result.buyer.contact).toBeUndefined()
+    })
+
+    it('combines DEPARTMENT and ADDITIONAL into addressLine for private person', () => {
+        const raw = parseMcbsXml(
+            buildXml({
+                recipientAddressXml:
+                    '<SHORT_OPENING>Frau</SHORT_OPENING><FIRSTNAME>Christine</FIRSTNAME><NAME>Ringleb</NAME>' +
+                    '<DEPARTMENT>c/o Norman Pempel - Betreuer</DEPARTMENT>' +
+                    '<ADDITIONAL>Altmärkischer Betreuungsverein e.V.</ADDITIONAL>' +
+                    '<STREET>Bismarker Str. 36</STREET><CITY>Osterburg</CITY><POSTCODE>39606</POSTCODE>'
+            }),
+            'test',
+            baseMetadata
+        )
+        const result = mapMcbsToCommonInvoice(raw)
+        expect(result.buyer.postalAddress.addressLine).toBe('c/o Norman Pempel - Betreuer, Altmärkischer Betreuungsverein e.V.')
+        expect(result.buyer.contact).toBeUndefined()
+    })
+
+    it('maps DEPARTMENT to addressLine (not contact) when only DEPARTMENT is present for private person', () => {
+        const raw = parseMcbsXml(
+            buildXml({
+                recipientAddressXml:
+                    '<SHORT_OPENING>Frau</SHORT_OPENING><FIRSTNAME>Christine</FIRSTNAME><NAME>Ringleb</NAME>' +
+                    '<DEPARTMENT>c/o Norman Pempel</DEPARTMENT>' +
+                    '<STREET>Bismarker Str. 36</STREET><CITY>Osterburg</CITY><POSTCODE>39606</POSTCODE>'
+            }),
+            'test',
+            baseMetadata
+        )
+        const result = mapMcbsToCommonInvoice(raw)
+        expect(result.buyer.postalAddress.addressLine).toBe('c/o Norman Pempel')
+        expect(result.buyer.contact).toBeUndefined()
+    })
+
+    it('maps ADDITIONAL to addressLine for company (not DEPARTMENT)', () => {
+        const raw = parseMcbsXml(
+            buildXml({
+                recipientAddressXml:
+                    '<SHORT_OPENING>Firma</SHORT_OPENING><NAME>HaaPACS GmbH</NAME>' +
+                    '<DEPARTMENT>Dr. Uwe Haag</DEPARTMENT>' +
+                    '<ADDITIONAL>Gebäude B</ADDITIONAL>' +
+                    '<STREET>Bahnhofstr. 19c</STREET><CITY>Schriesheim</CITY><POSTCODE>69198</POSTCODE>'
+            }),
+            'test',
+            baseMetadata
+        )
+        const result = mapMcbsToCommonInvoice(raw)
+        expect(result.buyer.contact?.name).toBe('Dr. Uwe Haag')
+        expect(result.buyer.postalAddress.addressLine).toBe('Gebäude B')
     })
 
     // ── totalPrepaidAmount ──

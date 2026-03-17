@@ -111,7 +111,7 @@ Properties:
         {
           "type": "metric", "x": 0, "y": 18, "width": 12, "height": 6,
           "properties": {
-            "title": "SNS Output – Published Messages (sollte = Lambda Invocations sein)",
+            "title": "SNS Output – Published Messages (sollte = SQS Visible sein)",
             "metrics": [
               ["AWS/SNS", "NumberOfMessagesSent",        "TopicName", "${self:service}-einvoice-created-${self:provider.stage}", {"stat": "Sum", "label": "Sent"}],
               ["AWS/SNS", "NumberOfNotificationsFailed", "TopicName", "${self:service}-einvoice-created-${self:provider.stage}", {"stat": "Sum", "label": "Failed", "color": "#d62728"}]
@@ -122,7 +122,7 @@ Properties:
         {
           "type": "metric", "x": 12, "y": 18, "width": 12, "height": 6,
           "properties": {
-            "title": "SNS vs. Lambda – Verhältnis (Doppel-Publishing-Erkennung)",
+            "title": "SNS vs. Lambda – Verhältnis (bei batchSize=10: SNS ≈ 10× Invocations erwartet)",
             "metrics": [
               ["AWS/Lambda", "Invocations", "FunctionName", "e-invoice-generator-${self:provider.stage}-createEInvoice", {"stat": "Sum", "label": "Lambda Invocations"}],
               ["AWS/SNS",    "NumberOfMessagesSent", "TopicName", "${self:service}-einvoice-created-${self:provider.stage}", {"stat": "Sum", "label": "SNS Sent", "color": "#ff7f0e"}]

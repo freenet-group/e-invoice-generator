@@ -263,6 +263,7 @@ export function buildBuyer(ci: CommonInvoice): Record<string, unknown> {
         },
         'cac:PostalAddress': {
             'cbc:StreetName': buyer.postalAddress.streetName ?? '',
+            ...(buyer.postalAddress.addressLine !== undefined && {'cbc:AdditionalStreetName': buyer.postalAddress.addressLine}),
             'cbc:CityName': buyer.postalAddress.cityName,
             'cbc:PostalZone': buyer.postalAddress.postalCode,
             'cac:Country': {
@@ -277,6 +278,14 @@ export function buildBuyer(ci: CommonInvoice): Record<string, unknown> {
     if (buyer.electronicAddress !== undefined) {
         party['cbc:EndpointID'] = buyer.electronicAddress.value
         party['cbc:EndpointID@schemeID'] = buyer.electronicAddress.schemeId
+    }
+
+    if (buyer.contact !== undefined) {
+        party['cac:Contact'] = {
+            ...(buyer.contact.name !== undefined && {'cbc:Name': buyer.contact.name}),
+            ...(buyer.contact.telephone !== undefined && {'cbc:Telephone': buyer.contact.telephone}),
+            ...(buyer.contact.email !== undefined && {'cbc:ElectronicMail': buyer.contact.email})
+        }
     }
 
     return {'cac:Party': party}

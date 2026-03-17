@@ -210,6 +210,39 @@ describe('eInvoiceMapper', () => {
         expect(party['cbc:EndpointID']).toBe('0088:987654321')
     })
 
+    it('includes contact in buyer when set', () => {
+        const ci: CommonInvoice = {
+            ...baseInvoice,
+            buyer: {
+                ...baseInvoice.buyer,
+                contact: {name: 'Dr. Uwe Haag', telephone: '+49123456', email: 'uwe@example.com'}
+            }
+        }
+        const party = <Record<string, unknown>>buildBuyer(ci)['cac:Party']
+        const contact = <Record<string, unknown>>party['cac:Contact']
+        expect(contact['cbc:Name']).toBe('Dr. Uwe Haag')
+        expect(contact['cbc:Telephone']).toBe('+49123456')
+        expect(contact['cbc:ElectronicMail']).toBe('uwe@example.com')
+    })
+
+    it('omits cac:Contact in buyer when contact is undefined', () => {
+        const ci: CommonInvoice = {...baseInvoice}
+        const party = <Record<string, unknown>>buildBuyer(ci)['cac:Party']
+        expect(party['cac:Contact']).toBeUndefined()
+    })
+
+    it('includes only defined contact fields in buyer', () => {
+        const ci: CommonInvoice = {
+            ...baseInvoice,
+            buyer: {...baseInvoice.buyer, contact: {name: 'Only Name'}}
+        }
+        const party = <Record<string, unknown>>buildBuyer(ci)['cac:Party']
+        const contact = <Record<string, unknown>>party['cac:Contact']
+        expect(contact['cbc:Name']).toBe('Only Name')
+        expect(contact['cbc:Telephone']).toBeUndefined()
+        expect(contact['cbc:ElectronicMail']).toBeUndefined()
+    })
+
     // ── buildPaymentMeans ──
 
     it('includes information in paymentMeans when set', () => {
@@ -227,6 +260,36 @@ describe('eInvoiceMapper', () => {
         }
         const mandate = <Record<string, unknown>>buildPaymentMeans(pm)['cac:PaymentMandate']
         expect(mandate['cbc:ID']).toBe('MANDATE-001')
+    })
+
+    it('omits cac:PaymentMandate when mandate reference is undefined', () => {
+        const pm: CommonInvoice['paymentMeans'][number] = {typeCode: PaymentMeansCode.SEPA_DIRECT_DEBIT}
+        expect(buildPaymentMeans(pm)['cac:PaymentMandate']).toBeUndefined()
+    })
+
+    it('includes cac:CardAccount with primaryAccountNumber and holderName when set', () => {
+        const pm: CommonInvoice['paymentMeans'][number] = {
+            typeCode: PaymentMeansCode.CARD,
+            card: {primaryAccountNumber: '4111', holderName: 'Max Mustermann'}
+        }
+        const card = <Record<string, unknown>>buildPaymentMeans(pm)['cac:CardAccount']
+        expect(card['cbc:PrimaryAccountNumberID']).toBe('4111')
+        expect(card['cbc:HolderName']).toBe('Max Mustermann')
+    })
+
+    it('includes cac:CardAccount with only primaryAccountNumber when holderName is absent', () => {
+        const pm: CommonInvoice['paymentMeans'][number] = {
+            typeCode: PaymentMeansCode.CARD,
+            card: {primaryAccountNumber: '4111'}
+        }
+        const card = <Record<string, unknown>>buildPaymentMeans(pm)['cac:CardAccount']
+        expect(card['cbc:PrimaryAccountNumberID']).toBe('4111')
+        expect(card['cbc:HolderName']).toBeUndefined()
+    })
+
+    it('omits cac:CardAccount when card is undefined', () => {
+        const pm: CommonInvoice['paymentMeans'][number] = {typeCode: PaymentMeansCode.CREDIT_TRANSFER}
+        expect(buildPaymentMeans(pm)['cac:CardAccount']).toBeUndefined()
     })
 
     // ── buildInvoiceLines ──

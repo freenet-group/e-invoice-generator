@@ -56,17 +56,36 @@ function mapMcbsToCommonInvoiceInternal(rawData: RawInvoiceData): CommonInvoice 
     const groupShortcut = toStringOrUndefined(brand?.['GROUP_SHORTCUT'])
     const seller: CommonInvoice['seller'] = getSellerByGroupShortcut(groupShortcut)
 
+    // Firmenkunden haben SHORT_OPENING='Firma' und nur NAME (kein FIRSTNAME)
+    const isCompany = address['SHORT_OPENING'] === 'Firma'
+    const buyerName = isCompany
+        ? (toStringOrUndefined(address['NAME']) ?? '')
+        : [toStringOrUndefined(address['FIRSTNAME']), toStringOrUndefined(address['NAME'])]
+              .filter((s): s is string => s !== undefined && s !== '')
+              .join(' ')
+    const department = toStringOrUndefined(address['DEPARTMENT'])
+    const additional = toStringOrUndefined(address['ADDITIONAL'])
+
+    // Bei Firmen: DEPARTMENT = Ansprechpartner → contact.name, ADDITIONAL = Adresszusatz → addressLine
+    // Bei Privatpersonen: DEPARTMENT = c/o o.ä. → Adresszusatz, zusammen mit ADDITIONAL in addressLine
+    const privateAddressLine = [department, additional].filter((s): s is string => s !== undefined && s !== '').join(', ')
+    const nonEmptyPrivateAddressLine = privateAddressLine === '' ? undefined : privateAddressLine
+    const addressLine = isCompany ? additional : nonEmptyPrivateAddressLine
+    const contactName = isCompany ? department : undefined
+
     const buyer: CommonInvoice['buyer'] = {
-        name: [toStringOrUndefined(address['FIRSTNAME']), toStringOrUndefined(address['NAME'])].filter(Boolean).join(' '),
+        name: buyerName,
         postalAddress: {
             streetName: toStringOrUndefined(address['STREET']) ?? '',
             cityName: toStringOrUndefined(address['CITY']) ?? '',
             postalCode: toStringOrUndefined(address['POSTCODE']) ?? '',
-            countryCode: toStringOrUndefined(address['COUNTRY']) ?? 'DE'
-        }
+            countryCode: toStringOrUndefined(address['COUNTRY']) ?? 'DE',
+            ...(addressLine !== undefined && {addressLine})
+        },
+        ...(contactName !== undefined && {contact: {name: contactName}})
     }
 
-    const paymentMeans: CommonInvoice['paymentMeans'] = [buildMcbsPaymentMeans(paymentMode, header)]
+    const paymentMeans: CommonInvoice['paymentMeans'] = [buildMcbsPaymentMeans(paymentMode, header, seller)]
 
     const taxes = mapTaxes(diffVats, amounts)
 
@@ -233,7 +252,9 @@ function extractFromGroup(grp: McbsBillitemGrpItem, unitContext: UnitContext): C
     const billitemArray: McbsBillItem[] = Array.isArray(billitems?.['BILLITEM'])
         ? billitems['BILLITEM'] // Typ bereits McbsBillItem[]
         : []
-    return billitemArray.map((item: McbsBillItem, index: number) => mapBillItem(item, index + 1, unitContext))
+    return billitemArray
+        .filter((item: McbsBillItem) => item['INFO_ITEM'] !== 'TRUE')
+        .map((item: McbsBillItem, index: number) => mapBillItem(item, index + 1, unitContext))
 }
 
 function resolveSubscriberInfo(unitContext: UnitContext): CommonInvoice['lineItems'][number]['subscriberInfo'] {
@@ -338,7 +359,8 @@ function resolvePaymentTypeCode(paymentType: McbsDocument['INVOICE_DATA']['PAYME
 
 function buildMcbsPaymentMeans(
     paymentMode: McbsDocument['INVOICE_DATA']['PAYMENT_MODE'],
-    header: McbsDocument['HEADER']
+    header: McbsDocument['HEADER'],
+    seller: CommonInvoice['seller']
 ): CommonInvoice['paymentMeans'][number] {
     const paymentType = paymentMode.PAYMENT_TYPE
     const useCustomerBank = paymentType === 'SEPADEBIT' || paymentType === 'SEPACREDIT'
@@ -358,6 +380,13 @@ function buildMcbsPaymentMeans(
         payeeBic = header.CLIENTBANK_CODE ?? undefined
     }
 
+    const mandateReference = paymentMode.SEPA_MANDATE ?? undefined
+    // SEPA-Mandat (BT-89/BT-90) nur bei Lastschrift – nicht bei Überweisung (SEPACREDIT)
+    const mandate =
+        paymentType === 'SEPADEBIT' && (mandateReference !== undefined || seller.creditorId !== undefined)
+            ? {reference: mandateReference, creditorReferenceId: seller.creditorId}
+            : undefined
+
     return {
         typeCode: resolvePaymentTypeCode(paymentType),
         ...(payeeIban !== undefined && {payeeAccount: {iban: payeeIban}}),
@@ -367,7 +396,8 @@ function buildMcbsPaymentMeans(
                 primaryAccountNumber: paymentMode.CARD_NUMBER ?? undefined,
                 holderName: paymentMode.CARD_HOLDER ?? undefined
             }
-        })
+        }),
+        ...(mandate !== undefined && {mandate})
     }
 }
 

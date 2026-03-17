@@ -55,13 +55,14 @@ function xmlArray<T extends z.ZodType>(schema: T): z.ZodType<z.infer<T>[]> {
 
 const McbsBillItemSchema = z.object({
     SEQUENCE_NO: z.coerce.number().optional(),
+    INFO_ITEM: z.string().optional(),
     COUNTER: z.coerce.number().optional(),
     TYPE: z.string().optional(),
     PRODUCT_TYPE: z.string().optional(),
     PRODUCT_NAME: z.coerce.string(),
     PRODUCT_CODE: z.coerce.string().optional(),
     PERIOD: z.string().optional(),
-    CHARGE: germanDecimal,
+    CHARGE: germanDecimal.or(z.literal('').transform(() => 0)).default(0),
     VAT_RATE: z.union([z.coerce.number(), z.literal('INCLUDED')]).default(19),
     BILLING_REF: z.coerce.string().optional(),
     CONNECT_CAT: z.string().optional(),
@@ -266,9 +267,11 @@ const McbsHeaderSchema = z.object({
 // ==================== ADDRESS ====================
 
 const McbsAddressSchema = z.object({
-    SHORT_OPENING: z.string().optional(),
+    SHORT_OPENING: z.enum(['Herr', 'Frau', 'Firma']).optional(),
     FIRSTNAME: z.string().optional(),
     NAME: z.string().optional(),
+    DEPARTMENT: z.string().optional(),
+    ADDITIONAL: z.string().optional(),
     STREET: z.string().optional(),
     POSTCODE: z.coerce.string().optional(),
     CITY: z.string().optional(),

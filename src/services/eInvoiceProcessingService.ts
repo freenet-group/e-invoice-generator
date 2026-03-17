@@ -1,4 +1,5 @@
 import path from 'node:path'
+import {performance} from 'node:perf_hooks'
 import {SQSRecord} from 'aws-lambda'
 import {z} from 'zod'
 import {AdapterRegistry} from '../adapters/adapterRegistry'
@@ -99,9 +100,15 @@ export class EInvoiceProcessingService {
         }
         const adapter = this.adapterRegistry.getAdapter(activeAdapter)
 
+        const t0 = performance.now()
         const rawData = await adapter.loadInvoiceData(eventBridgeEvent.detail)
+        const tXml = performance.now()
+
         const invoice = adapter.mapToCommonModel(rawData)
+        const tMapper = performance.now()
+
         const pdf = await adapter.loadPDF(rawData)
+        const tPdf = performance.now()
 
         // Format: aus Environment — XRechnung-Erkennung kommt später
         let profile: InvoiceFormat
@@ -123,9 +130,27 @@ export class EInvoiceProcessingService {
                   }
                 : {})
         })
+        const tGenerate = performance.now()
 
         const sourceFilename = path.basename(rawData.metadata.sourcePdfKey)
         const s3Key = await this.uploadResult(zugferdResult, sourceFilename)
+        const tUpload = performance.now()
+
+        this.logger.info(
+            {
+                messageId: record.messageId,
+                invoiceNumber: invoice.invoiceNumber,
+                timings: {
+                    loadXml_ms: Math.round(tXml - t0),
+                    mcbsMapper_ms: Math.round(tMapper - tXml),
+                    loadPdf_ms: Math.round(tPdf - tMapper),
+                    eInvoiceGenerate_ms: Math.round(tGenerate - tPdf),
+                    uploadZugferd_ms: Math.round(tUpload - tGenerate),
+                    total_ms: Math.round(tUpload - t0)
+                }
+            },
+            'Processing timings'
+        )
 
         const billingDocumentType = resolveBillingDocumentType(invoice.invoiceType)
         const mediaType = isXRechnung ? 'application/xml' : 'application/pdf'
