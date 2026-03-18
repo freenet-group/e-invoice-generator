@@ -560,33 +560,107 @@ Mit `errorSource` lässt sich die betroffene Quelldatei direkt in S3 identifizie
 aws s3 cp s3://mcbs-invoices-{stage}/{errorSource} /tmp/failed-invoice.xml
 ```
 
-### SNS Alert Topic abonnieren
+### Alert Management: CloudWatch Alarms → SNS → AWS Chatbot → Slack
 
-Der Topic-ARN ist ein Stack Output (`AlertTopicARN`) und hat folgendes deterministisches Schema:
+Der Service verwendet **CloudWatch Alarms** als primären Alert-Mechanismus. Alarms aggregieren Metriken und senden bei Schwellwert-Überschreitung **eine** Nachricht auf das SNS Alert Topic — kein Alert-Storm bei vielen gleichzeitigen Fehlern.
+
+#### Definierte Alarms (automatisch vom Stack angelegt)
+
+| Alarm                                            | Trigger                                            | Bedeutung                                                                       |
+| ------------------------------------------------ | -------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `e-invoice-generator-dlq-messages-{stage}`       | DLQ `ApproximateNumberOfMessagesVisible` > 0       | Nachrichten nach 3× Retry nicht verarbeitbar — transientes Infrastrukturproblem |
+| `e-invoice-generator-fatal-dlq-messages-{stage}` | Fatal DLQ `ApproximateNumberOfMessagesVisible` > 0 | Deterministischer Fehler — Dev-Eingriff erforderlich                            |
+| `e-invoice-generator-lambda-errors-{stage}`      | Lambda `Errors` > 0 / Minute                       | Unerwarteter Lambda-Fehler (Timeout, OOM, unhandled exception)                  |
+
+Alle Alarms senden auch eine `OK`-Nachricht, wenn der Zustand sich wieder normalisiert hat (z. B. DLQ leer nach manuellem Replay).
+
+#### SNS Alert Topic
+
+Der Topic-ARN ist ein Stack Output (`AlertTopicARN`):
 
 ```
 arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-alerts-{stage}
 ```
 
-**Email-Subscription einrichten** (einmalig pro Stage):
+#### Operations Setup: AWS Chatbot → Slack (empfohlen)
 
-```bash
-aws sns subscribe \
-  --topic-arn arn:aws:sns:eu-central-1:{accountId}:e-invoice-generator-alerts-{stage} \
-  --protocol email \
-  --notification-endpoint operations@freenet.ag \
-  --region eu-central-1
+AWS Chatbot leitet SNS-Nachrichten formatiert in Slack weiter — kein eigener Code, keine Lambda, reine AWS-Konfiguration.
+
+**Einmalig pro AWS-Account (in der AWS Console):**
+
+1. **AWS Chatbot öffnen**: `https://console.aws.amazon.com/chatbot`
+2. **Slack Workspace verbinden**: „Configure new client" → Slack → Workspace autorisieren
+3. **Neuen Channel konfigurieren**:
+   - Channel: `#e-invoice-alerts-prod` (bzw. `-staging`)
+   - SNS Topic: `e-invoice-generator-alerts-{stage}` auswählen
+   - IAM Role: AWS Chatbot legt automatisch eine an
+4. **Fertig** — ab jetzt landen CW-Alarm-Nachrichten im Slack-Channel
+
+**Was Operations in Slack sieht:**
+
+```
+🚨 ALARM: e-invoice-generator-fatal-dlq-messages-prod
+
+State:      ALARM (war: OK)
+Reason:     Threshold crossed: 1 datapoint [1.0] > 0.0
+Queue:      mcbs-invoice-processing-fatal-dlq-prod
+Time:       2026-03-18T09:15:00Z
+
+[View Alarm in CloudWatch]  [View Queue in SQS Console]
 ```
 
-AWS schickt eine Bestätigungs-E-Mail — der Link darin muss geklickt werden, bevor Alerts zugestellt werden.
+```
+✅ OK: e-invoice-generator-dlq-messages-prod
 
-Für weitergehende Automatisierung (PagerDuty, Jira-Tickets, Auto-Remediation) siehe [docs/OPERATIONS_RUNBOOK.md](docs/OPERATIONS_RUNBOOK.md).
+State:      OK (war: ALARM)
+Reason:     Threshold crossed: 1 datapoint [0.0] <= 0.0
+Time:       2026-03-18T11:30:00Z
+```
 
-**Alarms** bei:
+#### Was Operations bei einem ALARM tun muss
 
-- Messages in Dead Letter Queue (`maxReceiveCount: 3`)
-- Lambda Error Rate >10/5min
-- Queue Depth >10.000
+**DLQ Alarm** (`dlq-messages`):
+
+```bash
+# 1. Wie viele Messages sind in der DLQ?
+aws sqs get-queue-attributes \
+  --queue-url https://sqs.eu-central-1.amazonaws.com/{accountId}/mcbs-invoice-processing-dlq-{stage} \
+  --attribute-names ApproximateNumberOfMessages
+
+# 2. CloudWatch Logs des DLQ Processors prüfen (enthält body, receiveCount, sentAt)
+# Log Group: /aws/lambda/e-invoice-generator-{stage}-processDLQ
+
+# 3. Wenn das Problem behoben ist: Messages zurück in die Processing Queue
+aws sqs start-message-move-task \
+  --source-arn arn:aws:sqs:eu-central-1:{accountId}:mcbs-invoice-processing-dlq-{stage} \
+  --destination-arn arn:aws:sqs:eu-central-1:{accountId}:mcbs-invoice-processing-{stage}
+```
+
+**Fatal DLQ Alarm** (`fatal-dlq-messages`) → **Dev-Team benachrichtigen**:
+
+```bash
+# CloudWatch Logs des Fatal DLQ Processors prüfen – enthält errorSource und errorMessage
+# Log Group: /aws/lambda/e-invoice-generator-{stage}-processFatalDLQ
+
+# Betroffene XML-Datei aus S3 laden (errorSource aus dem Log)
+aws s3 cp s3://mcbs-invoices-{stage}/{errorSource} /tmp/failed-invoice.xml
+```
+
+Fatal-DLQ-Nachrichten erfordern immer eine Code- oder Datenkorrektur — sie können **nicht** durch Message-Replay behoben werden.
+
+**Lambda Errors Alarm** (`lambda-errors`):
+
+```bash
+# Fehler-Details in CloudWatch Logs Insights
+# Log Group: /aws/lambda/e-invoice-generator-{stage}-createEInvoice
+# Query:
+fields @timestamp, @message
+| filter @message like "ERROR"
+| sort @timestamp desc
+| limit 20
+```
+
+Typische Ursachen: S3-Throttling, temporäre Netzwerkfehler, Memory-Overflow. In den meisten Fällen löst sich der Alarm von selbst (SQS Retry), wenn der Alarm sich nicht in OK zurückversetzt, ist Dev-Eingriff nötig.
 
 ---
 

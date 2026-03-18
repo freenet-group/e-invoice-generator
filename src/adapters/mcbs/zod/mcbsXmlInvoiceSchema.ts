@@ -148,12 +148,12 @@ const McbsUnitSchema = z.object({
 const McbsFrameSchema = z.object({
     ID: z.string().optional(),
     TITLE: z.string().optional(),
-    AREA: z
-        .object({
+    AREA: xmlArray(
+        z.object({
             ID: z.string().optional(),
             UNIT: xmlArray(McbsUnitSchema)
         })
-        .optional()
+    ).optional()
 })
 
 // ==================== AMOUNTS ====================

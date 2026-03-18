@@ -507,6 +507,72 @@ describe('mcbsInvoiceMapper', () => {
         expect(ids).not.toContain(99)
     })
 
+    // ── SUMMARY frame filtered out ──
+
+    it('filters out SUMMARY frame from line items', () => {
+        const summaryFrame = `
+            <FRAME>
+                <ID>SUMMARY</ID>
+                <AREA>
+                    <UNIT>
+                        <SECTIONS>
+                            <SECTION>
+                                <BILLITEM_GRPS>
+                                    <BILLITEM_GRP>
+                                        <BILLITEMS>
+                                            <BILLITEM>
+                                                <SEQUENCE_NO>98</SEQUENCE_NO>
+                                                <PRODUCT_NAME>Zusammenfassung</PRODUCT_NAME>
+                                                <CHARGE>5,00</CHARGE>
+                                                <VAT_RATE>19</VAT_RATE>
+                                            </BILLITEM>
+                                        </BILLITEMS>
+                                    </BILLITEM_GRP>
+                                </BILLITEM_GRPS>
+                            </SECTION>
+                        </SECTIONS>
+                    </UNIT>
+                </AREA>
+            </FRAME>`
+        const raw = parseMcbsXml(buildXml({extraFrameXml: summaryFrame}), 'test', baseMetadata)
+        const result = mapMcbsToCommonInvoice(raw)
+        const ids = result.lineItems.map((i) => i.id)
+        expect(ids).not.toContain(98)
+    })
+
+    // ── RGUB frame filtered out ──
+
+    it('filters out RGUB frame from line items', () => {
+        const rgubFrame = `
+            <FRAME>
+                <ID>RGUB</ID>
+                <AREA>
+                    <UNIT>
+                        <SECTIONS>
+                            <SECTION>
+                                <BILLITEM_GRPS>
+                                    <BILLITEM_GRP>
+                                        <BILLITEMS>
+                                            <BILLITEM>
+                                                <SEQUENCE_NO>97</SEQUENCE_NO>
+                                                <PRODUCT_NAME>Rechnungsgebühr</PRODUCT_NAME>
+                                                <CHARGE>2,50</CHARGE>
+                                                <VAT_RATE>19</VAT_RATE>
+                                            </BILLITEM>
+                                        </BILLITEMS>
+                                    </BILLITEM_GRP>
+                                </BILLITEM_GRPS>
+                            </SECTION>
+                        </SECTIONS>
+                    </UNIT>
+                </AREA>
+            </FRAME>`
+        const raw = parseMcbsXml(buildXml({extraFrameXml: rgubFrame}), 'test', baseMetadata)
+        const result = mapMcbsToCommonInvoice(raw)
+        const ids = result.lineItems.map((i) => i.id)
+        expect(ids).not.toContain(97)
+    })
+
     // ── CONTRACT_DATA: TELCO with all context fields ──
 
     it('maps telco contract data to subscriberInfo and contractReference', () => {

@@ -385,6 +385,99 @@ resources:
           - Key: Stage
             Value: ${self:provider.stage}
 
+    # SNS Topic Policy: erlaubt CloudWatch Alarms, auf dem AlertTopic zu publizieren
+    AlertTopicPolicy:
+      Type: AWS::SNS::TopicPolicy
+      Properties:
+        Topics:
+          - !Ref AlertTopic
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            # Lambda-Rolle: DLQ-Prozessoren dürfen Alerts publizieren
+            - Sid: AllowLambdaPublish
+              Effect: Allow
+              Principal:
+                AWS: !GetAtt LambdaExecutionRole.Arn
+              Action: sns:Publish
+              Resource: !Ref AlertTopic
+            # CloudWatch: Alarms dürfen auf dem Topic publizieren
+            - Sid: AllowCloudWatchAlarms
+              Effect: Allow
+              Principal:
+                Service: cloudwatch.amazonaws.com
+              Action: sns:Publish
+              Resource: !Ref AlertTopic
+              Condition:
+                ArnLike:
+                  aws:SourceArn: !Sub 'arn:aws:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${self:service}-*'
+
+    # DLQ: Alarm wenn Nachrichten in der Queue sichtbar sind (aggregiert, kein Alert-Storm)
+    DlqMessageCountAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-dlq-messages-${self:provider.stage}
+        AlarmDescription: 'DLQ: Nachrichten nach max. Retries nicht verarbeitbar – Verarbeitungsfehler prüfen'
+        Namespace: AWS/SQS
+        MetricName: ApproximateNumberOfMessagesVisible
+        Dimensions:
+          - Name: QueueName
+            Value: !GetAtt InvoiceProcessingDLQ.QueueName
+        Statistic: Maximum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref AlertTopic
+        OKActions:
+          - !Ref AlertTopic
+
+    # Fatal DLQ: Alarm bei jeder neuen Nachricht (deterministischer Fehler – sofort handeln)
+    FatalDlqMessageCountAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-fatal-dlq-messages-${self:provider.stage}
+        AlarmDescription: 'Fatal DLQ: Deterministischer Fehler – manuelle Intervention erforderlich'
+        Namespace: AWS/SQS
+        MetricName: ApproximateNumberOfMessagesVisible
+        Dimensions:
+          - Name: QueueName
+            Value: !GetAtt InvoiceProcessingFatalDLQ.QueueName
+        Statistic: Maximum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref AlertTopic
+        OKActions:
+          - !Ref AlertTopic
+
+    # Lambda Errors: Alarm bei unerwarteten Lambda-Fehlern (Timeouts, OOM, etc.)
+    LambdaErrorAlarm:
+      Type: AWS::CloudWatch::Alarm
+      Properties:
+        AlarmName: ${self:service}-lambda-errors-${self:provider.stage}
+        AlarmDescription: 'Lambda: Unerwartete Fehler (Timeout, OOM, unhandled exception) – CloudWatch Logs prüfen'
+        Namespace: AWS/Lambda
+        MetricName: Errors
+        Dimensions:
+          - Name: FunctionName
+            Value: !Ref CreateEInvoiceLambdaFunction
+        Statistic: Sum
+        Period: 60
+        EvaluationPeriods: 1
+        Threshold: 0
+        ComparisonOperator: GreaterThanThreshold
+        TreatMissingData: notBreaching
+        AlarmActions:
+          - !Ref AlertTopic
+        OKActions:
+          - !Ref AlertTopic
+
     # SQS Queue Policy (allows EventBridge to send messages)
     InvoiceProcessingQueuePolicy:
       Type: AWS::SQS::QueuePolicy

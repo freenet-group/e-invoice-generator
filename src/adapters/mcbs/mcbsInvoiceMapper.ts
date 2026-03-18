@@ -180,7 +180,8 @@ function resolveBillingAccountId(header: McbsDocument['HEADER']): string {
 
 type McbsFrameArray = McbsDocument['INVOICE_DATA']['FRAMES']['FRAME']
 type McbsFrameItem = McbsFrameArray[number]
-type McbsUnitItem = NonNullable<McbsFrameItem['AREA']>['UNIT'][number]
+type McbsAreaItem = NonNullable<McbsFrameItem['AREA']>[number]
+type McbsUnitItem = McbsAreaItem['UNIT'][number]
 type McbsSectionItem = NonNullable<McbsUnitItem['SECTIONS']>['SECTION'][number]
 type McbsBillitemGrpItem = NonNullable<NonNullable<McbsSectionItem['BILLITEM_GRPS']>['BILLITEM_GRP']>[number]
 
@@ -217,17 +218,18 @@ function extractUnitContext(unit: McbsUnitItem): UnitContext {
     }
 }
 
+const EXCLUDED_FRAME_IDS = new Set(['VOUCHERS', 'SUMMARY', 'RGUB'])
+
 function extractLineItems(frame: McbsFrameArray): CommonInvoice['lineItems'] {
     const frameArray = Array.isArray(frame) ? frame : []
-    return frameArray.filter((f: McbsFrameItem) => f['ID'] !== 'VOUCHERS').flatMap((f: McbsFrameItem) => extractFromFrame(f))
+    return frameArray
+        .filter((f: McbsFrameItem) => !EXCLUDED_FRAME_IDS.has(f['ID'] ?? ''))
+        .flatMap((f: McbsFrameItem) => extractFromFrame(f))
 }
 
 function extractFromFrame(f: McbsFrameItem): CommonInvoice['lineItems'] {
-    const area = f['AREA'] // McbsFrameItem bereits typisiert
-    const unitArray: McbsUnitItem[] = Array.isArray(area?.['UNIT'])
-        ? area['UNIT'] // Typ bereits McbsUnitItem[]
-        : []
-    return unitArray.flatMap((unit: McbsUnitItem) => extractFromUnit(unit))
+    const areaArray: McbsAreaItem[] = Array.isArray(f['AREA']) ? f['AREA'] : []
+    return areaArray.flatMap((area: McbsAreaItem) => area['UNIT'].flatMap((unit: McbsUnitItem) => extractFromUnit(unit)))
 }
 
 function extractFromUnit(unit: McbsUnitItem): CommonInvoice['lineItems'] {
