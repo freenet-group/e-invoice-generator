@@ -458,7 +458,15 @@ aws cloudformation describe-stacks \
 
 #### Widgets
 
-Das Dashboard ist in vier Zeilen à drei Widgets (24 Spalten) aufgeteilt:
+Das Dashboard besteht aus einem Alarm-Status-Banner oben und vier Zeilen à drei Metrik-Widgets (24 Spalten).
+
+**Zeile 0 – Alarm Status (Überblick)**
+
+| Widget           | Inhalt                                                | Zweck                                                                                     |
+| ---------------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **Alarm Status** | `lambda-errors`, `dlq-messages`, `fatal-dlq-messages` | Sofortiger GREEN/RED-Überblick ohne Metrik-Interpretation — Einstiegspunkt für Operations |
+
+> Das Alarm-Widget zeigt den aktuellen Zustand der drei CloudWatch Alarms. Ein roter Eintrag bedeutet aktiver Alarm — per Klick gelangt man direkt zum Alarm in CloudWatch. Die historische Alarm-Historie (ALARM → OK-Übergänge) ist im CW-Alarm-Detail einsehbar, auch wenn der aktuelle Zustand wieder grün ist.
 
 **Zeile 1 – Lambda & SQS Durchsatz**
 
@@ -470,21 +478,21 @@ Das Dashboard ist in vier Zeilen à drei Widgets (24 Spalten) aufgeteilt:
 
 **Zeile 2 – Transiente Fehler (DLQ)**
 
-| Widget                                   | Metriken                             | Zweck                                                                |
-| ---------------------------------------- | ------------------------------------ | -------------------------------------------------------------------- |
-| **DLQ – Messages**                       | `Visible`, `Sent` (DLQ)              | Sollte dauerhaft 0 sein; jeder Wert >0 ist ein Incident              |
-| **DLQ Processor – Invocations & Errors** | `Invocations`, `Errors` (processDLQ) | Verarbeitung transient fehlgeschlagener Messages                     |
-| **Lambda Throttles**                     | `Throttles` (alle drei Funktionen)   | Concurrency-Engpässe bei createEInvoice, processDLQ, processFatalDLQ |
+| Widget                                   | Metriken                             | Zweck                                                                                              |
+| ---------------------------------------- | ------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| **DLQ – Messages**                       | `Visible`, `Sent` (DLQ)              | `Visible`: aktuell in Queue; `Sent`: historische Gesamtzahl — Vorfälle auch nach Abholung sichtbar |
+| **DLQ Processor – Invocations & Errors** | `Invocations`, `Errors` (processDLQ) | Verarbeitung transient fehlgeschlagener Messages                                                   |
+| **Lambda Throttles**                     | `Throttles` (alle drei Funktionen)   | Concurrency-Engpässe bei createEInvoice, processDLQ, processFatalDLQ                               |
 
 **Zeile 3 – Deterministische Fehler (Fatal DLQ)**
 
-| Widget                                            | Metriken                                  | Zweck                                                                        |
-| ------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------- |
-| **Fatal DLQ – Messages**                          | `Visible`, `Sent` (Fatal DLQ)             | Sollte dauerhaft 0 sein; roter Alarm-Threshold ab Wert 1                     |
-| **Fatal DLQ Processor – Invocations & Errors**    | `Invocations`, `Errors` (processFatalDLQ) | Verarbeitung deterministisch fehlgeschlagener Messages                       |
-| **Fatal DLQ vs. DLQ – Fehler-Typen im Vergleich** | `Sent` beider DLQ-Queues                  | Zeigt auf einen Blick, ob transiente oder deterministische Fehler dominieren |
+| Widget                                            | Metriken                                  | Zweck                                                                                       |
+| ------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Fatal DLQ – Messages**                          | `Visible`, `Sent` (Fatal DLQ)             | Sollte dauerhaft 0 sein; roter Alarm-Threshold ab Wert 1; `Sent` zeigt historische Vorfälle |
+| **Fatal DLQ Processor – Invocations & Errors**    | `Invocations`, `Errors` (processFatalDLQ) | Verarbeitung deterministisch fehlgeschlagener Messages                                      |
+| **Fatal DLQ vs. DLQ – Fehler-Typen im Vergleich** | `Sent` beider DLQ-Queues                  | Zeigt auf einen Blick, ob transiente oder deterministische Fehler dominieren                |
 
-> **Fatal DLQ Alarm**: Das Widget enthält eine rote horizontale Annotation bei Wert 1. Jeder Eintrag in der Fatal DLQ bedeutet einen deterministischen Fehler, der **Dev-Team-Eingriff erfordert** – die Quelldaten oder der Code müssen korrigiert werden.
+> **Historische Sichtbarkeit**: Auch wenn der Alarm-Status bereits wieder grün ist (DLQ wurde geleert), bleibt der Vorfall in `NumberOfMessagesSent` als Spike sichtbar. Die vollständige Incident-Timeline ist außerdem in der CW-Alarm-Historie und den CloudWatch Logs der DLQ-Processor-Lambdas einsehbar.
 
 **Zeile 4 – SNS Output**
 
